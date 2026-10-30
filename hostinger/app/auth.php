@@ -25,8 +25,11 @@ function public_user(array $u): array {
 }
 
 function batchAktif(): array {
-  return array_map(fn($b) => ['id_batch' => $b['id_batch'], 'nama_pelatihan' => $b['nama_pelatihan'], 'kode_batch' => $b['kode_batch']],
-    rows("SELECT * FROM batch WHERE status = 'aktif' ORDER BY tgl_mulai DESC"));
+  // Batch yang sudah selesai tetap muncul jika ada SKL terbit, agar peserta bisa login untuk mengunduh SKL.
+  return array_map(fn($b) => ['id_batch' => $b['id_batch'], 'nama_pelatihan' => $b['nama_pelatihan'], 'kode_batch' => $b['kode_batch'],
+    'selesai' => $b['status'] !== 'aktif'],
+    rows("SELECT * FROM batch WHERE status = 'aktif' OR id_batch IN (SELECT id_batch FROM skl WHERE status = 'terbit')
+      ORDER BY CASE WHEN status = 'aktif' THEN 0 ELSE 1 END, tgl_mulai DESC"));
 }
 
 function buat_token(array $u, int $simpan): string {
@@ -45,8 +48,10 @@ function loginPeserta(array $data): array {
   if ($kode === '') throw new LmsError('Kode wajib diisi.');
   if ($deviceId === '') throw new LmsError('Perangkat tidak dikenali. Muat ulang halaman.');
   $batch = get_batch((string)($data['id_batch'] ?? ''));
-  if ($batch['status'] !== 'aktif') throw new LmsError('Batch ini sudah tidak aktif.');
   $u = row("SELECT * FROM pengguna WHERE role = 'peserta' AND id_batch = ? AND LOWER(kode_login) = ?", [$batch['id_batch'], $kode]);
+  if ($batch['status'] !== 'aktif' && !($u && (skl_of($u['id_user'])['status'] ?? '') === 'terbit')) {
+    throw new LmsError('Batch ini sudah tidak aktif.');
+  }
   if (!$u || $u['aktif'] === 'tidak') throw new LmsError('Kode tidak ditemukan di batch ini. Periksa kembali kode Anda.');
   if ($u['device_id'] !== '' && $u['device_id'] !== $deviceId) {
     throw new LmsError('Akun ini sudah terhubung ke HP lain. Jika Anda ganti HP, minta PIC menekan "Reset HP".');
@@ -82,7 +87,7 @@ function me(array $data, array $user): array {
 
 /** Status absen hari ini + konten (rundown, materi, dokumentasi) dalam satu permintaan. */
 function beranda(array $data, array $user): array {
-  return ['status' => statusHariIni($data, $user), 'konten' => kontenPeserta($data, $user)];
+  return ['status' => statusHariIni($data, $user), 'konten' => kontenPeserta($data, $user), 'skl' => skl_view(skl_of($user['id_user']))];
 }
 
 function logout(array $data, array $user): bool {

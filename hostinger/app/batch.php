@@ -200,7 +200,7 @@ function peserta_batch(string $idBatch, bool $termasukNonaktif): array {
 function pesertaList(array $data, array $user): array {
   $b = batch_for_pic($user, (string)($data['id_batch'] ?? ''));
   return array_map(fn($u) => ['id_user' => $u['id_user'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'], 'kode_login' => $u['kode_login'],
-    'instansi' => $u['instansi'], 'no_hp' => $u['no_hp'], 'hp_terhubung' => $u['device_id'] !== '', 'aktif' => $u['aktif'] !== 'tidak'],
+    'instansi' => $u['instansi'], 'no_hp' => $u['no_hp'], 'tempat_lahir' => $u['tempat_lahir'], 'tgl_lahir' => $u['tgl_lahir'], 'hp_terhubung' => $u['device_id'] !== '', 'aktif' => $u['aktif'] !== 'tidak'],
     peserta_batch($b['id_batch'], true));
 }
 
@@ -226,10 +226,15 @@ function pesertaTambah(array $data, array $user): array {
       $cols = array_map('trim', preg_split('/\t|;/', $line));
       $nama = preg_replace('/\s+/', ' ', $cols[0]);
       if ($nama === '' || preg_match('/^(no\.?|nama( lengkap)?)$/i', $nama)) continue; // lewati baris judul
+      // Kolom 4–5 (opsional): tempat lahir · tanggal lahir, atau satu kolom "Sleman, 12-01-1990".
+      $tempat = $cols[3] ?? '';
+      $tgl = $cols[4] ?? '';
+      if ($tgl === '' && preg_match('/^(.+?),\s*(\d.*)$/', $tempat, $x)) [$tempat, $tgl] = [trim($x[1]), $x[2]];
+      $tgl = parse_tgl_lahir($tgl, $nama);
       $no++;
       $u = insert('pengguna', ['id_user' => new_id('u'), 'id_batch' => $b['id_batch'], 'no_absen' => $no, 'nama' => $nama, 'role' => 'peserta',
         'kode_login' => sprintf('%03d', $no) . '-' . nama_depan($nama), 'instansi' => $cols[1] ?? '', 'no_hp' => $cols[2] ?? '',
-        'aktif' => 'ya', 'dibuat_pada' => now_()['stamp']]);
+        'tempat_lahir' => $tempat, 'tgl_lahir' => $tgl, 'aktif' => 'ya', 'dibuat_pada' => now_()['stamp']]);
       $added[] = ['no_absen' => $u['no_absen'], 'nama' => $u['nama'], 'kode_login' => $u['kode_login']];
     }
     $pdo->commit();
@@ -253,7 +258,10 @@ function pesertaUbah(array $data, array $user): bool {
   $u = peserta_for_pic($user, (string)($data['id_user'] ?? ''));
   $nama = preg_replace('/\s+/', ' ', trim((string)($data['nama'] ?? '')));
   if ($nama === '') throw new LmsError('Nama wajib diisi.');
-  update('pengguna', $u, ['nama' => $nama, 'instansi' => $data['instansi'] ?? '', 'no_hp' => $data['no_hp'] ?? '']);
+  $c = ['nama' => $nama, 'instansi' => $data['instansi'] ?? '', 'no_hp' => $data['no_hp'] ?? ''];
+  if (array_key_exists('tempat_lahir', $data)) $c['tempat_lahir'] = mb_substr(trim((string)$data['tempat_lahir']), 0, 100);
+  if (array_key_exists('tgl_lahir', $data)) $c['tgl_lahir'] = parse_tgl_lahir((string)$data['tgl_lahir'], $nama);
+  update('pengguna', $u, $c);
   log_($user, 'peserta_ubah', $u['kode_login']);
   return true;
 }

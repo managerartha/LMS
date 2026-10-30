@@ -37,7 +37,7 @@ function doSetuju(btn) {
 
 const NAV_PESERTA = [
   ['beranda', '🏠', 'Dashboard'], ['rundown', '🗓️', 'Jadwal & Rundown'], ['materi', '📚', 'Materi'],
-  ['dok', '📷', 'Dokumentasi'], ['riwayat', '✅', 'Riwayat Absen'],
+  ['dok', '📷', 'Dokumentasi'], ['riwayat', '✅', 'Riwayat Absen'], ['skl', '🎓', 'Surat Keterangan Lulus'],
 ];
 
 function pesertaTab(tab) {
@@ -59,13 +59,14 @@ function pesertaTab(tab) {
     </div>`);
   if (tab === 'beranda') loadBeranda();
   else if (tab === 'riwayat') loadRiwayat();
+  else if (tab === 'skl') loadSkl();
   else loadKonten(tab);
 }
 
 function tampilBeranda(b) {
   P.status = b.status;
   P.konten = b.konten;
-  $('#tab-body').innerHTML = berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
+  $('#tab-body').innerHTML = sklBannerHtml(b.skl) + berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
 }
 
 /** Tampilkan data tersimpan dulu (instan), lalu ganti dengan data terbaru dari server. */
@@ -486,4 +487,44 @@ function signaturePad(canvas) {
     return out.toDataURL('image/png');
   };
   return { clear: clear, isEmpty: () => strokes === 0, toDataURL: toDataURL };
+}
+
+// ----------------------------------------------------- Surat Keterangan Lulus
+/** Pemberitahuan di Dashboard jika SKL sudah terbit. */
+function sklBannerHtml(skl) {
+  if (!skl || !skl.terbit) return '';
+  return `
+    <div class="alert info row">
+      <div class="grow">🎓 <b>Surat Keterangan Lulus Anda sudah terbit.</b><div class="small">Nomor ${esc(skl.nomor)}</div></div>
+      <button class="btn primary sm" onclick="unduhSkl(this)">⬇ Unduh SKL</button>
+    </div>`;
+}
+
+async function loadSkl() {
+  try {
+    const s = await call('sklSaya');
+    if (P.tab !== 'skl') return;
+    $('#tab-body').innerHTML = s.terbit ? `
+      <div class="card narrow center">
+        <div style="font-size:48px">🎓</div>
+        <h2>SKL Anda sudah terbit</h2>
+        <p class="muted">Nomor <b>${esc(s.nomor)}</b><br>Diterbitkan ${esc(fmtTanggal(s.tgl_terbit))}</p>
+        <button class="btn primary block big" onclick="unduhSkl(this)">⬇ Unduh SKL (PDF)</button>
+      </div>` : `
+      <div class="card narrow center">
+        <div style="font-size:48px">⏳</div>
+        <h2>SKL belum tersedia</h2>
+        <p class="muted">Surat Keterangan Lulus dapat diunduh di sini setelah diterbitkan oleh PIC/Admin.
+          Jika ada pertanyaan, silakan hubungi PIC pelatihan.</p>
+      </div>`;
+  } catch (e) {
+    $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+  }
+}
+
+function unduhSkl(btn) {
+  busy(btn, async () => {
+    const res = await call('sklUnduh');
+    simpanFile(res.nama, res.data, 'application/pdf');
+  }, 'Menyiapkan PDF…');
 }

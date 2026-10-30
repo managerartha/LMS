@@ -30,9 +30,9 @@ function picTab(tab) {
   C.view++; // hasil muat dari tab sebelumnya yang datang terlambat akan diabaikan
   clearInterval(C.timer);
   const admin = S.user.role === 'admin';
-  const tabs = [['monitor', 'Absensi'], ['rundown', 'Rundown'], ['materi', 'Materi'], ['dok', 'Dokumentasi'], ['laporan', 'Laporan'], ['peserta', 'Peserta'], ['lokasi', 'Jadwal & Lokasi']];
+  const tabs = [['monitor', 'Absensi'], ['rundown', 'Rundown'], ['materi', 'Materi'], ['dok', 'Dokumentasi'], ['laporan', 'Laporan'], ['skl', 'SKL'], ['peserta', 'Peserta'], ['lokasi', 'Jadwal & Lokasi']];
   if (admin) tabs.push(['batch', 'Batch'], ['pic', 'Akun PIC']);
-  const butuhBatch = ['monitor', 'rundown', 'materi', 'dok', 'laporan', 'peserta', 'lokasi'].indexOf(tab) >= 0;
+  const butuhBatch = ['monitor', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'].indexOf(tab) >= 0;
   render(`
     ${C.batches.length ? `
       <div class="row mb">
@@ -48,7 +48,7 @@ function picTab(tab) {
       (admin ? 'Belum ada batch. Buat batch baru di tab <b>Batch</b>.' : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.') + '</div>';
     return;
   }
-  ({ monitor: tabMonitor, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun })[tab]();
+  ({ monitor: tabMonitor, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl, peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun })[tab]();
 }
 
 /** Mengisi isi tab, hanya jika pengguna belum berpindah tab sejak data mulai dimuat. */
@@ -191,7 +191,7 @@ async function tabPeserta() {
       <div class="card">
         <h2>Tambah peserta</h2>
         <p class="small muted">Satu nama per baris. Bisa langsung tempel (copy–paste) kolom dari Excel:
-          <b>Nama</b> · Instansi · No HP (dipisah Tab atau titik koma). Kode login dibuat otomatis, mis. <code>001-Kikis</code>.</p>
+          <b>Nama</b> · Instansi · No HP · Tempat lahir · Tanggal lahir (dipisah Tab atau titik koma). Kode login dibuat otomatis, mis. <code>001-Kikis</code>.</p>
         <textarea id="peserta-teks" placeholder="Kikis Ramadhan\nAndi Pratama; PT Maju Jaya; 0812xxxx"></textarea>
         <button class="btn primary mt" onclick="tambahPeserta(this)">Tambah peserta</button>
       </div>
@@ -233,6 +233,10 @@ function dialogPeserta(i) {
     <label>Nama lengkap</label><input id="pu-nama" value="${esc(p.nama)}">
     <label>Instansi</label><input id="pu-instansi" value="${esc(p.instansi)}">
     <label>No HP</label><input id="pu-hp" value="${esc(p.no_hp)}">
+    <div class="grid2">
+      <div><label>Tempat lahir</label><input id="pu-tempat" value="${esc(p.tempat_lahir)}"></div>
+      <div><label>Tanggal lahir</label><input id="pu-tgl" type="date" value="${esc(p.tgl_lahir)}"></div>
+    </div>
     <p class="small muted">Kode login tidak berubah walaupun nama diubah.</p>
     <button class="btn primary block" onclick="ubahPeserta(this, '${esc(p.id_user)}')">Simpan</button>
     <div class="row mt">
@@ -245,7 +249,8 @@ function dialogPeserta(i) {
 
 function ubahPeserta(btn, id) {
   busy(btn, async () => {
-    await call('pesertaUbah', { id_user: id, nama: $('#pu-nama').value, instansi: $('#pu-instansi').value, no_hp: $('#pu-hp').value });
+    await call('pesertaUbah', { id_user: id, nama: $('#pu-nama').value, instansi: $('#pu-instansi').value, no_hp: $('#pu-hp').value,
+      tempat_lahir: $('#pu-tempat').value, tgl_lahir: $('#pu-tgl').value });
     closeModal(); toast('Data peserta disimpan.', 'ok'); tabPeserta();
   });
 }
@@ -961,11 +966,16 @@ function formOrg(inf) {
         ${f('nomor_skp', 'Nomor SKP')}
         ${f('masa_skp', 'Masa berlaku SKP')}
         ${f('penandatangan', 'Nama penandatangan')}
+        ${f('jabatan', 'Jabatan penandatangan (SKL)')}
+        ${f('kota', 'Kota penerbitan (SKL)')}
+        ${f('format_skl', 'Format nomor SKL')}
         ${f('telepon', 'Telepon')}
         ${f('telepon_kantor', 'Telepon kantor (cover)')}
         ${f('website', 'Website')}
         ${f('email', 'Email')}
       </div>
+      <p class="small muted">Format nomor SKL: <code>{no}</code> nomor urut per tahun (001, 002, …), <code>{bulan}</code> bulan Romawi,
+        <code>{bulan_angka}</code>, <code>{tahun}</code>, <code>{batch}</code> kode batch. Nomor yang sudah terbit tidak berubah.</p>
       <label>Alamat kantor</label><input id="org-alamat" value="${esc(o.alamat)}">
       <button class="btn primary mt" onclick="simpanOrg(this)">Simpan data perusahaan</button>
       <h3 class="mt">Tanda tangan + cap penandatangan</h3>
@@ -1072,4 +1082,124 @@ function simpanTtdSaya(btn) {
     await call('ttdSayaSimpan', { ttd: C.pad.toDataURL() });
     closeModal(); toast('Tanda tangan disimpan.', 'ok'); tabLaporan();
   });
+}
+
+// ----------------------------------------------------- Tab: SKL (Surat Keterangan Lulus)
+const SKL_STATUS = {
+  terbit: '<span class="badge b-hadir">Terbit</span>',
+  ditahan: '<span class="badge b-alpa">Ditahan</span>',
+  '': '<span class="badge b-none">Belum terbit</span>',
+};
+
+async function tabSkl() {
+  const v = C.view;
+  try {
+    C.skl = await call('sklList', { id_batch: C.batch.id_batch });
+    const d = C.skl, b = C.batch;
+    const nTerbit = d.peserta.filter(p => p.skl.terbit).length;
+    setBody(v, `
+      <div class="card">
+        <h2>Surat Keterangan Lulus (SKL)</h2>
+        <p class="small muted">Peserta hanya bisa mengunduh SKL setelah diterbitkan di sini. Peserta yang SKL-nya belum diterbitkan
+          atau <b>ditahan</b> (mis. administrasi belum lunas) tidak bisa mengunduh.</p>
+        <div class="grid2">
+          <div><label>Judul pelatihan</label><input value="${esc(b.nama_pelatihan)}" disabled></div>
+          <div><label>Periode pelatihan</label><input value="${esc(d.periode)}" disabled></div>
+          <div><label>Jenis pelatihan</label>
+            <select id="skl-jenis">${['Offline', 'Online', 'Blended'].map(j => `<option ${j === d.jenis_pelatihan ? 'selected' : ''}>${j}</option>`).join('')}</select></div>
+        </div>
+        <p class="small muted">Nama, judul, dan periode mengikuti data peserta & batch. Nomor SKL dibuat otomatis (unik per peserta);
+          tanggal terbit = tanggal SKL diterbitkan.</p>
+      </div>
+      <div class="card">
+        <div class="row mb"><h2 class="grow">Peserta (${nTerbit}/${d.peserta.length} terbit)</h2>
+          ${nTerbit ? '<button class="btn sm" onclick="sklUnduhSemua(this)">⬇ Unduh semua SKL terbit</button>' : ''}</div>
+        <div class="row mb">
+          <button class="btn sm" onclick="sklPilih('semua')">Pilih semua</button>
+          <button class="btn sm" onclick="sklPilih('belum')">Pilih yang belum terbit</button>
+          <button class="btn sm" onclick="sklPilih('kosong')">Kosongkan pilihan</button>
+        </div>
+        ${d.peserta.length ? `
+        <div class="table-wrap"><table>
+          <thead><tr><th><input type="checkbox" id="skl-all" onchange="sklPilih(this.checked ? 'semua' : 'kosong')"></th>
+            <th>No</th><th>Nama</th><th>Tempat lahir</th><th>Tanggal lahir</th><th>SKL</th></tr></thead>
+          <tbody>${d.peserta.map((p, i) => `
+            <tr>
+              <td><input type="checkbox" class="skl-cb" value="${esc(p.id_user)}" data-terbit="${p.skl.terbit ? 1 : 0}"></td>
+              <td>${esc(p.no_absen)}</td>
+              <td>${esc(p.nama)}<div class="small muted">${esc(p.kode_login)}</div></td>
+              <td><input class="skl-tempat" data-id="${esc(p.id_user)}" value="${esc(p.tempat_lahir)}" placeholder="mis. Sleman"></td>
+              <td><input class="skl-tgl" data-id="${esc(p.id_user)}" type="date" value="${esc(p.tgl_lahir)}"></td>
+              <td>${SKL_STATUS[p.skl.status] || SKL_STATUS['']}
+                ${p.skl.nomor ? `<div class="small muted">${esc(p.skl.nomor)}${p.skl.terbit ? ' · ' + esc(fmtTanggal(p.skl.tgl_terbit)) : ''}</div>` : ''}
+                ${p.skl.terbit ? `<button class="btn sm mt" onclick="sklUnduhPeserta(this, ${i})">⬇ PDF</button>` : ''}</td>
+            </tr>`).join('')}
+          </tbody></table></div>` : '<div class="muted small">Belum ada peserta di batch ini.</div>'}
+        <button class="btn mt" onclick="sklSimpan(this)">Simpan data</button>
+        <div class="row mt">
+          <button class="btn primary grow" onclick="sklTerbit(this)">🎓 Terbitkan SKL yang dipilih</button>
+          <button class="btn danger grow" onclick="sklTahan(this)">⏸ Tahan SKL yang dipilih</button>
+        </div>
+        <p class="small muted">Tempat & tanggal lahir wajib diisi sebelum SKL diterbitkan. SKL yang ditahan bisa diterbitkan lagi
+          dengan nomor yang sama.</p>
+      </div>`);
+  } catch (e) { errBox(v, e); }
+}
+
+function sklPilih(mode) {
+  $$('.skl-cb').forEach(cb => { cb.checked = mode === 'semua' || (mode === 'belum' && cb.dataset.terbit === '0'); });
+  const all = $('#skl-all');
+  if (all) all.checked = mode === 'semua';
+}
+
+function sklTerpilih() { return $$('.skl-cb:checked').map(cb => cb.value); }
+
+function sklDataForm() {
+  return {
+    id_batch: C.batch.id_batch, jenis_pelatihan: $('#skl-jenis').value,
+    peserta: $$('.skl-tempat').map(el => ({ id_user: el.dataset.id, tempat_lahir: el.value,
+      tgl_lahir: $$('.skl-tgl').find(t => t.dataset.id === el.dataset.id).value })),
+  };
+}
+
+function sklSimpan(btn) {
+  busy(btn, async () => { await call('sklSimpanData', sklDataForm()); toast('Data SKL disimpan.', 'ok'); tabSkl(); });
+}
+
+function sklTerbit(btn) {
+  const ids = sklTerpilih();
+  if (!ids.length) return toast('Centang peserta yang akan diterbitkan SKL-nya.', 'error');
+  if (!confirm('Terbitkan SKL untuk ' + ids.length + ' peserta? Peserta akan bisa mengunduh SKL dari akunnya.')) return;
+  busy(btn, async () => {
+    await call('sklSimpanData', sklDataForm());
+    const res = await call('sklTerbitkan', { id_batch: C.batch.id_batch, id_users: ids });
+    toast(res.terbit + ' SKL terbit.' + (res.dilewati.length ? ' Dilewati (tempat/tanggal lahir kosong): ' + res.dilewati.join(', ') : ''),
+      res.dilewati.length ? 'error' : 'ok');
+    tabSkl();
+  }, 'Menerbitkan…');
+}
+
+function sklTahan(btn) {
+  const ids = sklTerpilih();
+  if (!ids.length) return toast('Centang peserta yang SKL-nya akan ditahan.', 'error');
+  if (!confirm('Tahan SKL ' + ids.length + ' peserta? Peserta tidak bisa mengunduh SKL sampai diterbitkan lagi.')) return;
+  busy(btn, async () => {
+    const n = await call('sklTahan', { id_batch: C.batch.id_batch, id_users: ids });
+    toast(n + ' SKL ditahan.', 'ok');
+    tabSkl();
+  });
+}
+
+function sklUnduhPeserta(btn, i) {
+  busy(btn, async () => {
+    const res = await call('sklUnduh', { id_user: C.skl.peserta[i].id_user });
+    simpanFile(res.nama, res.data, 'application/pdf');
+  }, '…');
+}
+
+function sklUnduhSemua(btn) {
+  busy(btn, async () => {
+    const res = await call('sklUnduhSemua', { id_batch: C.batch.id_batch });
+    simpanFile(res.nama, res.data, 'application/pdf');
+  }, 'Menyusun PDF…');
 }

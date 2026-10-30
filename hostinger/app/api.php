@@ -7,6 +7,7 @@ require_once __DIR__ . '/batch.php';
 require_once __DIR__ . '/absensi.php';
 require_once __DIR__ . '/konten.php';
 require_once __DIR__ . '/laporan.php';
+require_once __DIR__ . '/skl.php';
 
 /** auth: '' = publik, 'user' = sudah login, 'pic' = PIC/Admin, 'admin' = Admin. */
 const ROUTES = [
@@ -20,6 +21,7 @@ const ROUTES = [
   'materiHapus' => 'pic', 'dokList' => 'pic', 'dokTambah' => 'pic', 'dokUbah' => 'pic', 'dokHapus' => 'pic',
   'ttdSaya' => 'pic', 'ttdSayaSimpan' => 'pic', 'laporanList' => 'pic', 'laporanBuat' => 'pic', 'laporanUnduh' => 'pic',
   'infoLaporanGet' => 'pic', 'infoLaporanSimpan' => 'pic',
+  'sklSaya' => 'user', 'sklUnduh' => 'user', 'sklList' => 'pic', 'sklSimpanData' => 'pic', 'sklTerbitkan' => 'pic', 'sklTahan' => 'pic', 'sklUnduhSemua' => 'pic',
   'batchBuat' => 'admin', 'picList' => 'admin', 'picTambah' => 'admin', 'picResetPin' => 'admin', 'orgSimpan' => 'admin', 'orgTtdSimpan' => 'admin',
 ];
 
@@ -30,6 +32,7 @@ function api($action, $data): array {
     $action = (string)$action;
     if (!array_key_exists($action, ROUTES)) throw new LmsError('Aksi tidak dikenal: ' . $action);
     $data = is_array($data) ? $data : [];
+    if ($action !== 'waktu') pastikan_skema();
     $auth = ROUTES[$action];
     $user = null;
     if ($auth !== '') {
@@ -51,6 +54,7 @@ function cek(): array {
   $out = ['ok' => false, 'api' => 'LMS Artha Safety', 'versi' => API_VERSI, 'php' => PHP_VERSION];
   try {
     config();
+    pastikan_skema();
     $tabel = [];
     foreach (array_keys(SCHEMA) as $t) {
       try { q("SELECT 1 FROM `$t` LIMIT 1"); } catch (Throwable $e) { $tabel[] = $t; }

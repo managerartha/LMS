@@ -189,6 +189,8 @@ Saat Claude memberi file pembaruan:
 2. **Jangan** menghapus folder `storage/`, `uploads/`, atau file `app/config.php`, karena di situlah data dan koneksi database Anda.
 3. Buka `/api/?cek=1` untuk memastikan semuanya `ok`.
 
+Tabel atau kolom database baru (mis. untuk fitur SKL) ditambahkan **otomatis** saat LMS pertama kali dibuka setelah pembaruan. Data lama tidak diubah dan tidak perlu menjalankan installer lagi.
+
 ---
 
 ## Masalah yang sering terjadi

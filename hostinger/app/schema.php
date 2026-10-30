@@ -6,9 +6,9 @@
 const SCHEMA = [
   'batch' => ['id_batch', 'nama_pelatihan', 'kode_batch', 'lokasi_nama', 'tgl_mulai', 'tgl_selesai',
     'sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai', 'lat', 'lng', 'radius_meter',
-    'lewati_weekend', 'pic_ids', 'folder', 'status', 'dibuat_pada', 'info_laporan'],
+    'lewati_weekend', 'pic_ids', 'folder', 'status', 'dibuat_pada', 'info_laporan', 'jenis_pelatihan'],
   'pengguna' => ['id_user', 'id_batch', 'no_absen', 'nama', 'role', 'kode_login', 'pin_hash', 'instansi',
-    'no_hp', 'device_id', 'setuju_privasi', 'ttd_id', 'aktif', 'dibuat_pada'],
+    'no_hp', 'device_id', 'setuju_privasi', 'ttd_id', 'aktif', 'dibuat_pada', 'tempat_lahir', 'tgl_lahir'],
   'token' => ['token', 'id_user', 'dibuat_pada'],
   'hari' => ['id_hari', 'id_batch', 'tanggal', 'hari_ke', 'lokasi_nama', 'lat', 'lng', 'radius_meter', 'diubah_oleh'],
   'absensi' => ['id_absen', 'id_batch', 'id_hari', 'id_user', 'sesi', 'waktu_server', 'foto_id', 'ttd_id',
@@ -20,12 +20,16 @@ const SCHEMA = [
   'dokumentasi' => ['id_dok', 'id_batch', 'id_hari', 'id_rundown', 'file_id', 'keterangan', 'masuk_laporan',
     'diupload_oleh', 'diupload_pada', 'file_kecil_id'],
   'laporan' => ['id_laporan', 'id_batch', 'jenis', 'id_hari', 'file_id', 'dibuat_oleh', 'dibuat_pada', 'nama_file'],
+  'skl' => ['id_skl', 'id_batch', 'id_user', 'nomor', 'urut', 'tahun', 'status', 'tgl_terbit', 'diubah_oleh', 'diubah_pada'],
   'log' => ['id_log', 'waktu', 'id_user', 'nama', 'aksi', 'detail'],
   'pengaturan' => ['kunci', 'nilai'],
   'geo_cache' => ['kunci', 'alamat'],
 ];
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
+/** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
+const SCHEMA_VERSI = '2';
+
 const SCHEMA_TEXT = ['info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 
 /** Index tambahan agar pencarian cepat. */
@@ -38,11 +42,13 @@ const SCHEMA_INDEX = [
   'materi' => [['id_hari']],
   'dokumentasi' => [['id_hari'], ['id_batch']],
   'laporan' => [['id_batch']],
+  'skl' => [['id_batch']],
 ];
 
 /** Satu absen per peserta per sesi per hari (mencegah absen dobel di tingkat database). */
 const SCHEMA_UNIQUE = [
   'absensi' => ['id_hari', 'id_user', 'sesi'],
+  'skl' => ['nomor'], // nomor SKL tidak boleh kembar
 ];
 
 /** Perintah CREATE TABLE untuk MySQL (atau SQLite saat pengujian). */

@@ -43,6 +43,31 @@ function db(): PDO {
   return $pdo;
 }
 
+/**
+ * Menambahkan tabel/kolom baru (fitur baru) ke database yang sudah terpasang, tanpa mengubah data lama.
+ * Berjalan sekali per versi skema; setelah itu hanya pengecekan file penanda.
+ */
+function pastikan_skema(): void {
+  $penanda = STORAGE . '/skema-' . SCHEMA_VERSI . '.ok';
+  if (is_file($penanda)) return;
+  $driver = (config()['driver'] ?? 'mysql') === 'sqlite' ? 'sqlite' : 'mysql';
+  foreach (schema_sql($driver) as $sql) {
+    try { db()->exec($sql); } catch (PDOException $e) {
+      if (stripos($sql, 'CREATE INDEX') !== 0) throw $e; // index yang sudah ada boleh dilewati
+    }
+  }
+  foreach (SCHEMA as $table => $cols) {
+    $ada = $driver === 'sqlite'
+      ? array_column(db()->query("PRAGMA table_info(`$table`)")->fetchAll(), 'name')
+      : array_column(db()->query("SHOW COLUMNS FROM `$table`")->fetchAll(), 'Field');
+    foreach (array_diff($cols, $ada) as $c) {
+      $type = in_array($c, SCHEMA_TEXT, true) ? 'TEXT' : 'VARCHAR(191)';
+      db()->exec("ALTER TABLE `$table` ADD COLUMN `$c` $type NULL");
+    }
+  }
+  @file_put_contents($penanda, date('c'));
+}
+
 function q(string $sql, array $p = []): PDOStatement {
   $st = db()->prepare($sql);
   $st->execute(array_values($p));

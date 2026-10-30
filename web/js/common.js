@@ -254,7 +254,7 @@ async function showLogin(tab) {
       <form onsubmit="event.preventDefault(); doLoginPeserta(this)">
         <label>Batch pelatihan</label>
         <select name="id_batch" ${batches.length === 1 ? 'disabled' : ''}>
-          ${batches.map(b => `<option value="${esc(b.id_batch)}" ${b.id_batch === last ? 'selected' : ''}>${esc(b.kode_batch)} — ${esc(b.nama_pelatihan)}</option>`).join('')}
+          ${batches.map(b => `<option value="${esc(b.id_batch)}" ${b.id_batch === last ? 'selected' : ''}>${esc(b.kode_batch)} — ${esc(b.nama_pelatihan)}${b.selesai ? ' (selesai — unduh SKL)' : ''}</option>`).join('')}
         </select>
         <label>Kode peserta</label>
         <input name="kode" placeholder="contoh: 001-Kikis" autocapitalize="off" autocomplete="off" required>

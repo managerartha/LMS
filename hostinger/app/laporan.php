@@ -318,6 +318,9 @@ const ORG_DEFAULT = [
   'website' => 'www.arthasafetyindonesia.co.id',
   'email' => 'info@arthasafetyindonesia.co.id',
   'penandatangan' => 'Saut Reynald Ricardo Simbolon',
+  'jabatan' => 'Direktur',
+  'kota' => 'Yogyakarta',
+  'format_skl' => '{no}/SKL/ASI/{bulan}/{tahun}',
   'ttd_id' => '',
 ];
 

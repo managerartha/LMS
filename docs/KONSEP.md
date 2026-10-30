@@ -388,3 +388,12 @@ Browser (HP/laptop) ──HTTPS──▶ lms.arthasafetyindonesia.com (Hostinger
 - **Dokumen Office** (PPT/Word/Excel) dibuka lewat penampil online Microsoft; PDF & gambar dibuka langsung.
 - **Pemasangan**: `install.php` mengecek hosting, membuat `app/config.php`, tabel, dan akun Admin (ADMIN/123456). Pengecekan: `/api/?cek=1`.
 
+
+## 13. Surat Keterangan Lulus (SKL)
+
+- **PIC/Admin** (tab **SKL**): isi jenis pelatihan batch (Offline/Online/Blended) serta tempat & tanggal lahir peserta, lalu centang peserta → **Terbitkan SKL yang dipilih** (semua atau sebagian). SKL bisa **ditahan** (mis. administrasi belum lunas) dan diterbitkan lagi kemudian.
+- **Peserta**: menu **Surat Keterangan Lulus** dan pemberitahuan di Dashboard; tombol unduh hanya muncul setelah SKL terbit. Peserta yang SKL-nya terbit tetap bisa login walaupun batch sudah *selesai*.
+- **Isi SKL**: nama, tempat & tanggal lahir (data peserta), judul pelatihan (`nama_pelatihan`, bukan kode batch), periode (tanggal batch), jenis pelatihan, nomor SKL unik, tanggal terbit (tanggal SKL diterbitkan).
+- **Nomor SKL**: urut per tahun, format diatur Admin di *Data perusahaan* (default `{no}/SKL/ASI/{bulan}/{tahun}`, mis. `001/SKL/ASI/XI/2026`). Nomor tetap walaupun SKL ditahan lalu diterbitkan lagi; database menolak nomor kembar.
+- Data: tabel `skl` (satu baris per peserta), kolom `pengguna.tempat_lahir`, `pengguna.tgl_lahir`, `batch.jenis_pelatihan`. Ditambahkan otomatis ke database yang sudah terpasang (`pastikan_skema()`).
+- PDF dibuat saat diunduh (`app/skl.php`, fungsi `skl_html`) dari data terbaru; PIC juga bisa mengunduh semua SKL terbit satu batch dalam satu PDF.
