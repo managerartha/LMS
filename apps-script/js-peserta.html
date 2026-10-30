@@ -1,6 +1,6 @@
 <script>
   // ===================================================== Halaman peserta
-  const P = { batch: null, status: null, tab: 'beranda' };
+  const P = { batch: null, status: null, konten: null, tab: 'beranda' };
 
   function showPeserta(meRes) {
     P.batch = meRes.batch;
@@ -36,20 +36,23 @@
     P.tab = tab;
     render(`
       <div class="tabs">
-        <button class="tab ${tab === 'beranda' ? 'active' : ''}" onclick="pesertaTab('beranda')">Hari ini</button>
-        <button class="tab ${tab === 'riwayat' ? 'active' : ''}" onclick="pesertaTab('riwayat')">Riwayat absen</button>
+        ${[['beranda', 'Hari ini'], ['rundown', 'Rundown'], ['materi', 'Materi'], ['dok', 'Dokumentasi'], ['riwayat', 'Riwayat absen']]
+          .map(t => `<button class="tab ${tab === t[0] ? 'active' : ''}" onclick="pesertaTab('${t[0]}')">${t[1]}</button>`).join('')}
       </div>
       <div id="tab-body"><div class="center muted pad">Memuat…</div></div>`);
-    if (tab === 'beranda') loadBeranda(); else loadRiwayat();
+    if (tab === 'beranda') loadBeranda();
+    else if (tab === 'riwayat') loadRiwayat();
+    else loadKonten(tab);
   }
 
   async function loadBeranda() {
     try {
-      const st = await call('statusHariIni');
+      const [st, konten] = await Promise.all([call('statusHariIni'), call('kontenPeserta')]);
       syncTime(st.server_now);
       if (P.tab !== 'beranda') return;
       P.status = st;
-      $('#tab-body').innerHTML = berandaHtml(st);
+      P.konten = konten;
+      $('#tab-body').innerHTML = berandaHtml(st) + kontenHariIniHtml(konten);
     } catch (e) {
       $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
     }
@@ -86,7 +89,100 @@
           ${body}
         </div>`;
     }).join('');
-    return head + cards + `<button class="btn block" onclick="loadBeranda()">↻ Muat ulang</button>`;
+    return head + cards;
+  }
+
+  // ----------------------------------------------------- Rundown, materi, dokumentasi
+  function kontenHariIniHtml(k) {
+    const h = k.hari.find(x => x.tanggal === k.tanggal);
+    let html = '';
+    if (h) {
+      html += `<div class="card"><h2>Rundown hari ini</h2>${rundownHtml(h.rundown, k.jam)}</div>`;
+      html += `<div class="card"><h2>Materi hari ini</h2>${materiHtml(h.materi)}</div>`;
+      if (h.dok.length) html += `<div class="card"><h2>Dokumentasi hari ini</h2>${galeriHtml(h, 6)}</div>`;
+    }
+    return html + `<button class="btn block" onclick="loadBeranda()">↻ Muat ulang</button>`;
+  }
+
+  async function loadKonten(tab) {
+    try {
+      const k = await call('kontenPeserta');
+      if (P.tab !== tab) return;
+      P.konten = k;
+      $('#tab-body').innerHTML = kontenTabHtml(tab, k);
+    } catch (e) {
+      $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+    }
+  }
+
+  function kontenTabHtml(tab, k) {
+    const hari = tab === 'rundown' ? k.hari : k.hari.filter(h => h.tanggal <= k.tanggal).reverse();
+    const kosong = { rundown: 'Rundown belum diterbitkan PIC.', materi: 'Belum ada materi.', dok: 'Belum ada dokumentasi.' }[tab];
+    const isi = hari.map(h => {
+      const items = tab === 'rundown' ? h.rundown : tab === 'materi' ? h.materi : h.dok;
+      if (!items.length) return '';
+      const body = tab === 'rundown' ? rundownHtml(items, h.tanggal === k.tanggal ? k.jam : null)
+        : tab === 'materi' ? materiHtml(items) : galeriHtml(h);
+      return `<div class="card">
+        <div class="row mb"><h2 class="grow">Hari ke-${esc(h.hari_ke)}</h2>
+          <span class="small muted">${esc(fmtTanggal(h.tanggal))}${h.tanggal === k.tanggal ? ' · <b>hari ini</b>' : ''}</span></div>
+        ${body}</div>`;
+    }).join('');
+    return isi || `<div class="card center muted">${kosong}</div>`;
+  }
+
+  /** jamSekarang diisi hanya untuk hari ini, untuk menandai kegiatan yang sedang berlangsung. */
+  function rundownHtml(items, jamSekarang) {
+    if (!items.length) return '<div class="muted small">Rundown belum diterbitkan PIC.</div>';
+    return `<div class="table-wrap"><table class="rundown">
+      <tbody>${items.map(r => {
+        const now = jamSekarang && jamSekarang >= r.jam_mulai && jamSekarang < r.jam_selesai;
+        return `<tr class="${now ? 'rd-now' : ''}">
+          <td class="rd-jam">${esc(r.jam_mulai)}–${esc(r.jam_selesai)}</td>
+          <td><b>${esc(r.kegiatan)}</b> ${now ? '<span class="badge b-belum">Sedang berlangsung</span>' : ''}
+            ${r.pemateri ? `<div class="small">👤 ${esc(r.pemateri)}</div>` : ''}
+            ${r.keterangan ? `<div class="small muted">${esc(r.keterangan)}</div>` : ''}</td>
+        </tr>`;
+      }).join('')}</tbody></table></div>`;
+  }
+
+  const IKON_FILE = { pdf: '📕', ppt: '📙', pptx: '📙', doc: '📘', docx: '📘', xls: '📗', xlsx: '📗', jpg: '🖼', jpeg: '🖼', png: '🖼', link: '🔗' };
+
+  function materiHtml(items) {
+    if (!items.length) return '<div class="muted small">Belum ada materi.</div>';
+    return items.map(m => `
+      <div class="materi-item">
+        <div class="materi-ikon">${IKON_FILE[m.tipe_file] || '📄'}</div>
+        <div class="grow">
+          <b>${esc(m.judul)}</b>
+          <div class="small muted">${m.kategori === 'latihan' ? 'Lembar latihan' : 'Materi'} · ${esc(m.tipe_file.toUpperCase())}</div>
+        </div>
+        <div class="row">
+          <a class="btn sm" href="${esc(m.buka)}" target="_blank" rel="noopener">Buka</a>
+          ${m.unduh ? `<a class="btn sm" href="${esc(m.unduh)}" target="_blank" rel="noopener">⬇</a>` : ''}
+        </div>
+      </div>`).join('');
+  }
+
+  function galeriHtml(h, max) {
+    const items = max ? h.dok.slice(-max) : h.dok;
+    return `<div class="gallery">${items.map(d => `
+      <button class="gallery-item" onclick="lihatFoto('${esc(h.id_hari)}', '${esc(d.id_dok)}')">
+        <img src="${esc(d.thumb)}" alt="${esc(d.keterangan || 'Dokumentasi')}" loading="lazy" referrerpolicy="no-referrer" onerror="fotoGagal(this)">
+      </button>`).join('')}</div>
+      ${max && h.dok.length > max ? `<button class="btn sm mt" onclick="pesertaTab('dok')">Lihat semua (${h.dok.length})</button>` : ''}`;
+  }
+
+  function lihatFoto(idHari, idDok) {
+    const h = P.konten.hari.find(x => x.id_hari === idHari);
+    const d = h.dok.find(x => x.id_dok === idDok);
+    const keg = d.id_rundown && h.rundown.find(r => r.id_rundown === d.id_rundown);
+    openModal(`
+      <img class="thumb" src="${esc(d.thumb.replace('sz=w600', 'sz=w1600'))}" alt="" referrerpolicy="no-referrer">
+      ${keg ? `<div class="small muted mt">${esc(keg.jam_mulai)} · ${esc(keg.kegiatan)}</div>` : ''}
+      ${d.keterangan ? `<p>${esc(d.keterangan)}</p>` : ''}
+      <div class="row mt"><a class="btn" href="${esc(d.buka)}" target="_blank" rel="noopener">Buka ukuran penuh</a>
+        <button class="btn primary grow" onclick="closeModal()">Tutup</button></div>`);
   }
 
   async function loadRiwayat() {

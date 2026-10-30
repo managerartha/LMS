@@ -58,6 +58,7 @@ function routes_() {
     statusHariIni: { auth: 'user', fn: statusHariIni },
     absen: { auth: 'user', fn: absen },
     riwayat: { auth: 'user', fn: riwayat },
+    kontenPeserta: { auth: 'user', fn: kontenPeserta },
     // PIC
     gantiPin: { auth: 'pic', fn: gantiPin },
     batchList: { auth: 'pic', fn: batchList },
@@ -74,6 +75,16 @@ function routes_() {
     monitor: { auth: 'pic', fn: monitor },
     absenSetStatus: { auth: 'pic', fn: absenSetStatus },
     absenFoto: { auth: 'pic', fn: absenFoto },
+    rundownGet: { auth: 'pic', fn: rundownGet },
+    rundownSimpan: { auth: 'pic', fn: rundownSimpan },
+    rundownSalin: { auth: 'pic', fn: rundownSalin },
+    materiList: { auth: 'pic', fn: materiList },
+    materiTambah: { auth: 'pic', fn: materiTambah },
+    materiHapus: { auth: 'pic', fn: materiHapus },
+    dokList: { auth: 'pic', fn: dokList },
+    dokTambah: { auth: 'pic', fn: dokTambah },
+    dokUbah: { auth: 'pic', fn: dokUbah },
+    dokHapus: { auth: 'pic', fn: dokHapus },
     // Admin
     batchBuat: { auth: 'admin', fn: batchBuat },
     picList: { auth: 'admin', fn: picList },
@@ -219,6 +230,25 @@ function saveDataUrl_(folder, dataUrl, filename) {
   if (m[2].length > 3 * 1024 * 1024) throw new Error('Ukuran gambar terlalu besar.');
   const blob = Utilities.newBlob(Utilities.base64Decode(m[2]), m[1], filename);
   return folder.createFile(blob).getId();
+}
+
+/** Membuat file dapat dilihat siapa saja yang punya link (untuk materi & dokumentasi, bukan foto absen). */
+function shareView_(file) {
+  try {
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  } catch (err) {
+    console.warn('Gagal mengatur berbagi file', err);
+  }
+  return file;
+}
+
+function trashFile_(fileId) {
+  if (!fileId) return;
+  try {
+    DriveApp.getFileById(fileId).setTrashed(true);
+  } catch (err) {
+    console.warn('Gagal menghapus file', fileId, err);
+  }
 }
 
 function fileDataUrl_(fileId) {

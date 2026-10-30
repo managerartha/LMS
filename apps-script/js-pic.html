@@ -29,9 +29,9 @@
     C.view++; // hasil muat dari tab sebelumnya yang datang terlambat akan diabaikan
     clearInterval(C.timer);
     const admin = S.user.role === 'admin';
-    const tabs = [['monitor', 'Absensi'], ['peserta', 'Peserta'], ['lokasi', 'Jadwal & Lokasi']];
+    const tabs = [['monitor', 'Absensi'], ['rundown', 'Rundown'], ['materi', 'Materi'], ['dok', 'Dokumentasi'], ['peserta', 'Peserta'], ['lokasi', 'Jadwal & Lokasi']];
     if (admin) tabs.push(['batch', 'Batch'], ['pic', 'Akun PIC']);
-    const butuhBatch = ['monitor', 'peserta', 'lokasi'].indexOf(tab) >= 0;
+    const butuhBatch = ['monitor', 'rundown', 'materi', 'dok', 'peserta', 'lokasi'].indexOf(tab) >= 0;
     render(`
       ${C.batches.length ? `
         <div class="row mb">
@@ -47,7 +47,7 @@
         (admin ? 'Belum ada batch. Buat batch baru di tab <b>Batch</b>.' : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.') + '</div>';
       return;
     }
-    ({ monitor: tabMonitor, peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun })[tab]();
+    ({ monitor: tabMonitor, rundown: tabRundown, materi: tabMateri, dok: tabDok, peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun })[tab]();
   }
 
   /** Mengisi isi tab, hanya jika pengguna belum berpindah tab sejak data mulai dimuat. */
@@ -543,5 +543,278 @@
       await call('gantiPin', { pin_lama: form.lama.value, pin_baru: form.baru.value });
       closeModal(); toast('PIN diganti.', 'ok');
     });
+  }
+
+  // ----------------------------------------------------- Pilih hari (dipakai tab Rundown, Materi, Dokumentasi)
+  function hariSelect(fn) {
+    return `<select class="grow" onchange="C.idHari=this.value; ${fn}()">
+      ${C.hari.map(h => `<option value="${esc(h.id_hari)}" ${h.id_hari === C.idHari ? 'selected' : ''}>Hari ke-${esc(h.hari_ke)} — ${esc(fmtTanggal(h.tanggal))}</option>`).join('')}
+    </select>`;
+  }
+
+  function hariAktif() { return C.hari.find(h => h.id_hari === C.idHari); }
+
+  // ----------------------------------------------------- Tab: Rundown
+  async function tabRundown() {
+    const v = C.view;
+    try {
+      await muatHari();
+      if (!C.idHari) return setBody(v, '<div class="card muted center">Belum ada hari pelatihan.</div>');
+      const rd = await call('rundownGet', { id_hari: C.idHari });
+      if (v !== C.view) return;
+      C.rd = rd.items.length ? rd.items : [{}];
+      const STATUS = { terbit: '<span class="badge b-hadir">Terbit — tampil di akun peserta</span>',
+        draft: '<span class="badge b-belum">Draft — belum tampil ke peserta</span>', kosong: '<span class="badge b-none">Belum ada rundown</span>' };
+      const lain = C.hari.filter(h => h.id_hari !== C.idHari);
+      setBody(v, `
+        <div class="card">
+          <div class="row">${hariSelect('tabRundown')}</div>
+          <div class="mt">${STATUS[rd.status]}</div>
+        </div>
+        <div class="card">
+          <h2>Susun rundown</h2>
+          <p class="small muted">Urutan otomatis mengikuti jam mulai saat disimpan.</p>
+          <div id="rd-rows"></div>
+          <button class="btn mt" onclick="rdTambah()">＋ Tambah kegiatan</button>
+          <div class="row mt">
+            <button class="btn grow" onclick="rdSimpan(this, 'draft')">Simpan sebagai draft</button>
+            <button class="btn accent grow" onclick="rdSimpan(this, 'terbit')">Simpan & terbitkan</button>
+          </div>
+        </div>
+        ${lain.length ? `
+        <div class="card">
+          <h3>Salin dari hari lain</h3>
+          <div class="row">
+            <select id="rd-asal" class="grow">${lain.map(h => `<option value="${esc(h.id_hari)}">Hari ke-${esc(h.hari_ke)} — ${esc(fmtTanggal(h.tanggal))}</option>`).join('')}</select>
+            <button class="btn" onclick="rdSalin(this)">Salin</button>
+          </div>
+          <p class="small muted">Rundown hari ini akan diganti dengan salinan (sebagai draft), lalu bisa diedit.</p>
+        </div>` : ''}`);
+      rdRender();
+    } catch (e) { errBox(v, e); }
+  }
+
+  function rdRender() {
+    $('#rd-rows').innerHTML = C.rd.map((r, i) => `
+      <div class="rd-item" data-i="${i}">
+        <div class="rd-head">
+          <span class="rd-no">${i + 1}</span>
+          <input type="time" class="rd-f" data-k="jam_mulai" value="${esc(r.jam_mulai || '')}" aria-label="Jam mulai">
+          <span>–</span>
+          <input type="time" class="rd-f" data-k="jam_selesai" value="${esc(r.jam_selesai || '')}" aria-label="Jam selesai">
+          <button class="btn sm danger" title="Hapus baris" onclick="rdHapus(${i})">✕</button>
+        </div>
+        <input class="rd-f mt" data-k="kegiatan" value="${esc(r.kegiatan || '')}" placeholder="Kegiatan, mis. Pembukaan / Materi K3 Listrik">
+        <div class="grid2" style="gap:6px;margin-top:6px">
+          <input class="rd-f" data-k="pemateri" value="${esc(r.pemateri || '')}" placeholder="Pemateri / fasilitator (opsional)">
+          <input class="rd-f" data-k="keterangan" value="${esc(r.keterangan || '')}" placeholder="Keterangan (opsional)">
+        </div>
+      </div>`).join('');
+  }
+
+  /** Membaca isian form ke C.rd sebelum baris ditambah/dihapus/disimpan. */
+  function rdBaca() {
+    C.rd = $$('#rd-rows .rd-item').map(el => {
+      const o = {};
+      $$('.rd-f', el).forEach(f => { o[f.dataset.k] = f.value; });
+      const lama = C.rd[Number(el.dataset.i)] || {};
+      if (lama.id_rundown) o.id_rundown = lama.id_rundown;
+      return o;
+    });
+  }
+
+  function rdTambah() {
+    rdBaca();
+    const last = C.rd[C.rd.length - 1];
+    C.rd.push({ jam_mulai: last && last.jam_selesai || '' });
+    rdRender();
+    const items = $$('#rd-rows .rd-item');
+    $('input[data-k=kegiatan]', items[items.length - 1]).focus();
+  }
+
+  function rdHapus(i) { rdBaca(); C.rd.splice(i, 1); if (!C.rd.length) C.rd.push({}); rdRender(); }
+
+  function rdSimpan(btn, status) {
+    rdBaca();
+    busy(btn, async () => {
+      await call('rundownSimpan', { id_hari: C.idHari, items: C.rd, status: status });
+      toast(status === 'terbit' ? 'Rundown diterbitkan ke peserta.' : 'Draft rundown disimpan.', 'ok');
+      tabRundown();
+    });
+  }
+
+  function rdSalin(btn) {
+    rdBaca();
+    if (C.rd.some(r => r.kegiatan) && !confirm('Ganti rundown hari ini dengan salinan dari hari yang dipilih?')) return;
+    busy(btn, async () => {
+      await call('rundownSalin', { id_hari: C.idHari, id_hari_asal: $('#rd-asal').value });
+      toast('Rundown disalin sebagai draft.', 'ok');
+      tabRundown();
+    });
+  }
+
+  // ----------------------------------------------------- Tab: Materi
+  async function tabMateri() {
+    const v = C.view;
+    try {
+      await muatHari();
+      if (!C.idHari) return setBody(v, '<div class="card muted center">Belum ada hari pelatihan.</div>');
+      const list = await call('materiList', { id_hari: C.idHari });
+      if (v !== C.view) return;
+      setBody(v, `
+        <div class="card"><div class="row">${hariSelect('tabMateri')}</div></div>
+        <div class="card">
+          <h2>Upload materi</h2>
+          <form onsubmit="event.preventDefault(); uploadMateri(this)">
+            <div class="grid2">
+              <div><label>Kategori</label>
+                <select name="kategori"><option value="materi">Materi presentasi</option><option value="latihan">Lembar latihan</option></select></div>
+              <div><label>Tampil ke peserta mulai jam (opsional)</label><input type="time" name="tampil_mulai"></div>
+            </div>
+            <label>File (PDF, PPT, Word, Excel, gambar — maks. 20 MB)</label>
+            <input type="file" name="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+            <label>…atau link (Google Drive, YouTube, dll.)</label>
+            <input name="link" placeholder="https://…">
+            <label>Judul</label>
+            <input name="judul" placeholder="Kosongkan untuk memakai nama file">
+            <p class="small muted">Tips: PPT sebaiknya juga diupload versi PDF agar mudah dibuka di HP. Jika jam tampil kosong, materi tampil sejak awal hari.</p>
+            <button class="btn primary">Upload</button>
+          </form>
+        </div>
+        <div class="card">
+          <h2>Materi hari ini (${list.length})</h2>
+          ${list.length ? list.map(m => `
+            <div class="materi-item">
+              <div class="materi-ikon">${IKON_FILE[m.tipe_file] || '📄'}</div>
+              <div class="grow"><b>${esc(m.judul)}</b>
+                <div class="small muted">${m.kategori === 'latihan' ? 'Lembar latihan' : 'Materi'} · ${esc(m.tipe_file.toUpperCase())}
+                  ${m.tampil_mulai ? ' · tampil mulai ' + esc(m.tampil_mulai) : ''}</div></div>
+              <div class="row">
+                <a class="btn sm" href="${esc(m.buka)}" target="_blank" rel="noopener">Buka</a>
+                <button class="btn sm danger" onclick="hapusMateri(this, '${esc(m.id_materi)}', '${esc(m.judul).replace(/'/g, '')}')">Hapus</button>
+              </div>
+            </div>`).join('') : '<div class="muted small">Belum ada materi untuk hari ini.</div>'}
+        </div>`);
+    } catch (e) { errBox(v, e); }
+  }
+
+  function bacaFile(file) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = () => reject(new Error('File tidak terbaca.'));
+      fr.readAsDataURL(file);
+    });
+  }
+
+  function uploadMateri(form) {
+    const file = form.file.files[0];
+    const link = form.link.value.trim();
+    if (!file && !link) return toast('Pilih file atau isi link.', 'error');
+    if (file && file.size > 20 * 1024 * 1024) return toast('File lebih dari 20 MB. Simpan sebagai PDF atau gunakan link Google Drive.', 'error');
+    busy(form.querySelector('button.primary'), async () => {
+      const data = { id_hari: C.idHari, kategori: form.kategori.value, tampil_mulai: form.tampil_mulai.value, judul: form.judul.value };
+      if (file) data.file = { nama: file.name, data: await bacaFile(file) };
+      else data.link = link;
+      await call('materiTambah', data);
+      toast('Materi diupload.', 'ok');
+      tabMateri();
+    }, 'Mengupload…');
+  }
+
+  function hapusMateri(btn, id, judul) {
+    if (!confirm('Hapus materi "' + judul + '"?')) return;
+    busy(btn, async () => { await call('materiHapus', { id_materi: id }); toast('Materi dihapus.', 'ok'); tabMateri(); });
+  }
+
+  // ----------------------------------------------------- Tab: Dokumentasi
+  async function tabDok() {
+    const v = C.view;
+    try {
+      await muatHari();
+      if (!C.idHari) return setBody(v, '<div class="card muted center">Belum ada hari pelatihan.</div>');
+      const [list, rd] = await Promise.all([call('dokList', { id_hari: C.idHari }), call('rundownGet', { id_hari: C.idHari })]);
+      if (v !== C.view) return;
+      C.dok = list;
+      C.dokRundown = rd.items;
+      const nLaporan = list.filter(d => d.masuk_laporan).length;
+      setBody(v, `
+        <div class="card"><div class="row">${hariSelect('tabDok')}</div></div>
+        <div class="card">
+          <h2>Upload foto kegiatan</h2>
+          <label>Foto (bisa pilih banyak sekaligus)</label>
+          <input type="file" id="dok-files" accept="image/*" multiple>
+          <label>Kegiatan (opsional)</label>
+          ${kegiatanSelect('dok-rundown', '')}
+          <label>Keterangan (opsional, berlaku untuk semua foto yang dipilih)</label>
+          <input id="dok-ket" placeholder="mis. Praktik penggunaan APAR">
+          <div id="dok-progress" class="mt hidden"><div class="progress"><span></span></div><div class="small muted mt" id="dok-progress-text"></div></div>
+          <button class="btn primary mt" onclick="uploadDok(this)">Upload</button>
+        </div>
+        <div class="card">
+          <h2>Foto hari ini (${list.length})</h2>
+          ${list.length ? `<p class="small muted">${nLaporan} foto ditandai masuk laporan (✓). Klik foto untuk mengubah keterangan, kegiatan, atau menghapus.</p>
+          <div class="gallery">${list.map((d, i) => `
+            <button class="gallery-item" onclick="dialogDok(${i})">
+              <img src="${esc(d.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="fotoGagal(this)">
+              ${d.masuk_laporan ? '<span class="tag badge b-hadir">✓</span>' : ''}
+            </button>`).join('')}</div>` : '<div class="muted small">Belum ada foto.</div>'}
+        </div>`);
+    } catch (e) { errBox(v, e); }
+  }
+
+  function kegiatanSelect(id, selected) {
+    return `<select id="${id}"><option value="">— Tidak dikaitkan —</option>
+      ${C.dokRundown.map(r => `<option value="${esc(r.id_rundown)}" ${r.id_rundown === selected ? 'selected' : ''}>${esc(r.jam_mulai)} · ${esc(r.kegiatan)}</option>`).join('')}</select>`;
+  }
+
+  async function uploadDok(btn) {
+    const files = Array.from($('#dok-files').files || []);
+    if (!files.length) return toast('Pilih foto terlebih dahulu.', 'error');
+    const idRundown = $('#dok-rundown').value, ket = $('#dok-ket').value;
+    const bar = $('#dok-progress span'), txt = $('#dok-progress-text');
+    $('#dok-progress').classList.remove('hidden');
+    let ok = 0;
+    const gagal = [];
+    await busy(btn, async () => {
+      for (let i = 0; i < files.length; i++) {
+        txt.textContent = 'Mengupload ' + (i + 1) + ' dari ' + files.length + '…';
+        try {
+          const foto = await kompresGambar(files[i], 1600, 0.8);
+          await call('dokTambah', { id_hari: C.idHari, id_rundown: idRundown, keterangan: ket, foto: foto });
+          ok++;
+        } catch (e) { gagal.push(files[i].name + ': ' + e.message); }
+        bar.style.width = Math.round((i + 1) / files.length * 100) + '%';
+      }
+    }, 'Mengupload…');
+    if (gagal.length) toast(ok + ' foto berhasil, ' + gagal.length + ' gagal. ' + gagal[0], 'error');
+    else toast(ok + ' foto diupload.', 'ok');
+    tabDok();
+  }
+
+  function dialogDok(i) {
+    const d = C.dok[i];
+    openModal(`
+      <img class="thumb" src="${esc(d.thumb)}" alt="" referrerpolicy="no-referrer">
+      <label>Kegiatan</label>${kegiatanSelect('dd-rundown', d.id_rundown)}
+      <label>Keterangan</label><input id="dd-ket" value="${esc(d.keterangan)}">
+      <label class="check mt"><input type="checkbox" id="dd-lap" ${d.masuk_laporan ? 'checked' : ''}> Masukkan ke laporan PDF</label>
+      <div class="row mt">
+        <button class="btn danger" onclick="hapusDok(this, '${esc(d.id_dok)}')">Hapus</button>
+        <a class="btn" href="${esc(d.buka)}" target="_blank" rel="noopener">Buka</a>
+        <button class="btn primary grow" onclick="simpanDok(this, '${esc(d.id_dok)}')">Simpan</button>
+      </div>`);
+  }
+
+  function simpanDok(btn, id) {
+    busy(btn, async () => {
+      await call('dokUbah', { id_dok: id, keterangan: $('#dd-ket').value, id_rundown: $('#dd-rundown').value, masuk_laporan: $('#dd-lap').checked });
+      closeModal(); toast('Foto disimpan.', 'ok'); tabDok();
+    });
+  }
+
+  function hapusDok(btn, id) {
+    if (!confirm('Hapus foto ini?')) return;
+    busy(btn, async () => { await call('dokHapus', { id_dok: id }); closeModal(); toast('Foto dihapus.', 'ok'); tabDok(); });
   }
 </script>

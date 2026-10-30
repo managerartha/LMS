@@ -34,6 +34,7 @@ Semua file ada di folder [`apps-script/`](../apps-script) di repository ini. Unt
 | `Auth.gs` | **+** → Script | `Auth` |
 | `Batch.gs` | **+** → Script | `Batch` |
 | `Absensi.gs` | **+** → Script | `Absensi` |
+| `Konten.gs` | **+** → Script | `Konten` |
 | `index.html` | **+** → HTML | `index` |
 | `css.html` | **+** → HTML | `css` |
 | `js-common.html` | **+** → HTML | `js-common` |
@@ -95,9 +96,31 @@ Sebelum batch dimulai, lakukan uji coba dengan satu akun peserta dari HP:
 
 ---
 
+## Langkah 9 — Rundown, materi, dan dokumentasi (PIC)
+
+Semua menu ini ada di akun PIC dan diisi **per hari** (pilih hari di bagian atas setiap menu).
+
+- **Rundown**
+  - Isi jam mulai–selesai, kegiatan, pemateri, dan keterangan. Tekan **＋ Tambah kegiatan** untuk baris baru; urutannya otomatis mengikuti jam mulai.
+  - **Simpan sebagai draft**: belum tampil ke peserta. **Simpan & terbitkan**: langsung tampil di akun semua peserta batch.
+  - **Salin dari hari lain**: mengambil rundown hari lain sebagai draft, lalu tinggal diedit.
+- **Materi**
+  - Upload file PDF, PPT, Word, Excel, atau gambar (maks. 20 MB), atau tempel link (Google Drive, YouTube, dll.).
+  - Pilih kategori **Materi presentasi** atau **Lembar latihan**.
+  - **Tampil mulai jam** (opsional): materi baru muncul di akun peserta pada jam tersebut, misalnya lembar latihan baru tampil jam 13:00.
+  - Peserta melihat materi mulai tanggal harinya, dan masih bisa membuka materi hari-hari sebelumnya.
+- **Dokumentasi**
+  - Pilih banyak foto sekaligus. Foto otomatis diperkecil sebelum diupload, jadi lebih cepat dan hemat kuota.
+  - Bisa dikaitkan ke kegiatan rundown dan diberi keterangan.
+  - Klik foto untuk mengubah keterangan atau kegiatan, menghapus, atau mengatur **Masukkan ke laporan PDF** (default: masuk).
+
+> File materi dan dokumentasi disimpan di folder batch di Drive dan dibagikan sebagai **"siapa saja yang punya link: dapat melihat"** agar bisa dibuka peserta tanpa akun Google. Foto absen dan tanda tangan **tetap privat**.
+
+---
+
 ## Memperbarui kode (versi berikutnya)
 
-1. Tempel ulang file yang berubah di editor, lalu Save.
+1. Tempel ulang file yang berubah di editor, lalu Save. File baru (mis. `Konten.gs` di Tahap 2) dibuat seperti di Langkah 3.
 2. Jika ada sheet atau kolom baru, jalankan **`setup`** sekali lagi. Ini aman, data lama tidak terhapus.
 3. Klik **Deploy** → **Manage deployments** → ✏️ edit → **Version: New version** → **Deploy**.
    Link `/exec` **tetap sama**, jadi peserta tidak perlu link baru.
@@ -126,5 +149,6 @@ Sebelum batch dimulai, lakukan uji coba dengan satu akun peserta dari HP:
 - **Spreadsheet `LMS Artha Safety - Database`**: semua data (batch, peserta, absensi, log). Bisa dibuka untuk rekap, tapi **jangan mengubah judul kolom atau menghapus sheet**.
 - **Folder `LMS Artha Safety / <Kode Batch> - <Nama Pelatihan>`**:
   - `Absensi/Hari-N/`: foto dan tanda tangan absen, mis. `H1_S1_001-Kikis_foto.jpg`
-  - `Materi/`, `Dokumentasi/`, `Laporan/`: dipakai mulai Tahap 2 & 3
+  - `Materi/Hari-N/` dan `Dokumentasi/Hari-N/`: file materi dan foto kegiatan (bisa dibuka lewat link)
+  - `Laporan/`: dipakai mulai Tahap 3
 - Folder dan Spreadsheet **jangan dibagikan publik**. Foto absen dan tanda tangan hanya bisa dilihat PIC lewat LMS.
