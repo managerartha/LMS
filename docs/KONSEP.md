@@ -1,6 +1,7 @@
 # Konsep LMS Artha Safety Indonesia
 
-> Dokumen konsep v0.3 — 30 Oktober 2026
+> Dokumen konsep v0.4 — 30 Oktober 2026
+> Status: **Tahap 1 sudah dibuat** (folder `apps-script/`). Cara pasang: [PANDUAN-SETUP.md](PANDUAN-SETUP.md).
 > Perubahan v0.3: format kode login `001-Kikis` (nomor absen + nama depan), lokasi absen bisa diubah **per hari** oleh PIC/Admin, **satu Spreadsheet untuk semua batch**.
 > Perubahan dari v0.1: teknologi diganti menjadi **HTML + Google Apps Script**, data di **Google Spreadsheet**, file di **Google Drive**; login pakai **kode peserta**; tanpa status terlambat; absen **wajib di lokasi (GPS)**; tanda tangan PIC **digital**.
 
@@ -97,8 +98,8 @@ Apps Script menyelesaikan ketiganya: tetap berupa file HTML, gratis, otomatis HT
 
 | Sheet | Kolom |
 |-------|-------|
-| `Batch` | id_batch, nama_pelatihan, kode_batch, lokasi (default), tgl_mulai, tgl_selesai, sesi1_mulai, sesi1_selesai, sesi2_mulai, sesi2_selesai, lat, lng, radius_meter (default), folder_drive_id, status (aktif/selesai) |
-| `Pengguna` | id_user, id_batch, no_absen, nama, role (pic/peserta/admin), kode_login (mis. `001-Kikis`), device_id, pin (khusus PIC), instansi/jabatan, no_hp, ttd_pic_url, aktif |
+| `Batch` | id_batch, nama_pelatihan, kode_batch, lokasi_nama (default), tgl_mulai, tgl_selesai, sesi1_mulai, sesi1_selesai, sesi2_mulai, sesi2_selesai, lat, lng, radius_meter (default), lewati_weekend, pic_ids (2 PIC), folder_id, status (aktif/selesai), dibuat_pada |
+| `Pengguna` | id_user, id_batch (khusus peserta), no_absen, nama, role (pic/peserta/admin), kode_login (mis. `001-Kikis` / `PIC-Dina`), pin_hash (khusus PIC/Admin), instansi, no_hp, device_id, token, setuju_privasi, ttd_id (tanda tangan PIC), aktif, dibuat_pada |
 | `Hari` | id_hari, id_batch, tanggal, hari_ke, lokasi_nama, lat, lng, radius_meter (kosong = pakai default batch), diubah_oleh |
 | `Absensi` | id_absen, id_hari, id_user, sesi (1/2), waktu_server, foto_url, ttd_url, lat, lng, jarak_meter, status (hadir/izin/sakit/alpa), keterangan, diubah_oleh, diubah_pada |
 | `Rundown` | id_rundown, id_hari, urutan, jam_mulai, jam_selesai, kegiatan, pemateri, keterangan, status (draft/terbit) |
@@ -293,17 +294,19 @@ LMS/
 ├── docs/KONSEP.md
 └── apps-script/
      ├── appsscript.json      konfigurasi (timezone Asia/Jakarta, akses web app)
-     ├── Code.gs              routing doGet, fungsi API umum
-     ├── Auth.gs              login kode peserta / PIC
-     ├── Absensi.gs           absen, validasi jendela sesi & radius, auto-alpa
-     ├── Konten.gs            rundown, materi, dokumentasi
-     ├── Laporan.gs           pembuatan PDF
-     ├── Setup.gs             buat Spreadsheet & folder Drive otomatis (sekali jalan)
-     ├── index.html           kerangka aplikasi (single page)
-     ├── css.html             gaya tampilan (mobile-first)
-     ├── js-peserta.html      halaman peserta (kamera, GPS, tanda tangan)
-     ├── js-pic.html          halaman PIC
-     └── laporan-template.html template PDF
+     ├── Code.gs              doGet, pintu API, helper Spreadsheet & Drive        ✅ Tahap 1
+     ├── Setup.gs             buat Spreadsheet & folder Drive otomatis            ✅ Tahap 1
+     ├── Auth.gs              login peserta (kode + ikat HP) / PIC (kode + PIN)   ✅ Tahap 1
+     ├── Batch.gs             batch, hari, lokasi default & per hari, peserta    ✅ Tahap 1
+     ├── Absensi.gs           absen, validasi jam & radius, auto-alpa, monitor    ✅ Tahap 1
+     ├── index.html           kerangka aplikasi (single page)                     ✅ Tahap 1
+     ├── css.html             gaya tampilan (mobile-first)                        ✅ Tahap 1
+     ├── js-common.html       utilitas, login, GPS, waktu WIB                     ✅ Tahap 1
+     ├── js-peserta.html      halaman peserta (kamera, watermark, tanda tangan)   ✅ Tahap 1
+     ├── js-pic.html          halaman PIC & Admin                                 ✅ Tahap 1
+     ├── Konten.gs            rundown, materi, dokumentasi                        Tahap 2
+     ├── Laporan.gs           pembuatan PDF                                       Tahap 3
+     └── laporan-template.html template PDF                                       Tahap 3
 ```
 
 Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai `clasp`).
@@ -324,7 +327,7 @@ Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai 
 
 | Tahap | Isi |
 |-------|-----|
-| **1 — Fondasi & Absensi** | Setup otomatis Sheets/Drive, batch & input peserta + kode otomatis (`001-Kikis`), lokasi default & per hari, login, absensi (GPS + foto + watermark + ttd), monitor PIC, auto-alpa |
+| **1 — Fondasi & Absensi** ✅ | Setup otomatis Sheets/Drive, batch & input peserta + kode otomatis (`001-Kikis`), lokasi default & per hari, login, absensi (GPS + foto + watermark + ttd), monitor PIC, auto-alpa |
 | **2 — Konten** | Rundown, materi, dokumentasi + galeri |
 | **3 — Laporan** | PDF harian & lengkap, tanda tangan digital PIC |
 | **4 — Uji coba** | Uji di 1 batch nyata, perbaikan, panduan singkat untuk PIC |
@@ -343,6 +346,12 @@ Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai 
 | Format laporan | Pakai format dari LMS dulu, format resmi menyusul |
 | Tanda tangan PIC | Digital |
 
-## 11. Masih Perlu Dikonfirmasi
+| Akun Google | **manag3r.artha@gmail.com** (pemilik Spreadsheet, folder Drive, dan web app) |
 
-1. Akun Google pemilik LMS: **sedang disiapkan** oleh Artha Safety (disarankan akun khusus, bukan akun pribadi).
+## 11. Catatan Implementasi Tahap 1
+
+- **Status Alpa dihitung otomatis**: peserta tanpa catatan absen di sesi yang sudah ditutup tampil sebagai Alpa. Tidak perlu trigger terjadwal.
+- **PIC bersifat global**: satu akun PIC bisa ditugaskan ke beberapa batch (kolom `pic_ids` di sheet Batch).
+- **Watermark** digambar di HP memakai jam server (selisih jam HP dikoreksi otomatis). Jam resmi yang tercatat di Spreadsheet tetap jam server saat data diterima.
+- **Kamera**: LMS mencoba membuka kamera langsung di halaman. Jika browser HP tidak mengizinkannya, LMS membuka aplikasi kamera bawaan HP. Foto lama dari galeri (lebih dari 5 menit) ditolak.
+- **Keterbatasan GPS**: aplikasi "fake GPS" di HP Android tidak bisa dideteksi dari browser. Pencegahnya adalah foto selfie ber-watermark yang diperiksa PIC.

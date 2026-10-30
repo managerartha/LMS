@@ -1,0 +1,225 @@
+<script>
+  // ===================================================== Utilitas bersama
+  const S = { token: null, user: null, timeOffset: 0 };
+
+  function store(key, val) {
+    try {
+      if (val === undefined) return localStorage.getItem(key);
+      if (val === null) localStorage.removeItem(key); else localStorage.setItem(key, val);
+    } catch (e) { return null; }
+  }
+
+  function deviceId() {
+    let id = store('lms_device');
+    if (!id) {
+      id = 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+      store('lms_device', id);
+    }
+    return id;
+  }
+
+  /** Memanggil fungsi api() di server. */
+  function call(action, data) {
+    return new Promise((resolve, reject) => {
+      google.script.run
+        .withSuccessHandler(res => {
+          if (res && res.ok) return resolve(res.data);
+          const msg = res ? res.error : 'Terjadi kesalahan.';
+          if (/Sesi login habis/.test(msg) && S.token) { clearLogin(); showLogin(); }
+          reject(new Error(msg));
+        })
+        .withFailureHandler(err => reject(new Error(err && err.message ? err.message : 'Koneksi gagal. Periksa internet Anda.')))
+        .api(action, Object.assign({ token: S.token }, data || {}));
+    });
+  }
+
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+
+  function esc(s) {
+    return String(s === undefined || s === null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function render(html) { $('#app').innerHTML = html; window.scrollTo(0, 0); }
+
+  let toastTimer;
+  function toast(msg, type) {
+    const el = $('#toast');
+    el.textContent = msg;
+    el.className = 'toast ' + (type || '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.add('hidden'), type === 'error' ? 6000 : 3000);
+  }
+
+  function openModal(html) {
+    $('#modal-box').innerHTML = html;
+    $('#modal').classList.remove('hidden');
+  }
+  function closeModal() {
+    $('#modal').classList.add('hidden');
+    $('#modal-box').innerHTML = '';
+    if (window.onModalClose) { const f = window.onModalClose; window.onModalClose = null; f(); }
+  }
+  document.addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+
+  /** Menjalankan aksi async sambil menonaktifkan tombol; error ditampilkan sebagai toast. */
+  async function busy(btn, fn, label) {
+    const old = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = label || 'Memproses…'; }
+    try { return await fn(); }
+    catch (e) { toast(e.message, 'error'); }
+    finally { if (btn && btn.isConnected) { btn.disabled = false; btn.innerHTML = old; } }
+  }
+
+  // ----------------------------------------------------- Waktu (WIB, mengikuti jam server)
+  function serverNow() { return new Date(Date.now() + S.timeOffset); }
+  function syncTime(serverMs) { if (serverMs) S.timeOffset = serverMs - Date.now(); }
+
+  const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+
+  /** 'yyyy-mm-dd' -> 'Kamis, 30 Okt 2026' */
+  function fmtTanggal(s) {
+    if (!s) return '';
+    const [y, m, d] = s.split('-').map(Number);
+    const dt = new Date(Date.UTC(y, m - 1, d));
+    return HARI[dt.getUTCDay()] + ', ' + d + ' ' + BULAN[m - 1] + ' ' + y;
+  }
+
+  /** Date -> bagian-bagian waktu WIB */
+  function wib(date) {
+    const p = {};
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
+    }).formatToParts(date).forEach(x => { p[x.type] = x.value; });
+    const tanggal = p.year + '-' + p.month + '-' + p.day;
+    return { tanggal: tanggal, jam: p.hour + ':' + p.minute + ':' + p.second, teks: fmtTanggal(tanggal) + ' ' + p.hour + ':' + p.minute + ':' + p.second + ' WIB' };
+  }
+
+  function jamSaja(stamp) { return stamp ? stamp.slice(11, 16) : ''; }
+
+  const STATUS_LABEL = { hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpa: 'Alpa', belum: 'Belum absen', '': '—' };
+  function badge(status) {
+    return '<span class="badge b-' + (status || 'none') + '">' + esc(STATUS_LABEL[status] || status) + '</span>';
+  }
+
+  // ----------------------------------------------------- GPS
+  function getPosition() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) return reject(new Error('Perangkat tidak mendukung GPS.'));
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, akurasi: p.coords.accuracy }),
+        err => reject(new Error(err.code === 1
+          ? 'Izin lokasi ditolak. Izinkan akses lokasi untuk situs ini di pengaturan browser, lalu coba lagi.'
+          : 'Lokasi tidak terbaca. Pastikan GPS aktif, lalu coba lagi.')),
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+    });
+  }
+
+  function distanceM(lat1, lng1, lat2, lng2) {
+    const R = 6371000, rad = x => x * Math.PI / 180;
+    const a = Math.sin(rad(lat2 - lat1) / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(rad(lng2 - lng1) / 2) ** 2;
+    return Math.round(2 * R * Math.asin(Math.sqrt(a)));
+  }
+
+  // ----------------------------------------------------- Login
+  function saveLogin(res) {
+    S.token = res.token; S.user = res.user;
+    store('lms_token', res.token);
+  }
+  function clearLogin() { S.token = null; S.user = null; store('lms_token', null); }
+
+  async function logoutNow() {
+    try { await call('logout'); } catch (e) { /* tetap keluar */ }
+    clearLogin();
+    showLogin();
+  }
+
+  function setTopbar(sub, actionsHtml) {
+    $('#topbar-sub').textContent = sub || 'Indonesia';
+    $('#topbar-actions').innerHTML = actionsHtml || '';
+  }
+
+  async function boot() {
+    call('waktu').then(r => syncTime(r.now)).catch(() => {});
+    S.token = store('lms_token');
+    if (!S.token) return showLogin();
+    try {
+      const r = await call('me');
+      S.user = r.user;
+      route(r);
+    } catch (e) {
+      clearLogin();
+      showLogin();
+    }
+  }
+
+  function route(meRes) {
+    if (S.user.role === 'peserta') showPeserta(meRes); else showPic();
+  }
+
+  async function showLogin(tab) {
+    tab = tab || store('lms_login_tab') || 'peserta';
+    setTopbar('Indonesia', '');
+    render(`
+      <div class="card narrow">
+        <h1>Masuk</h1>
+        <p class="muted small">Learning Management System Artha Safety Indonesia</p>
+        <div class="tabs">
+          <button class="tab ${tab === 'peserta' ? 'active' : ''}" onclick="showLogin('peserta')">Peserta</button>
+          <button class="tab ${tab === 'pic' ? 'active' : ''}" onclick="showLogin('pic')">PIC / Admin</button>
+        </div>
+        <div id="login-form"><div class="muted small">Memuat…</div></div>
+      </div>`);
+    store('lms_login_tab', tab);
+    if (tab === 'pic') {
+      $('#login-form').innerHTML = `
+        <form onsubmit="event.preventDefault(); doLoginPic(this)">
+          <label>Kode PIC</label><input name="kode" autocomplete="username" required>
+          <label>PIN</label><input name="pin" type="password" inputmode="numeric" autocomplete="current-password" required>
+          <button class="btn primary block big mt">Masuk</button>
+        </form>`;
+      return;
+    }
+    try {
+      const batches = await call('batchAktif');
+      if (!batches.length) {
+        $('#login-form').innerHTML = '<div class="alert warn">Belum ada batch pelatihan yang aktif.</div>';
+        return;
+      }
+      const last = store('lms_batch');
+      $('#login-form').innerHTML = `
+        <form onsubmit="event.preventDefault(); doLoginPeserta(this)">
+          <label>Batch pelatihan</label>
+          <select name="id_batch" ${batches.length === 1 ? 'disabled' : ''}>
+            ${batches.map(b => `<option value="${esc(b.id_batch)}" ${b.id_batch === last ? 'selected' : ''}>${esc(b.kode_batch)} — ${esc(b.nama_pelatihan)}</option>`).join('')}
+          </select>
+          <label>Kode peserta</label>
+          <input name="kode" placeholder="contoh: 001-Kikis" autocapitalize="off" autocomplete="off" required>
+          <p class="small muted">Kode ada di kartu peserta dari PIC (nomor absen + nama depan).</p>
+          <button class="btn primary block big">Masuk</button>
+        </form>`;
+    } catch (e) {
+      $('#login-form').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+    }
+  }
+
+  function doLoginPeserta(form) {
+    const id_batch = form.id_batch.value;
+    busy(form.querySelector('button'), async () => {
+      const res = await call('loginPeserta', { id_batch: id_batch, kode: form.kode.value, device_id: deviceId() });
+      store('lms_batch', id_batch);
+      saveLogin(res);
+      route(await call('me'));
+    });
+  }
+
+  function doLoginPic(form) {
+    busy(form.querySelector('button'), async () => {
+      saveLogin(await call('loginPic', { kode: form.kode.value, pin: form.pin.value }));
+      route(await call('me'));
+    });
+  }
+</script>

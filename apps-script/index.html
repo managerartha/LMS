@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LMS Artha Safety Indonesia</title>
+  <?!= include('css'); ?>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">ASI</div>
+      <div>
+        <div class="brand-name">LMS Artha Safety</div>
+        <div class="brand-sub" id="topbar-sub">Indonesia</div>
+      </div>
+    </div>
+    <div id="topbar-actions"></div>
+  </header>
+
+  <main id="app"><div class="center muted pad">Memuat…</div></main>
+
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-box" id="modal-box"></div>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+  <div id="print-area"></div>
+
+  <?!= include('js-common'); ?>
+  <?!= include('js-peserta'); ?>
+  <?!= include('js-pic'); ?>
+  <script>boot();</script>
+</body>
+</html>
