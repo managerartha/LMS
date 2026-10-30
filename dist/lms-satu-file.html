@@ -296,17 +296,30 @@ function deviceId() {
  * Content-Type text/plain agar browser tidak mengirim preflight CORS (tidak didukung Apps Script).
  */
 async function call(action, data) {
-  let res;
+  const url = (window.LMS_CONFIG && LMS_CONFIG.API_URL) || '';
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]{20,}\/exec$/.test(url) || /GANTI/.test(url)) {
+    throw new Error('API_URL belum diisi dengan benar. Isi dengan Web app URL Apps Script yang berakhiran /exec (bukan /dev).');
+  }
+  let r;
   try {
-    const r = await fetch(LMS_CONFIG.API_URL, {
+    r = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: action, data: Object.assign({ token: S.token }, data || {}) }),
       redirect: 'follow',
     });
-    res = await r.json();
   } catch (err) {
-    throw new Error('Koneksi gagal. Periksa internet Anda lalu coba lagi.');
+    throw new Error(navigator.onLine === false
+      ? 'Tidak ada internet. Periksa koneksi Anda lalu coba lagi.'
+      : 'Server LMS tidak bisa dihubungi. Pastikan deployment Apps Script sudah "New version" dengan akses "Anyone", lalu coba lagi.');
+  }
+  const text = await r.text();
+  let res;
+  try {
+    res = JSON.parse(text);
+  } catch (err) {
+    console.error('Balasan API bukan JSON', r.status, text.slice(0, 500));
+    throw new Error('Server LMS membalas tidak sesuai (status ' + r.status + '). Kemungkinan Code.gs versi baru belum di-deploy sebagai "New version".');
   }
   if (res && res.ok) return res.data;
   const msg = res && res.error ? res.error : 'Terjadi kesalahan.';

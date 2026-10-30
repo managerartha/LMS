@@ -243,7 +243,8 @@ Data (Spreadsheet & Drive) tetap dipakai, tidak perlu `setup` ulang.
 
 | Masalah | Solusi |
 |---|---|
-| "Koneksi gagal. Periksa internet Anda" padahal internet lancar | `API_URL` di `js/config.js` belum diisi / salah, atau deployment Apps Script belum **Anyone**. Buka URL `/exec` di browser: harus tampil tulisan "LMS Artha Safety Indonesia ada di …". |
+| "API_URL belum diisi dengan benar" | Ganti `API_URL` di bagian PENGATURAN LMS (atas file / `js/config.js`) dengan Web app URL yang berakhiran **/exec**. |
+| "Server LMS tidak bisa dihubungi" / "membalas tidak sesuai" | 1) Setelah mengganti `Code.gs`, lakukan **Deploy → Manage deployments → ✏️ → Version: New version → Deploy**. 2) Pastikan **Who has access: Anyone**. 3) Buka `URL/exec?cek=1` di browser: harus tampil `"versi":"web-api-2"` dan `"setup":true`. Jika versi lain/halaman error → deployment belum terbaru; jika `"setup":false` → jalankan `setup`. |
 | Perubahan tampilan belum muncul | Naikkan angka `?v=` di `index.html`, lalu muat ulang halaman (Ctrl+Shift+R). |
 | Kamera / GPS tidak bisa dipakai | Pastikan alamat diawali **https://** (gembok hijau). Jalankan AutoSSL di cPanel jika belum. |
 | "Izin lokasi ditolak" | Di HP: Pengaturan browser → Setelan situs → Lokasi → izinkan. Pastikan GPS HP aktif. |

@@ -9,6 +9,9 @@
 /** Alamat tampilan LMS. Membuka URL /exec di browser akan diarahkan ke sini. */
 const WEB_URL = 'https://arthasafetyindonesia.com/lms';
 
+/** Versi API, tampil di URL /exec?cek=1 untuk memastikan deployment terbaru sudah aktif. */
+const API_VERSI = 'web-api-2';
+
 const TZ = 'Asia/Jakarta';
 const DB_NAME = 'LMS Artha Safety - Database';
 const ROOT_FOLDER_NAME = 'LMS Artha Safety';
@@ -47,8 +50,21 @@ function doPost(e) {
     .setMimeType(ContentService.MimeType.JSON);
 }
 
-/** Membuka URL API langsung di browser: arahkan ke alamat LMS. */
-function doGet() {
+/**
+ * Membuka URL API langsung di browser: arahkan ke alamat LMS.
+ * Tambahkan ?cek=1 di belakang URL /exec untuk mengecek API (versi & status setup).
+ */
+function doGet(e) {
+  if (e && e.parameter && e.parameter.cek) {
+    const props = PropertiesService.getScriptProperties();
+    return ContentService.createTextOutput(JSON.stringify({
+      ok: true,
+      api: 'LMS Artha Safety',
+      versi: API_VERSI,
+      setup: !!(props.getProperty('DB_ID') && props.getProperty('ROOT_FOLDER_ID')),
+      web: WEB_URL,
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
   return HtmlService.createHtmlOutput(
     '<p style="font-family:sans-serif">LMS Artha Safety Indonesia ada di ' +
     '<a href="' + WEB_URL + '" target="_top">' + WEB_URL + '</a></p>' +
