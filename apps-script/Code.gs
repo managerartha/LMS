@@ -10,7 +10,7 @@
 const WEB_URL = 'https://arthasafetyindonesia.com/lms';
 
 /** Versi API, tampil di URL /exec?cek=1 untuk memastikan deployment terbaru sudah aktif. */
-const API_VERSI = 'web-api-2';
+const API_VERSI = 'web-api-3';
 
 const TZ = 'Asia/Jakarta';
 const DB_NAME = 'LMS Artha Safety - Database';
@@ -57,10 +57,19 @@ function doPost(e) {
 function doGet(e) {
   if (e && e.parameter && e.parameter.cek) {
     const props = PropertiesService.getScriptProperties();
+    let lengkap = true, kurang = '';
+    try {
+      routes_();
+    } catch (err) {
+      lengkap = false;
+      kurang = err.message;
+    }
     return ContentService.createTextOutput(JSON.stringify({
-      ok: true,
+      ok: lengkap,
       api: 'LMS Artha Safety',
       versi: API_VERSI,
+      file_lengkap: lengkap,
+      kurang: kurang,
       setup: !!(props.getProperty('DB_ID') && props.getProperty('ROOT_FOLDER_ID')),
       web: WEB_URL,
     })).setMimeType(ContentService.MimeType.JSON);
@@ -136,7 +145,14 @@ function routes_() {
 
 function api(action, data) {
   try {
-    const route = routes_()[action];
+    let daftar;
+    try {
+      daftar = routes_();
+    } catch (err) {
+      throw new Error('Kode Apps Script belum lengkap / masih versi lama (' + err.message + '). ' +
+        'Tempel ulang SEMUA file .gs, lalu Deploy → New version.');
+    }
+    const route = daftar[action];
     if (!route) throw new Error('Aksi tidak dikenal: ' + action);
     data = data || {};
     let user = null;
