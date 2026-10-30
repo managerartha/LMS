@@ -153,7 +153,22 @@
     S.token = res.token; S.user = res.user;
     store('lms_token', res.token);
   }
-  function clearLogin() { S.token = null; S.user = null; store('lms_token', null); }
+  function clearLogin() {
+    if (S.user) store('lms_cache_' + S.user.id_user, null);
+    S.token = null; S.user = null; store('lms_token', null);
+  }
+
+  /** Data terakhir yang tersimpan di perangkat, agar halaman langsung tampil sambil menunggu server. */
+  function cacheGet(key) {
+    try { return JSON.parse(store('lms_cache_' + S.user.id_user) || '{}')[key] || null; } catch (e) { return null; }
+  }
+  function cacheSet(key, val) {
+    try {
+      const all = JSON.parse(store('lms_cache_' + S.user.id_user) || '{}');
+      all[key] = val;
+      store('lms_cache_' + S.user.id_user, JSON.stringify(all));
+    } catch (e) { /* penyimpanan penuh / tidak tersedia: abaikan */ }
+  }
 
   async function logoutNow() {
     try { await call('logout'); } catch (e) { /* tetap keluar */ }
@@ -168,7 +183,6 @@
   }
 
   async function boot() {
-    call('waktu').then(r => syncTime(r.now)).catch(() => {});
     S.token = store('lms_token');
     if (!S.token) return showLogin();
     try {
@@ -182,7 +196,7 @@
   }
 
   function route(meRes) {
-    if (S.user.role === 'peserta') showPeserta(meRes); else showPic();
+    if (S.user.role === 'peserta') showPeserta(meRes); else showPic(meRes);
   }
 
   async function showLogin(tab) {
@@ -245,14 +259,15 @@
       const res = await call('loginPeserta', { id_batch: id_batch, kode: form.kode.value, device_id: deviceId() });
       store('lms_batch', id_batch);
       saveLogin(res);
-      route(await call('me'));
+      route(res.me);
     });
   }
 
   function doLoginPic(form) {
     busy(form.querySelector('button'), async () => {
-      saveLogin(await call('loginPic', { kode: form.kode.value, pin: form.pin.value }));
-      route(await call('me'));
+      const res = await call('loginPic', { kode: form.kode.value, pin: form.pin.value });
+      saveLogin(res);
+      route(res.me);
     });
   }
 </script>

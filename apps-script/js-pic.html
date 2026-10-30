@@ -2,16 +2,17 @@
   // ===================================================== Halaman PIC / Admin
   const C = { view: 0, batches: [], batch: null, tab: 'monitor', hari: [], idHari: null, timer: null, monitor: null, peserta: [], pics: [] };
 
-  async function showPic() {
+  async function showPic(meRes) {
     C.tab = 'monitor';
     setTopbar(S.user.nama + (S.user.role === 'admin' ? ' · Admin' : ' · PIC'),
       '<button class="btn sm" onclick="dialogGantiPin()">PIN</button> <button class="btn sm" onclick="logoutNow()">Keluar</button>');
     render('<div class="center muted pad">Memuat…</div>');
     try {
-      C.batches = await call('batchList');
+      C.batches = meRes && meRes.batches ? meRes.batches : await call('batchList');
     } catch (e) {
       return render('<div class="alert bad">' + esc(e.message) + '</div>');
     }
+    C.hariFor = null;
     const saved = store('lms_pic_batch');
     C.batch = C.batches.find(b => b.id_batch === saved) || C.batches[0] || null;
     picTab(C.batch ? C.tab : (S.user.role === 'admin' ? 'batch' : 'monitor'));
@@ -21,6 +22,7 @@
     C.batch = C.batches.find(b => b.id_batch === id);
     store('lms_pic_batch', id);
     C.idHari = null;
+    C.hariFor = null;
     picTab(C.tab);
   }
 
@@ -54,8 +56,12 @@
   function setBody(v, html) { if (v === C.view) $('#tab-body').innerHTML = html; return v === C.view; }
   function errBox(v, e) { setBody(v, '<div class="alert bad">' + esc(e.message) + '</div>'); }
 
-  async function muatHari() {
-    C.hari = await call('hariList', { id_batch: C.batch.id_batch });
+  /** Daftar hari batch; disimpan selama batch yang sama, kecuali force (mis. setelah lokasi diubah). */
+  async function muatHari(force) {
+    if (force || C.hariFor !== C.batch.id_batch) {
+      C.hari = await call('hariList', { id_batch: C.batch.id_batch });
+      C.hariFor = C.batch.id_batch;
+    }
     if (!C.idHari || !C.hari.some(h => h.id_hari === C.idHari)) {
       const today = wib(serverNow()).tanggal;
       const h = C.hari.find(x => x.tanggal === today) || C.hari.find(x => x.tanggal > today) || C.hari[C.hari.length - 1];
@@ -67,9 +73,17 @@
   async function tabMonitor() {
     const v = C.view;
     try {
-      await muatHari();
-      if (!C.idHari) return setBody(v, '<div class="card muted center">Belum ada hari pelatihan.</div>');
-      await muatMonitor(v);
+      if (C.hariFor !== C.batch.id_batch) {
+        // Satu permintaan: server memilih hari & mengirim daftar hari sekaligus.
+        const m = await call('monitor', { id_batch: C.batch.id_batch, id_hari: C.idHari });
+        C.hari = m.hariList; C.hariFor = C.batch.id_batch;
+        if (!m.hari) return setBody(v, '<div class="card muted center">Belum ada hari pelatihan.</div>');
+        C.idHari = m.hari.id_hari;
+        tampilMonitor(v, m);
+      } else {
+        if (!C.idHari) return setBody(v, '<div class="card muted center">Belum ada hari pelatihan.</div>');
+        await muatMonitor(v);
+      }
       C.timer = setInterval(() => { if ($('#monitor-table') && $('#modal').classList.contains('hidden')) muatMonitor(v).catch(() => {}); }, 30000);
     } catch (e) { errBox(v, e); }
   }
@@ -77,6 +91,10 @@
   async function muatMonitor(v) {
     if (v === undefined) v = C.view;
     const m = await call('monitor', { id_hari: C.idHari });
+    tampilMonitor(v, m);
+  }
+
+  function tampilMonitor(v, m) {
     if (v !== C.view) return;
     syncTime(m.server_now);
     C.monitor = m;
@@ -258,7 +276,7 @@
   async function tabLokasi() {
     const v = C.view;
     try {
-      await muatHari();
+      await muatHari(true);
       const b = C.batch;
       setBody(v, `
         <div class="card">
@@ -387,8 +405,7 @@
   async function tabBatch() {
     const v = C.view;
     try {
-      C.pics = await call('picList');
-      C.batches = await call('batchList');
+      [C.pics, C.batches] = await Promise.all([call('picList'), call('batchList')]);
       setBody(v, `
         <div class="card">
           <h2>Buat batch baru</h2>
@@ -477,6 +494,7 @@
         status: form.status.value, pic_ids: formPicIds(form), lewati_weekend: form.lewati_weekend.checked,
       } });
       closeModal(); toast('Batch disimpan.', 'ok');
+      C.hariFor = null;
       C.batches = await call('batchList');
       C.batch = C.batches.find(x => x.id_batch === (C.batch && C.batch.id_batch)) || C.batches[0] || null;
       picTab('batch');

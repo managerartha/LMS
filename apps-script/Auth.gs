@@ -58,7 +58,7 @@ function loginPeserta(data) {
   const token = newToken_();
   update_('Pengguna', u, { device_id: deviceId, token: token });
   log_(u, 'login', 'peserta');
-  return { token: token, user: publicUser_(u) };
+  return { token: token, user: publicUser_(u), me: me({}, u) };
 }
 
 function loginPic(data) {
@@ -71,16 +71,28 @@ function loginPic(data) {
   const tokens = (u.token ? u.token.split(' ') : []).concat(token).slice(-MAX_TOKEN_PIC);
   update_('Pengguna', u, { token: tokens.join(' ') });
   log_(u, 'login', u.role);
-  return { token: token, user: publicUser_(u) };
+  return { token: token, user: publicUser_(u), me: me({}, u) };
 }
 
+/**
+ * Data awal setelah login / saat aplikasi dibuka. Sekaligus membawa isi halaman pertama
+ * (dashboard peserta atau daftar batch PIC) agar tidak perlu permintaan tambahan.
+ */
 function me(data, user) {
   const out = { user: publicUser_(user) };
   if (user.role === 'peserta') {
     const b = getBatch_(user.id_batch);
     out.batch = { id_batch: b.id_batch, nama_pelatihan: b.nama_pelatihan, kode_batch: b.kode_batch };
+    if (user.setuju_privasi) out.beranda = beranda(data, user);
+  } else {
+    out.batches = batchList(data, user);
   }
   return out;
+}
+
+/** Status absen hari ini + konten (rundown, materi, dokumentasi) dalam satu permintaan. */
+function beranda(data, user) {
+  return { status: statusHariIni(data, user), konten: kontenPeserta(data, user) };
 }
 
 function logout(data, user) {

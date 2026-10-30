@@ -174,8 +174,23 @@ function riwayat(data, user) {
 
 // ---------------------------------------------------------------- PIC
 
+/**
+ * Rekap absensi satu hari untuk PIC. Bisa dipanggil dengan id_batch saja: hari dipilih otomatis
+ * (hari ini, atau hari terdekat) dan daftar hari ikut dikirim, agar halaman PIC cukup satu permintaan.
+ */
 function monitor(data, user) {
-  const hari = getHari_(data.id_hari);
+  let hari, daftarHari = null;
+  if (data.id_batch) {
+    const b = batchForPic_(user, data.id_batch);
+    const semua = hariBatch_(b.id_batch);
+    const today = now_().date;
+    hari = semua.find(h => h.id_hari === data.id_hari) || semua.find(h => h.tanggal === today) ||
+      semua.find(h => h.tanggal > today) || semua[semua.length - 1];
+    if (!hari) return { hariList: [], hari: null };
+    daftarHari = hariList({ id_batch: b.id_batch }, user);
+  } else {
+    hari = getHari_(data.id_hari);
+  }
   const batch = batchForPic_(user, hari.id_batch);
   const now = now_();
   const states = SESI.map(s => stateSesi_(batch, hari, s, now));
@@ -191,6 +206,7 @@ function monitor(data, user) {
   }));
   return {
     server_now: Date.now(),
+    hariList: daftarHari,
     hari: { id_hari: hari.id_hari, hari_ke: hari.hari_ke, tanggal: hari.tanggal, lokasi: lokasiHari_(batch, hari) },
     sesi: SESI.map((s, i) => Object.assign({ sesi: s, state: states[i], rekap: rekap[i] }, jamSesi_(batch, s))),
     peserta: peserta,

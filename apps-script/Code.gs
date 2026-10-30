@@ -52,6 +52,7 @@ function routes_() {
     loginPic: { auth: '', fn: loginPic },
     // semua pengguna
     me: { auth: 'user', fn: me },
+    beranda: { auth: 'user', fn: beranda },
     logout: { auth: 'user', fn: logout },
     setuju: { auth: 'user', fn: setuju },
     // peserta
@@ -160,15 +161,19 @@ function insert_(name, obj) {
   return o;
 }
 
+/** Mengubah beberapa kolom satu baris dalam satu kali tulis (lebih cepat daripada per sel). */
 function update_(name, rec, changes) {
   const t = table_(name);
-  Object.keys(changes).forEach(k => {
+  const cols = Object.keys(changes).map(k => {
     const col = t.head.indexOf(k);
     if (col < 0) throw new Error('Kolom ' + k + ' tidak ada di sheet ' + name);
-    const v = changes[k] === undefined || changes[k] === null ? '' : String(changes[k]);
-    t.sh.getRange(rec._row, col + 1).setNumberFormat('@').setValue(v);
-    rec[k] = v;
+    rec[k] = changes[k] === undefined || changes[k] === null ? '' : String(changes[k]);
+    return col;
   });
+  if (!cols.length) return rec;
+  const from = Math.min.apply(null, cols), to = Math.max.apply(null, cols);
+  const vals = t.head.slice(from, to + 1).map(k => rec[k]);
+  t.sh.getRange(rec._row, from + 1, 1, vals.length).setNumberFormat('@').setValues([vals]);
   return rec;
 }
 
@@ -181,14 +186,11 @@ function newId_(prefix) {
   return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 }
 
+/** Mencatat log tanpa membaca isi sheet Log (sheet ini terus bertambah besar). */
 function log_(user, aksi, detail) {
-  insert_('Log', {
-    waktu: now_().stamp,
-    id_user: user ? user.id_user : '',
-    nama: user ? user.nama : '',
-    aksi: aksi,
-    detail: detail || '',
-  });
+  ss_().getSheetByName('Log').appendRow([
+    now_().stamp, user ? user.id_user : '', user ? user.nama : '', aksi, detail || '',
+  ]);
 }
 
 // ---------------------------------------------------------------- Waktu & lokasi

@@ -4,6 +4,10 @@
 
   function showPeserta(meRes) {
     P.batch = meRes.batch;
+    if (meRes.beranda) {
+      cacheSet('beranda', meRes.beranda);
+      P.segar = meRes.beranda; // data baru dari server, tidak perlu dimuat ulang
+    }
     setTopbar(S.user.nama + ' · ' + S.user.kode_login, '<button class="btn sm" onclick="logoutNow()">Keluar</button>');
     if (!S.user.setuju_privasi) return showPersetujuan();
     pesertaTab(P.tab);
@@ -59,16 +63,31 @@
     else loadKonten(tab);
   }
 
+  function tampilBeranda(b) {
+    P.status = b.status;
+    P.konten = b.konten;
+    $('#tab-body').innerHTML = berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
+  }
+
+  /** Tampilkan data tersimpan dulu (instan), lalu ganti dengan data terbaru dari server. */
   async function loadBeranda() {
+    if (P.segar) {
+      const b = P.segar;
+      P.segar = null;
+      syncTime(b.status.server_now);
+      return tampilBeranda(b);
+    }
+    const lama = cacheGet('beranda');
+    if (lama) tampilBeranda(lama);
     try {
-      const [st, konten] = await Promise.all([call('statusHariIni'), call('kontenPeserta')]);
-      syncTime(st.server_now);
-      if (P.tab !== 'beranda') return;
-      P.status = st;
-      P.konten = konten;
-      $('#tab-body').innerHTML = berandaHtml(st, konten) + kontenHariIniHtml(konten);
+      const b = await call('beranda');
+      syncTime(b.status.server_now);
+      cacheSet('beranda', b);
+      if (P.tab !== 'beranda' || !$('#modal').classList.contains('hidden')) return;
+      tampilBeranda(b);
     } catch (e) {
-      $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+      if (!lama) $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+      else toast(e.message, 'error');
     }
   }
 
@@ -174,13 +193,16 @@
   }
 
   async function loadKonten(tab) {
+    const lama = P.konten || (cacheGet('beranda') || {}).konten;
+    if (lama) $('#tab-body').innerHTML = kontenTabHtml(tab, lama);
     try {
       const k = await call('kontenPeserta');
       if (P.tab !== tab) return;
       P.konten = k;
       $('#tab-body').innerHTML = kontenTabHtml(tab, k);
     } catch (e) {
-      $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+      if (!lama) $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+      else toast(e.message, 'error');
     }
   }
 
@@ -426,7 +448,7 @@
           <div style="font-size:48px">✅</div>
           <h2>Absen Sesi ${A.sesi} berhasil</h2>
           <p class="muted">Tercatat pukul <b>${esc(jamSaja(res.waktu))} WIB</b></p>
-          <button class="btn primary block" onclick="closeModal(); loadBeranda()">Selesai</button>
+          <button class="btn primary block" onclick="cacheSet('beranda', null); closeModal(); loadBeranda()">Selesai</button>
         </div>`);
     }, 'Mengirim…');
   }
