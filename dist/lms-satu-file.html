@@ -959,7 +959,7 @@ function fotoDariFile(input) {
 
 /** Perkecil foto (maks 720 px), beri watermark nama + sesi + waktu server + lokasi, simpan sebagai JPEG. */
 function prosesFoto(src, w, h, mirror) {
-  const MAX = 720;
+  const MAX = 480; // cukup untuk wajah + watermark terbaca, file ±25–40 KB
   const scale = Math.min(1, MAX / Math.max(w, h));
   const cw = Math.round(w * scale), ch = Math.round(h * scale);
   const c = document.createElement('canvas');
@@ -975,7 +975,7 @@ function prosesFoto(src, w, h, mirror) {
     wib(serverNow()).teks,
     lok.nama + ' | ' + A.pos.lat.toFixed(5) + ', ' + A.pos.lng.toFixed(5) + ' (' + A.jarak + ' m)',
   ];
-  const fs = Math.max(13, Math.round(cw / 34));
+  const fs = Math.max(12, Math.round(cw / 34));
   const pad = Math.round(fs * 0.6);
   const boxH = lines.length * (fs + 4) + pad * 2;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -985,7 +985,7 @@ function prosesFoto(src, w, h, mirror) {
   ctx.textBaseline = 'top';
   lines.forEach((t, i) => ctx.fillText(t, pad, ch - boxH + pad + i * (fs + 4), cw - pad * 2));
 
-  A.foto = c.toDataURL('image/jpeg', 0.75);
+  A.foto = c.toDataURL('image/jpeg', 0.62);
   $('#cam-area').innerHTML = '<img class="preview-img" src="' + A.foto + '" alt="Foto absen">';
   $('#cam-actions').innerHTML = `
     <button class="btn" onclick="stepFoto()">↻ Ulangi</button>
@@ -1044,9 +1044,9 @@ function signaturePad(canvas) {
     last = p;
   });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => canvas.addEventListener(ev, () => { drawing = false; }));
-  // Diperkecil (lebar maks 600 px) agar file kecil dan ringan dimuat di laporan PDF.
+  // Diperkecil (lebar maks 400 px) agar file kecil dan ringan dimuat di laporan PDF.
   const toDataURL = () => {
-    const scale = Math.min(1, 600 / canvas.width);
+    const scale = Math.min(1, 400 / canvas.width);
     const out = document.createElement('canvas');
     out.width = Math.round(canvas.width * scale);
     out.height = Math.round(canvas.height * scale);
@@ -1682,7 +1682,8 @@ function rdRender() {
       </div>
       <input class="rd-f mt" data-k="kegiatan" value="${esc(r.kegiatan || '')}" placeholder="Kegiatan, mis. Pembukaan / Materi K3 Listrik">
       <div class="grid2" style="gap:6px;margin-top:6px">
-        <input class="rd-f" data-k="pemateri" value="${esc(r.pemateri || '')}" placeholder="Pemateri / fasilitator (opsional)">
+        <input class="rd-f" data-k="pemateri" value="${esc(r.pemateri || '')}" placeholder="Pemateri / trainer (opsional)">
+        <input class="rd-f" data-k="instansi" value="${esc(r.instansi || '')}" placeholder="Instansi pemateri, mis. Disnakertrans Prov. DIY / Praktisi K3">
         <input class="rd-f" data-k="keterangan" value="${esc(r.keterangan || '')}" placeholder="Keterangan (opsional)">
       </div>
     </div>`).join('');
@@ -1856,8 +1857,9 @@ async function uploadDok(btn) {
     for (let i = 0; i < files.length; i++) {
       txt.textContent = 'Mengupload ' + (i + 1) + ' dari ' + files.length + '…';
       try {
-        const foto = await kompresGambar(files[i], 1600, 0.8);
-        const fotoKecil = await kompresGambar(files[i], 800, 0.7);
+        // Diperkecil agar hemat penyimpanan: versi tampilan 1280 px, versi laporan PDF 640 px.
+        const foto = await kompresGambar(files[i], 1280, 0.7);
+        const fotoKecil = await kompresGambar(files[i], 640, 0.62);
         await call('dokTambah', { id_hari: C.idHari, id_rundown: idRundown, keterangan: ket, foto: foto, foto_kecil: fotoKecil });
         ok++;
       } catch (e) { gagal.push(files[i].name + ': ' + e.message); }
@@ -1900,29 +1902,35 @@ async function tabLaporan() {
   const v = C.view;
   try {
     await muatHari();
-    const [list, ttd] = await Promise.all([call('laporanList', { id_batch: C.batch.id_batch }), call('ttdSaya')]);
+    const [list, ttd, inf] = await Promise.all([
+      call('laporanList', { id_batch: C.batch.id_batch }), call('ttdSaya'), call('infoLaporanGet', { id_batch: C.batch.id_batch })]);
     if (v !== C.view) return;
     C.laporan = list;
+    C.info = inf;
     setBody(v, `
       <div class="card">
         <h2>Buat laporan PDF</h2>
         <div class="grid2">
           <div><label>Jenis laporan</label>
-            <select id="lap-jenis" onchange="$('#lap-hari-wrap').classList.toggle('hidden', this.value !== 'harian')">
-              <option value="harian">Laporan harian</option>
-              <option value="lengkap">Laporan lengkap batch (semua hari)</option>
+            <select id="lap-jenis" onchange="lapJenis(this.value)">
+              <option value="resmi">Laporan resmi lengkap</option>
+              <option value="absensi">Laporan absensi peserta saja</option>
+              <option value="harian">Laporan harian (internal)</option>
             </select></div>
-          <div id="lap-hari-wrap"><label>Hari</label><div class="row">${hariSelect('')}</div></div>
+          <div id="lap-hari-wrap" class="hidden"><label>Hari</label><div class="row">${hariSelect('')}</div></div>
+          <div id="lap-rentang" class="hidden"><label>Nomor absen (kosongkan = semua peserta)</label>
+            <div class="row"><input id="lap-dari" type="number" min="1" placeholder="dari" class="grow"> – <input id="lap-sampai" type="number" min="1" placeholder="sampai" class="grow"></div></div>
         </div>
-        <p class="small muted">Isi laporan: sampul, ringkasan kehadiran, lalu per hari: rundown, daftar hadir,
-          lampiran foto timestamp + tanda tangan peserta, dokumentasi (yang ditandai ✓), dan materi; diakhiri halaman pengesahan PIC.</p>
+        <p class="small muted" id="lap-ket"></p>
         <div id="lap-status" class="alert info hidden"></div>
         <button class="btn accent block big" onclick="buatLaporan(this)">📄 Buat & unduh PDF</button>
       </div>
+      ${formInfoLaporan(inf)}
+      ${inf.bisa_ubah_org ? formOrg(inf) : ''}
       <div class="card">
-        <h2>Tanda tangan saya (untuk pengesahan)</h2>
+        <h2>Tanda tangan saya (laporan harian)</h2>
         ${ttd.ttd ? `<img class="thumb" src="${ttd.ttd}" alt="Tanda tangan" style="max-height:110px">`
-          : '<div class="alert warn small">Belum ada tanda tangan. Halaman pengesahan akan dikosongkan untuk tanda tangan basah.</div>'}
+          : '<div class="alert warn small">Belum ada tanda tangan. Halaman pengesahan laporan harian akan dikosongkan untuk tanda tangan basah.</div>'}
         <button class="btn mt" onclick="dialogTtdSaya()">${ttd.ttd ? 'Ganti tanda tangan' : '✍️ Buat tanda tangan'}</button>
       </div>
       <div class="card">
@@ -1938,7 +1946,128 @@ async function tabLaporan() {
           </div>`).join('') : '<div class="muted small">Belum ada laporan.</div>'}
         <p class="small muted">Semua laporan juga tersimpan di folder <b>Laporan</b> batch ini di Google Drive.</p>
       </div>`);
+    lapJenis('resmi');
   } catch (e) { errBox(v, e); }
+}
+
+const KET_LAPORAN = {
+  resmi: 'Sesuai format Artha Safety: cover, laporan penyelenggaraan kegiatan (A–E), jadwal kegiatan, daftar materi & pemateri, laporan absensi per peserta (foto, tanda tangan, lokasi), dan dokumentasi kegiatan (foto bertanda ✓). Untuk banyak peserta bisa memakan waktu 1–5 menit.',
+  absensi: 'Laporan absensi per peserta saja. Jika laporan resmi terlalu lama atau gagal karena batas waktu, buat absensi per rentang nomor absen (mis. 1–15 dan 16–30).',
+  harian: 'Laporan internal satu hari: ringkasan kehadiran, rundown, daftar hadir, lampiran foto absen, dokumentasi, materi, dan pengesahan PIC.',
+};
+
+function lapJenis(v) {
+  $('#lap-hari-wrap').classList.toggle('hidden', v !== 'harian');
+  $('#lap-rentang').classList.toggle('hidden', v !== 'absensi');
+  $('#lap-ket').textContent = KET_LAPORAN[v];
+}
+
+/** Data laporan resmi per batch (nomor permohonan, bidang, tempat, kepesertaan, persyaratan). */
+function formInfoLaporan(inf) {
+  const i = inf.info;
+  const f = (k, label, ph) => `<div><label>${label}</label><input id="inf-${k}" value="${esc(i[k])}" placeholder="${esc(ph || '')}"></div>`;
+  const cb = (k, label) => `<label class="check"><input type="checkbox" id="inf-${k}" ${i[k] ? 'checked' : ''}> ${label}</label>`;
+  return `
+    <div class="card">
+      <h2>Data laporan resmi batch ini</h2>
+      <p class="small muted">Dipakai di cover, laporan penyelenggaraan, dan kepala laporan absensi.</p>
+      <div class="grid2">
+        ${f('nomor_permohonan', 'Nomor Permohonan Temank3', 'mis. 231103232417')}
+        ${f('judul_cover', 'Judul cover', 'AHLI K3 UMUM')}
+        ${f('sub_cover', 'Sub judul cover')}
+        ${f('bidang_pembinaan', 'Bidang Pembinaan', 'Calon Ahli K3 Umum')}
+        ${f('bidang_jasa', 'Bidang Jasa (laporan absensi)', 'Keahlian K3 Umum')}
+        ${f('jenis_personil', 'Jenis Personil', 'Ahli K3')}
+        ${f('klasifikasi', 'Klasifikasi', 'Ahli K3 Umum')}
+        ${f('kelas', 'Kelas', 'Non Kelas')}
+        ${f('tempat_kelas', 'Tempat pelaksanaan: Kelas')}
+        ${f('tempat_observasi', 'Tempat pelaksanaan: Observasi/PKL', 'mis. PT Adi Satria Abadi')}
+        ${f('metode', 'Metode', 'Offline Training')}
+        ${f('jumlah_pendaftar', 'Jumlah pendaftar (kosong = jumlah peserta: ' + inf.jumlah_peserta + ')')}
+        ${f('jumlah_lulus', 'Jumlah peserta lulus')}
+      </div>
+      <label>Persyaratan administrasi yang ada</label>
+      ${cb('surat_permohonan', 'Surat Permohonan')}
+      ${cb('bap', 'BAP')}
+      ${cb('daftar_hadir_pemateri', 'Daftar Hadir Pemateri')}
+      <p class="small muted">Jadwal Kegiatan, Daftar Hadir Peserta, dan Foto Kegiatan dicentang otomatis jika datanya ada di LMS.</p>
+      <button class="btn primary mt" onclick="simpanInfoLaporan(this)">Simpan data laporan</button>
+    </div>`;
+}
+
+function simpanInfoLaporan(btn) {
+  const info = {};
+  Object.keys(C.info.info).forEach(k => {
+    const el = $('#inf-' + k);
+    if (el) info[k] = el.type === 'checkbox' ? el.checked : el.value;
+  });
+  busy(btn, async () => {
+    C.info.info = await call('infoLaporanSimpan', { id_batch: C.batch.id_batch, info: info });
+    toast('Data laporan disimpan.', 'ok');
+  });
+}
+
+/** Data perusahaan & penandatangan (khusus Admin, berlaku untuk semua batch). */
+function formOrg(inf) {
+  const o = inf.org;
+  const f = (k, label) => `<div><label>${label}</label><input id="org-${k}" value="${esc(o[k])}"></div>`;
+  return `
+    <div class="card">
+      <h2>Data perusahaan & penandatangan (Admin)</h2>
+      <p class="small muted">Berlaku untuk semua batch: kop, footer, cover, dan halaman penyelenggaraan.</p>
+      <div class="grid2">
+        ${f('nama', 'Nama penyelenggara')}
+        ${f('nomor_skp', 'Nomor SKP')}
+        ${f('masa_skp', 'Masa berlaku SKP')}
+        ${f('penandatangan', 'Nama penandatangan')}
+        ${f('telepon', 'Telepon (footer)')}
+        ${f('telepon_kantor', 'Telepon kantor (cover)')}
+        ${f('website', 'Website')}
+        ${f('email', 'Email')}
+      </div>
+      <label>Alamat kantor</label><input id="org-alamat" value="${esc(o.alamat)}">
+      <button class="btn primary mt" onclick="simpanOrg(this)">Simpan data perusahaan</button>
+      <h3 class="mt">Tanda tangan + cap penandatangan</h3>
+      ${inf.org_ttd ? `<img class="thumb" src="${inf.org_ttd}" alt="Tanda tangan dan cap" style="max-height:120px">`
+        : '<div class="alert warn small">Belum ada. Halaman penyelenggaraan akan dikosongkan untuk tanda tangan basah.</div>'}
+      <label>Upload gambar tanda tangan + cap (PNG transparan, atau JPG berlatar putih)</label>
+      <input type="file" id="org-ttd" accept="image/png,image/jpeg">
+      <button class="btn mt" onclick="uploadTtdOrg(this)">Upload tanda tangan + cap</button>
+    </div>`;
+}
+
+function simpanOrg(btn) {
+  const org = {};
+  Object.keys(C.info.org).forEach(k => { const el = $('#org-' + k); if (el) org[k] = el.value; });
+  busy(btn, async () => { C.info.org = await call('orgSimpan', { org: org }); toast('Data perusahaan disimpan.', 'ok'); });
+}
+
+/** Gambar diperkecil (sisi terpanjang maks `max` px) dengan tetap menjaga transparansi PNG. */
+function kompresPng(file, max) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * scale);
+      c.height = Math.round(img.naturalHeight * scale);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(img.src);
+      resolve(c.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('Bukan file gambar yang valid.'));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+function uploadTtdOrg(btn) {
+  const file = $('#org-ttd').files[0];
+  if (!file) return toast('Pilih gambar tanda tangan + cap.', 'error');
+  busy(btn, async () => {
+    await call('orgTtdSimpan', { gambar: await kompresPng(file, 600) });
+    toast('Tanda tangan + cap disimpan.', 'ok');
+    tabLaporan();
+  }, 'Mengupload…');
 }
 
 /** Mengunduh file dari isi base64 (PDF dari server). */
@@ -1956,18 +2085,22 @@ function buatLaporan(btn) {
   const status = $('#lap-status');
   status.classList.remove('hidden');
   status.className = 'alert info';
-  status.textContent = jenis === 'lengkap'
-    ? 'Menyusun laporan lengkap… ini bisa memakan waktu 1–5 menit, jangan tutup halaman.'
-    : 'Menyusun laporan… biasanya kurang dari 1 menit.';
+  status.textContent = jenis === 'harian'
+    ? 'Menyusun laporan… biasanya kurang dari 1 menit.'
+    : 'Menyusun laporan… ini bisa memakan waktu 1–5 menit, jangan tutup halaman.';
   busy(btn, async () => {
     try {
-      const res = await call('laporanBuat', { id_batch: C.batch.id_batch, jenis: jenis, id_hari: C.idHari });
+      const res = await call('laporanBuat', {
+        id_batch: C.batch.id_batch, jenis: jenis, id_hari: C.idHari,
+        dari: $('#lap-dari').value, sampai: $('#lap-sampai').value,
+      });
       simpanFile(res.nama, res.data, 'application/pdf');
       toast('Laporan dibuat: ' + res.nama, 'ok');
       tabLaporan();
     } catch (e) {
       status.className = 'alert bad';
-      status.textContent = e.message + (jenis === 'lengkap' ? ' — Jika waktu habis, buat laporan per hari.' : '');
+      status.textContent = e.message + (jenis !== 'harian'
+        ? ' — Jika waktu habis, buat "Laporan absensi" per rentang nomor absen.' : '');
     }
   }, 'Menyusun laporan…');
 }

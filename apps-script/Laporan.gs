@@ -102,24 +102,32 @@ function laporanUnduh(data, user) {
 }
 
 /**
- * Membuat laporan PDF dan menyimpannya di folder Laporan batch.
- * jenis 'harian' (butuh id_hari) atau 'lengkap' (semua hari). Mengembalikan isi PDF (base64) untuk diunduh.
+ * Membuat laporan PDF dan menyimpannya di folder Laporan batch. Mengembalikan isi PDF (base64) untuk diunduh.
+ * jenis:
+ *  - 'resmi'   : format resmi Artha Safety (cover, penyelenggaraan, jadwal, materi & pemateri, absensi, dokumentasi)
+ *  - 'absensi' : laporan absensi per peserta saja; opsional rentang nomor absen (dari, sampai)
+ *  - 'harian'  : laporan internal satu hari (butuh id_hari)
  */
 function laporanBuat(data, user) {
   const batch = batchForPic_(user, data.id_batch);
-  const jenis = data.jenis === 'lengkap' ? 'lengkap' : 'harian';
+  const jenis = data.jenis === 'harian' ? 'harian' : data.jenis === 'absensi' ? 'absensi' : 'resmi';
   let hariList = hariBatch_(batch.id_batch);
-  let nama = 'Laporan Lengkap ' + batch.kode_batch + ' - ' + batch.nama_pelatihan + '.pdf';
+  if (!hariList.length) throw new Error('Batch ini belum memiliki hari pelatihan.');
+  let nama, html;
   if (jenis === 'harian') {
     const hari = getHari_(data.id_hari);
     if (hari.id_batch !== batch.id_batch) throw new Error('Hari tidak termasuk batch ini.');
     hariList = [hari];
     nama = 'Laporan Harian ' + batch.kode_batch + ' Hari-' + hari.hari_ke + ' (' + hari.tanggal + ').pdf';
+    html = laporanHtml_(batch, hariList, jenis);
+  } else {
+    const dari = Number(data.dari) || 0, sampai = Number(data.sampai) || 0;
+    const rentang = jenis === 'absensi' && (dari || sampai) ? ' (No ' + (dari || 1) + '-' + (sampai || 'akhir') + ')' : '';
+    nama = (jenis === 'resmi' ? 'Laporan Resmi ' : 'Laporan Absensi ') + batch.kode_batch + ' - ' + batch.nama_pelatihan + rentang + '.pdf';
+    html = laporanResmiHtml_(batch, hariList, jenis, dari, sampai);
   }
-  if (!hariList.length) throw new Error('Batch ini belum memiliki hari pelatihan.');
   nama = nama.replace(/[\\/:*?"<>|]/g, '-');
 
-  const html = laporanHtml_(batch, hariList, jenis);
   const pdf = Utilities.newBlob(html, 'text/html', 'laporan.html').getAs('application/pdf').setName(nama);
   const file = subfolder_(DriveApp.getFolderById(batch.folder_id), 'Laporan').createFile(pdf);
 
@@ -295,4 +303,344 @@ function pengesahan_(batch, pics, now) {
       '<br><br>' + (p.ttd_id ? img_(gambar_(p.ttd_id, false), 'height="70"') : '<br><br><br><br>') +
       '<br><b><u>' + h_(p.nama || '(..............................)') + '</u></b></td>').join('') + '</tr></table>',
   ].join('\n');
+}
+
+// ================================================================ Laporan resmi (format Artha Safety)
+
+/** Data perusahaan untuk kop, footer, dan halaman penyelenggaraan. Disimpan di Script Properties 'ORG'. */
+const ORG_DEFAULT = {
+  nama: 'PT Artha Safety Indonesia',
+  nomor_skp: 'No. 5/481/AS.01.02/V/2024',
+  masa_skp: '28 Mei 2026',
+  alamat: 'Ruko De Mercy Square No R8. Jl. Kapten Haryadi Komp. Merapi Regency, Sardonoharjo, Ngaglik, Sleman Yogyakarta',
+  telepon: '0812-6363-6376',
+  telepon_kantor: '(0274) 5063025',
+  website: 'www.arthasafetyindonesia.co.id',
+  email: 'info@arthasafetyindonesia.co.id',
+  penandatangan: 'Saut Reynald Ricardo Simbolon',
+  ttd_id: '',
+};
+
+/** Data laporan per batch, disimpan sebagai JSON di kolom Batch.info_laporan. */
+const INFO_DEFAULT = {
+  nomor_permohonan: '',
+  judul_cover: 'AHLI K3 UMUM',
+  sub_cover: 'Sertifikasi Kementrian Ketenagakerjaan Republik Indonesia',
+  bidang_pembinaan: 'Calon Ahli K3 Umum',
+  bidang_jasa: 'Keahlian K3 Umum',
+  jenis_personil: 'Ahli K3',
+  klasifikasi: 'Ahli K3 Umum',
+  kelas: 'Non Kelas',
+  tempat_kelas: 'PT Artha Safety Indonesia',
+  tempat_observasi: '',
+  metode: 'Offline Training',
+  jumlah_pendaftar: '',
+  jumlah_lulus: '',
+  surat_permohonan: true,
+  bap: true,
+  daftar_hadir_pemateri: true,
+};
+
+function org_() {
+  let o = {};
+  try { o = JSON.parse(PropertiesService.getScriptProperties().getProperty('ORG') || '{}'); } catch (err) { o = {}; }
+  return Object.assign({}, ORG_DEFAULT, o);
+}
+
+function infoBatch_(batch) {
+  let o = {};
+  try { o = JSON.parse(batch.info_laporan || '{}'); } catch (err) { o = {}; }
+  return Object.assign({}, INFO_DEFAULT, o);
+}
+
+function infoLaporanGet(data, user) {
+  const b = batchForPic_(user, data.id_batch);
+  const org = org_();
+  return {
+    info: infoBatch_(b), org: org, org_ttd: gambar_(org.ttd_id, false),
+    jumlah_peserta: pesertaBatch_(b.id_batch, false).length, bisa_ubah_org: user.role === 'admin',
+  };
+}
+
+function infoLaporanSimpan(data, user) {
+  const b = batchForPic_(user, data.id_batch);
+  const masuk = data.info || {};
+  const info = {};
+  Object.keys(INFO_DEFAULT).forEach(k => {
+    if (masuk[k] === undefined) return;
+    info[k] = typeof INFO_DEFAULT[k] === 'boolean' ? !!masuk[k] : String(masuk[k]).trim().slice(0, 300);
+  });
+  ['jumlah_pendaftar', 'jumlah_lulus'].forEach(k => {
+    if (info[k] && !/^\d{1,4}$/.test(info[k])) throw new Error('Jumlah pendaftar/lulus harus berupa angka.');
+  });
+  update_('Batch', b, { info_laporan: JSON.stringify(Object.assign(infoBatch_(b), info)) });
+  log_(user, 'info_laporan', b.kode_batch);
+  return infoBatch_(b);
+}
+
+function orgSimpan(data, user) {
+  const masuk = data.org || {};
+  const o = org_();
+  Object.keys(ORG_DEFAULT).forEach(k => {
+    if (k !== 'ttd_id' && masuk[k] !== undefined) o[k] = String(masuk[k]).trim().slice(0, 300);
+  });
+  PropertiesService.getScriptProperties().setProperty('ORG', JSON.stringify(o));
+  log_(user, 'org_ubah', '');
+  return o;
+}
+
+/** Gambar tanda tangan + cap penandatangan (PNG/JPG) untuk halaman penyelenggaraan. */
+function orgTtdSimpan(data, user) {
+  const o = org_();
+  const id = saveDataUrl_(subfolder_(rootFolder_(), 'Tanda Tangan PIC'), data.gambar, 'TTD_CAP_PENYELENGGARA.png');
+  trashFile_(o.ttd_id);
+  o.ttd_id = id;
+  PropertiesService.getScriptProperties().setProperty('ORG', JSON.stringify(o));
+  log_(user, 'org_ttd', '');
+  return true;
+}
+
+function aset_() {
+  if (!aset_.cache) aset_.cache = JSON.parse(include('aset-laporan'));
+  return aset_.cache;
+}
+
+/** '2024-04-24' -> '24 April 2024' */
+function tglId_(s) {
+  const p = s.split('-').map(Number);
+  return p[2] + ' ' + BULAN_ID[p[1] - 1] + ' ' + p[0];
+}
+
+/** Rentang tanggal seperti di format: '08–10 November 2023' atau '22 Mei – 20 Juni 2024'. */
+function rentangTgl_(a, b) {
+  const x = a.split('-').map(Number), y = b.split('-').map(Number);
+  const dd = n => ('0' + n).slice(-2);
+  if (a === b) return tglId_(a);
+  if (x[0] === y[0] && x[1] === y[1]) return dd(x[2]) + '–' + dd(y[2]) + ' ' + BULAN_ID[x[1] - 1] + ' ' + x[0];
+  if (x[0] === y[0]) return x[2] + ' ' + BULAN_ID[x[1] - 1] + ' – ' + y[2] + ' ' + BULAN_ID[y[1] - 1] + ' ' + x[0];
+  return tglId_(a) + ' – ' + tglId_(b);
+}
+
+/** 20 -> 'dua puluh' */
+function terbilang_(n) {
+  const s = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
+  n = Math.floor(Number(n) || 0);
+  if (n < 12) return n === 0 ? 'nol' : s[n];
+  if (n < 20) return terbilang_(n - 10) + ' belas';
+  if (n < 100) return terbilang_(Math.floor(n / 10)) + ' puluh' + (n % 10 ? ' ' + terbilang_(n % 10) : '');
+  if (n < 200) return 'seratus' + (n % 100 ? ' ' + terbilang_(n % 100) : '');
+  if (n < 1000) return terbilang_(Math.floor(n / 100)) + ' ratus' + (n % 100 ? ' ' + terbilang_(n % 100) : '');
+  if (n < 2000) return 'seribu' + (n % 1000 ? ' ' + terbilang_(n % 1000) : '');
+  return terbilang_(Math.floor(n / 1000)) + ' ribu' + (n % 1000 ? ' ' + terbilang_(n % 1000) : '');
+}
+
+function orang_(v) {
+  return v === '' || v === null || v === undefined ? '-' : v + ' (' + terbilang_(v) + ') orang';
+}
+
+const RESMI_CSS = [
+  'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; color: #000; }',
+  'table { border-collapse: collapse; }',
+  '.pb { page-break-before: always; }',
+  '.judul { text-align: center; font-weight: bold; font-size: 12pt; margin: 16px 0 18px; }',
+  '.bag { font-weight: bold; margin: 14px 0 6px; }',
+  'table.isian td { padding: 3px 6px; vertical-align: top; font-size: 11pt; }',
+  'table.garis { width: 100%; }',
+  'table.garis th { border: 1px solid #000; padding: 4px; font-size: 10.5pt; background: #c6d4ef; }',
+  'table.garis td { border: 1px solid #000; padding: 4px 5px; font-size: 10.5pt; vertical-align: top; }',
+  'table.abs { width: 100%; }',
+  'table.abs td { border: 1px solid #555; padding: 4px 5px; font-size: 9.5pt; vertical-align: middle; }',
+  'table.abs td.foto { text-align: center; width: 150px; padding: 2px; }',
+  'table.dok td { border: 1px solid #999; padding: 4px; text-align: center; vertical-align: top; font-size: 9pt; width: 50%; }',
+  '.kop-web { font-family: Arial, sans-serif; font-size: 8pt; color: #333; text-align: right; vertical-align: middle; }',
+  '.foot { font-family: Arial, sans-serif; font-size: 7.5pt; color: #333; text-align: right; line-height: 1.4; }',
+  '.cover { font-family: Arial, Helvetica, sans-serif; text-align: center; color: #000; }',
+].join('\n');
+
+function kop_(org) {
+  return '<table style="width:100%"><tr><td><img src="' + aset_().kop + '" width="230"></td>' +
+    '<td class="kop-web">' + h_(org.website) + '</td></tr></table>' +
+    '<div style="border-bottom:1px solid #1b1e4f;margin:4px 0 8px"></div>';
+}
+
+function footer_(org) {
+  return '<br><div class="foot">' + h_(org.telepon) + '<br>' + h_(org.alamat) + '<br>' +
+    '<span style="color:#1a56db">' + h_(org.website) + '</span><br>' + h_(org.email) + '</div>' +
+    '<img src="' + aset_().garis + '" style="width:100%;height:10px;margin-top:4px">';
+}
+
+/** Halaman resmi: kop + isi + footer, dimulai di halaman baru (kecuali halaman pertama). */
+function halaman_(org, isi, pertama) {
+  return (pertama ? '' : '<div class="pb"></div>') + kop_(org) + isi + footer_(org);
+}
+
+function laporanResmiHtml_(batch, hariList, jenis, dari, sampai) {
+  const org = org_();
+  const info = infoBatch_(batch);
+  const now = now_();
+  let peserta = pesertaBatch_(batch.id_batch, false);
+  if (dari || sampai) peserta = peserta.filter(u => Number(u.no_absen) >= (dari || 1) && Number(u.no_absen) <= (sampai || 99999));
+  const out = ['<html><head><meta charset="utf-8"><style>' + RESMI_CSS + '</style></head><body>'];
+  if (jenis === 'resmi') {
+    out.push(coverResmi_(batch, info, org));
+    out.push(halaman_(org, penyelenggaraan_(batch, hariList, info, org, now)));
+    out.push(halaman_(org, jadwalKegiatan_(hariList)));
+    out.push(halaman_(org, daftarMateri_(hariList)));
+  }
+  out.push(absensiPeserta_(batch, hariList, info, peserta, now, jenis !== 'resmi'));
+  if (jenis === 'resmi') out.push(halaman_(org, dokumentasiResmi_(hariList)));
+  out.push('</body></html>');
+  return out.join('\n');
+}
+
+function coverResmi_(batch, info, org) {
+  return '<div class="cover"><br><br>' +
+    '<div style="font-size:18pt;font-weight:bold">PEMBINAAN</div><br>' +
+    '<div style="font-size:30pt;font-weight:bold">' + h_(info.judul_cover) + '</div><br>' +
+    '<div style="font-size:11pt;font-weight:bold">' + h_(info.sub_cover) + '</div><br>' +
+    '<div style="font-size:11pt;font-weight:bold">Tanggal ' + h_(rentangTgl_(batch.tgl_mulai, batch.tgl_selesai)) + '</div>' +
+    '<br><br><br><img src="' + aset_().cover + '" width="300"><br><br><br><br>' +
+    '<div style="font-size:10pt;font-weight:bold">Diselenggarakan oleh:</div><br>' +
+    '<div style="font-size:16pt;font-weight:bold">' + h_(org.nama.toUpperCase()) + '</div><br><br>' +
+    '<div style="font-size:11pt;font-weight:bold">Alamat Kantor :</div><br>' +
+    '<div style="font-size:9.5pt;font-weight:bold">' + h_(org.alamat) + (org.telepon_kantor ? ' ' + h_(org.telepon_kantor) : '') + '</div>' +
+    '</div>';
+}
+
+function isian_(rows) {
+  return '<table class="isian" style="margin-left:28px">' + rows.map(r =>
+    '<tr><td style="width:230px">' + r[0] + '</td><td>' + (r[1] === null ? '' : ': ' + h_(r[1])) + '</td></tr>').join('') + '</table>';
+}
+
+function penyelenggaraan_(batch, hariList, info, org, now) {
+  const idHari = hariList.map(h => h.id_hari);
+  const adaRundown = table_('Rundown').rows.some(r => idHari.indexOf(r.id_hari) >= 0);
+  const adaAbsen = table_('Absensi').rows.some(a => a.id_batch === batch.id_batch && a.status === 'hadir');
+  const adaDok = table_('Dokumentasi').rows.some(d => d.id_batch === batch.id_batch);
+  const syarat = [
+    ['Surat Permohonan', info.surat_permohonan], ['BAP', info.bap], ['Jadwal Kegiatan', adaRundown],
+    ['Daftar Hadir Pemateri', info.daftar_hadir_pemateri], ['Daftar Hadir Peserta', adaAbsen], ['Foto Kegiatan', adaDok],
+  ];
+  const jumlahPeserta = pesertaBatch_(batch.id_batch, false).length;
+  const pendaftar = info.jumlah_pendaftar === '' ? jumlahPeserta : info.jumlah_pendaftar;
+  return [
+    '<div class="judul">LAPORAN PENYELENGGARAAN KEGIATAN</div>',
+    '<div class="bag">A.&nbsp;&nbsp;PENYELENGGARA</div>',
+    isian_([['a.&nbsp;&nbsp;Nama Penyelenggara', org.nama], ['b.&nbsp;&nbsp;Nomor SKP', org.nomor_skp], ['c.&nbsp;&nbsp;Masa Berlaku SKP', org.masa_skp]]),
+    '<div class="bag">B.&nbsp;&nbsp;PELAKSANAAN KEGIATAN</div>',
+    isian_([
+      ['a.&nbsp;&nbsp;Nomor Permohonan Temank3', info.nomor_permohonan || '-'],
+      ['b.&nbsp;&nbsp;Tempat Pelaksanaan', null],
+      ['&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Kelas', info.tempat_kelas || '-'],
+      ['&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Observasi/PKL', info.tempat_observasi || '-'],
+      ['c.&nbsp;&nbsp;Metode', info.metode || '-'],
+      ['d.&nbsp;&nbsp;Waktu Pelaksanaan', rentangTgl_(batch.tgl_mulai, batch.tgl_selesai)],
+      ['e.&nbsp;&nbsp;Bidang Pembinaan', info.bidang_pembinaan || '-'],
+    ]),
+    '<div class="bag">C.&nbsp;&nbsp;PERSYARATAN ADMINISTRASI</div>',
+    '<table class="garis" style="margin-left:28px;width:90%"><tr><th style="width:35px">No</th><th>Persyaratan Administrasi</th><th style="width:50px">Ada</th><th style="width:50px">Tidak</th></tr>' +
+      syarat.map((x, i) => '<tr><td style="text-align:center">' + (i + 1) + '</td><td>' + x[0] + '</td><td style="text-align:center">' +
+        (x[1] ? '&#8730;' : '') + '</td><td style="text-align:center">' + (x[1] ? '' : '&#8730;') + '</td></tr>').join('') + '</table>',
+    '<div class="bag">D.&nbsp;&nbsp;KEPESERTAAN</div>',
+    isian_([['a.&nbsp;&nbsp;Jumlah Pendaftar', orang_(pendaftar)], ['b.&nbsp;&nbsp;Jumlah Peserta', orang_(jumlahPeserta)], ['c.&nbsp;&nbsp;Jumlah Peserta Lulus', orang_(info.jumlah_lulus)]]),
+    '<div class="bag">E.&nbsp;&nbsp;PENUTUP</div>',
+    '<div style="margin-left:28px">Demikian laporan ini kami sampaikan dengan data yang sebenar-benarnya.</div><br>',
+    '<table style="width:100%"><tr><td style="width:55%"></td><td style="text-align:center">Hormat kami,<br>' + h_(org.nama) + '<br>' +
+      (org.ttd_id ? img_(gambar_(org.ttd_id, false), 'height="95"') : '<br><br><br><br><br>') +
+      '<br><b>' + h_(org.penandatangan) + '</b></td></tr></table>',
+  ].join('\n');
+}
+
+function jadwalKegiatan_(hariList) {
+  const out = ['<div class="judul">JADWAL KEGIATAN</div>'];
+  hariList.forEach(h => {
+    const rd = rundownHari_(h.id_hari);
+    if (!rd.length) return;
+    out.push('<div class="bag">Hari ke-' + h_(h.hari_ke) + ' — ' + h_(tglPanjang_(h.tanggal)) + '</div>');
+    out.push('<table class="garis"><tr><th style="width:95px">Waktu</th><th>Kegiatan</th><th>Pemateri</th><th>Keterangan</th></tr>' +
+      rd.map(x => '<tr><td>' + h_(x.jam_mulai) + '–' + h_(x.jam_selesai) + '</td><td>' + h_(x.kegiatan) + '</td><td>' + h_(x.pemateri) +
+        '</td><td>' + h_(x.keterangan) + '</td></tr>').join('') + '</table>');
+  });
+  if (out.length === 1) out.push('<p>Rundown belum diisi.</p>');
+  return out.join('\n');
+}
+
+/** Materi dan pemateri unik dari rundown semua hari (kegiatan yang punya nama pemateri). */
+function daftarMateri_(hariList) {
+  const list = [];
+  hariList.forEach(h => rundownHari_(h.id_hari).forEach(x => {
+    if (!x.pemateri) return;
+    if (!list.some(m => m.kegiatan === x.kegiatan && m.pemateri === x.pemateri)) list.push(x);
+  }));
+  return '<div class="judul">DAFTAR MATERI DAN PEMATERI</div>' + (list.length
+    ? '<table class="garis"><tr><th style="width:35px">No</th><th>Materi</th><th>Nama Trainer</th><th>Instansi</th></tr>' +
+      list.map((x, i) => '<tr><td style="text-align:center">' + (i + 1) + '</td><td>' + h_(x.kegiatan) + '</td><td>' + h_(x.pemateri) +
+        '</td><td>' + h_(x.instansi || '') + '</td></tr>').join('') + '</table>'
+    : '<p>Belum ada kegiatan rundown yang mencantumkan nama pemateri.</p>');
+}
+
+/** Laporan absensi per peserta seperti format resmi: identitas di atas, lalu setiap sesi dengan foto & tanda tangan. */
+function absensiPeserta_(batch, hariList, info, peserta, now, halamanPertama) {
+  const out = [];
+  const head = '<div style="font-size:13pt;line-height:1.35;margin:0 0 14px 20px">LAPORAN ABSENSI<br>' +
+    'NO PERMOHONAN : ' + h_(info.nomor_permohonan || '-') + '<br>BIDANG JASA : ' + h_(info.bidang_jasa) + '<br>' +
+    'JENIS PERSONIL : ' + h_(info.jenis_personil) + '<br>KLASIFIKASI : ' + h_(info.klasifikasi) + '<br>KELAS : ' + h_(info.kelas) + '</div>';
+  if (!peserta.length) return (halamanPertama ? '' : '<div class="pb"></div>') + head + '<p>Tidak ada peserta.</p>';
+  peserta.forEach((u, i) => {
+    out.push((i === 0 && halamanPertama ? '' : '<div class="pb"></div>') + head);
+    const rows = ['<tr><td style="width:32%"><b>Nama</b></td><td><b>' + h_(u.nama) + '</b></td><td class="foto"></td></tr>'];
+    hariList.forEach(h => SESI.forEach(s => {
+      const state = stateSesi_(batch, h, s, now);
+      if (state === 'belum_dibuka') return;
+      const rec = absenOf_(h.id_hari, u.id_user, s);
+      const status = statusSesi_(rec, state);
+      const hadir = status === 'hadir' && rec && rec.foto_id;
+      let jam, lokasi = '-', foto = '';
+      if (hadir) {
+        jam = tglId_(rec.waktu_server.slice(0, 10)) + ', Jam : ' + rec.waktu_server.slice(11, 19);
+        lokasi = alamatAbsen_(rec);
+        foto = img_(gambar_(rec.foto_id, true), 'width="140"') + '<br>' + img_(gambar_(rec.ttd_id, false), 'height="42"');
+      } else {
+        jam = 'Tidak hadir (' + (STATUS_TEKS[status] || status) + (rec && rec.keterangan ? ' – ' + rec.keterangan : '') + ')';
+      }
+      rows.push('<tr><td><b>Sesi Absen</b></td><td><b>' + (s === 1 ? 'Pagi' : 'Siang') + '</b></td><td class="foto" rowspan="4">' + foto + '</td></tr>');
+      rows.push('<tr><td><b>Tanggal Pelatihan</b></td><td><b>' + h_(tglId_(h.tanggal)) + '</b></td></tr>');
+      rows.push('<tr><td>Tanggal &amp; Jam Absensi</td><td>' + h_(jam) + '</td></tr>');
+      rows.push('<tr><td>Lokasi Absen</td><td>' + h_(lokasi) + '</td></tr>');
+    }));
+    out.push('<table class="abs">' + rows.join('') + '</table>');
+  });
+  return out.join('\n');
+}
+
+/** Alamat lokasi absen; untuk data lama tanpa alamat, dicari dari koordinat lalu disimpan. */
+function alamatAbsen_(rec) {
+  if (rec.alamat) return rec.alamat;
+  const a = alamat_(rec.lat, rec.lng);
+  if (a) {
+    try { update_('Absensi', rec, { alamat: a }); } catch (err) { /* kolom belum ada: cukup tampilkan */ }
+    return a;
+  }
+  return rec.lat ? rec.lat + ', ' + rec.lng : '-';
+}
+
+function dokumentasiResmi_(hariList) {
+  const out = ['<div class="judul">DOKUMENTASI KEGIATAN</div>'];
+  hariList.forEach(h => {
+    const dok = dokHari_(h.id_hari).filter(d => d.masuk_laporan === 'ya');
+    if (!dok.length) return;
+    const rd = rundownHari_(h.id_hari);
+    out.push('<div class="bag">Hari ke-' + h_(h.hari_ke) + ' — ' + h_(tglPanjang_(h.tanggal)) + '</div>');
+    const cells = dok.map(d => {
+      const keg = d.id_rundown && rd.find(x => x.id_rundown === d.id_rundown);
+      const src = d.file_kecil_id ? gambar_(d.file_kecil_id, false) : gambar_(d.file_id, true);
+      return '<td>' + img_(src, 'width="300"') + (keg ? '<br><b>' + h_(keg.kegiatan) + '</b>' : '') +
+        (d.keterangan ? '<br>' + h_(d.keterangan) : '') + '</td>';
+    });
+    const rows = [];
+    for (let i = 0; i < cells.length; i += 2) rows.push('<tr>' + cells[i] + (cells[i + 1] || '<td style="border:0"></td>') + '</tr>');
+    out.push('<table class="dok" style="width:100%">' + rows.join('') + '</table>');
+  });
+  if (out.length === 1) out.push('<p>Belum ada foto kegiatan yang ditandai masuk laporan.</p>');
+  return out.join('\n');
 }

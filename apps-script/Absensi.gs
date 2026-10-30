@@ -128,6 +128,7 @@ function absen(data, user) {
   const base = 'H' + hari.hari_ke + '_S' + sesi + '_' + user.kode_login;
   const fotoId = saveDataUrl_(folder, data.foto, base + '_foto.jpg');
   const ttdId = saveDataUrl_(folder, data.ttd, base + '_ttd.png');
+  const alamat = alamat_(lat, lng);
 
   // 4. Catat ke Spreadsheet (dengan lock agar tidak tercatat dobel).
   const lock = LockService.getScriptLock();
@@ -139,7 +140,7 @@ function absen(data, user) {
     const rec = {
       waktu_server: waktu, foto_id: fotoId, ttd_id: ttdId, lat: lat, lng: lng,
       akurasi_meter: Math.round(Number(data.akurasi) || 0), jarak_meter: jarak, status: 'hadir',
-      keterangan: '', diubah_oleh: '', diubah_pada: '',
+      keterangan: '', diubah_oleh: '', diubah_pada: '', alamat: alamat,
     };
     if (ada && ada.status === 'hadir') {
       DriveApp.getFileById(fotoId).setTrashed(true);

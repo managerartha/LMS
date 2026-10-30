@@ -10,7 +10,7 @@
 const WEB_URL = 'https://arthasafetyindonesia.com/lms';
 
 /** Versi API, tampil di URL /exec?cek=1 untuk memastikan deployment terbaru sudah aktif. */
-const API_VERSI = 'web-api-3';
+const API_VERSI = 'web-api-4';
 
 const TZ = 'Asia/Jakarta';
 const DB_NAME = 'LMS Artha Safety - Database';
@@ -20,14 +20,14 @@ const ROOT_FOLDER_NAME = 'LMS Artha Safety';
 const SHEETS = {
   Batch: ['id_batch', 'nama_pelatihan', 'kode_batch', 'lokasi_nama', 'tgl_mulai', 'tgl_selesai',
     'sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai', 'lat', 'lng', 'radius_meter',
-    'lewati_weekend', 'pic_ids', 'folder_id', 'status', 'dibuat_pada'],
+    'lewati_weekend', 'pic_ids', 'folder_id', 'status', 'dibuat_pada', 'info_laporan'],
   Pengguna: ['id_user', 'id_batch', 'no_absen', 'nama', 'role', 'kode_login', 'pin_hash', 'instansi',
     'no_hp', 'device_id', 'token', 'setuju_privasi', 'ttd_id', 'aktif', 'dibuat_pada'],
   Hari: ['id_hari', 'id_batch', 'tanggal', 'hari_ke', 'lokasi_nama', 'lat', 'lng', 'radius_meter', 'diubah_oleh'],
   Absensi: ['id_absen', 'id_batch', 'id_hari', 'id_user', 'sesi', 'waktu_server', 'foto_id', 'ttd_id',
-    'lat', 'lng', 'akurasi_meter', 'jarak_meter', 'status', 'keterangan', 'diubah_oleh', 'diubah_pada'],
+    'lat', 'lng', 'akurasi_meter', 'jarak_meter', 'status', 'keterangan', 'diubah_oleh', 'diubah_pada', 'alamat'],
   Rundown: ['id_rundown', 'id_batch', 'id_hari', 'urutan', 'jam_mulai', 'jam_selesai', 'kegiatan',
-    'pemateri', 'keterangan', 'status'],
+    'pemateri', 'keterangan', 'status', 'instansi'],
   Materi: ['id_materi', 'id_batch', 'id_hari', 'judul', 'kategori', 'file_id', 'tipe_file', 'link',
     'tampil_mulai', 'diupload_oleh', 'diupload_pada'],
   Dokumentasi: ['id_dok', 'id_batch', 'id_hari', 'id_rundown', 'file_id', 'keterangan', 'masuk_laporan',
@@ -57,19 +57,26 @@ function doPost(e) {
 function doGet(e) {
   if (e && e.parameter && e.parameter.cek) {
     const props = PropertiesService.getScriptProperties();
-    let lengkap = true, kurang = '';
+    let lengkap = true, kurang = '', kolomKurang = [];
     try {
       routes_();
     } catch (err) {
       lengkap = false;
       kurang = err.message;
     }
+    try {
+      kolomKurang = kolomKurang_();
+    } catch (err) {
+      kolomKurang = ['(database belum bisa dibuka: ' + err.message + ')'];
+    }
     return ContentService.createTextOutput(JSON.stringify({
-      ok: lengkap,
+      ok: lengkap && !kolomKurang.length,
       api: 'LMS Artha Safety',
       versi: API_VERSI,
       file_lengkap: lengkap,
       kurang: kurang,
+      kolom_lengkap: !kolomKurang.length,
+      kolom_kurang: kolomKurang,
       setup: !!(props.getProperty('DB_ID') && props.getProperty('ROOT_FOLDER_ID')),
       web: WEB_URL,
     })).setMimeType(ContentService.MimeType.JSON);
@@ -135,6 +142,10 @@ function routes_() {
     laporanList: { auth: 'pic', fn: laporanList },
     laporanBuat: { auth: 'pic', fn: laporanBuat },
     laporanUnduh: { auth: 'pic', fn: laporanUnduh },
+    infoLaporanGet: { auth: 'pic', fn: infoLaporanGet },
+    infoLaporanSimpan: { auth: 'pic', fn: infoLaporanSimpan },
+    orgSimpan: { auth: 'admin', fn: orgSimpan },
+    orgTtdSimpan: { auth: 'admin', fn: orgTtdSimpan },
     // Admin
     batchBuat: { auth: 'admin', fn: batchBuat },
     picList: { auth: 'admin', fn: picList },
@@ -217,7 +228,7 @@ function update_(name, rec, changes) {
   const t = table_(name);
   const cols = Object.keys(changes).map(k => {
     const col = t.head.indexOf(k);
-    if (col < 0) throw new Error('Kolom ' + k + ' tidak ada di sheet ' + name);
+    if (col < 0) throw new Error('Kolom ' + k + ' belum ada di sheet ' + name + '. Jalankan setup() sekali lagi di editor Apps Script.');
     rec[k] = changes[k] === undefined || changes[k] === null ? '' : String(changes[k]);
     return col;
   });
@@ -231,6 +242,18 @@ function update_(name, rec, changes) {
 function deleteRow_(name, rec) {
   table_(name).sh.deleteRow(rec._row);
   delete tableCache_[name];
+}
+
+/** Kolom yang belum ada di Spreadsheet (berarti setup() perlu dijalankan ulang setelah pembaruan). */
+function kolomKurang_() {
+  const ss = ss_();
+  const kurang = [];
+  Object.keys(SHEETS).forEach(name => {
+    const sh = ss.getSheetByName(name);
+    const head = sh ? sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0] : [];
+    SHEETS[name].forEach(k => { if (head.indexOf(k) < 0) kurang.push(name + '.' + k); });
+  });
+  return kurang;
 }
 
 function newId_(prefix) {
@@ -266,6 +289,34 @@ function distanceM_(lat1, lng1, lat2, lng2) {
   const dLng = rad(lng2 - lng1);
   const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
   return Math.round(2 * R * Math.asin(Math.sqrt(a)));
+}
+
+const alamatMemo_ = {};
+
+/**
+ * Alamat dari koordinat GPS (reverse geocoding layanan Maps bawaan Apps Script).
+ * Disimpan di cache 6 jam per titik ±10 m agar peserta di lokasi yang sama tidak memanggil Maps berulang.
+ * Mengembalikan '' jika gagal; absen tetap tersimpan.
+ */
+function alamat_(lat, lng) {
+  if (lat === '' || lat === null || lat === undefined || !isFinite(Number(lat))) return '';
+  const key = 'geo_' + Number(lat).toFixed(4) + '_' + Number(lng).toFixed(4);
+  if (alamatMemo_[key] !== undefined) return alamatMemo_[key];
+  let a = '';
+  try {
+    const cache = CacheService.getScriptCache();
+    a = cache.get(key) || '';
+    if (!a) {
+      const res = Maps.newGeocoder().setLanguage('id').reverseGeocode(Number(lat), Number(lng));
+      a = res && res.status === 'OK' && res.results.length ? res.results[0].formatted_address : '';
+      if (a) cache.put(key, a, 21600);
+    }
+  } catch (err) {
+    console.warn('Reverse geocode gagal', err);
+    a = '';
+  }
+  alamatMemo_[key] = a;
+  return a;
 }
 
 // ---------------------------------------------------------------- Drive

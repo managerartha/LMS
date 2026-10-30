@@ -30,7 +30,7 @@ function rundownHari_(idHari) {
 function rundownView_(r) {
   return {
     id_rundown: r.id_rundown, urutan: r.urutan, jam_mulai: r.jam_mulai, jam_selesai: r.jam_selesai,
-    kegiatan: r.kegiatan, pemateri: r.pemateri, keterangan: r.keterangan,
+    kegiatan: r.kegiatan, pemateri: r.pemateri, instansi: r.instansi || '', keterangan: r.keterangan,
   };
 }
 
@@ -50,6 +50,7 @@ function rundownSimpan(data, user) {
   const items = (data.items || []).map((it, i) => ({
     jam_mulai: String(it.jam_mulai || '').trim(), jam_selesai: String(it.jam_selesai || '').trim(),
     kegiatan: String(it.kegiatan || '').trim(), pemateri: String(it.pemateri || '').trim(),
+    instansi: String(it.instansi || '').trim(),
     keterangan: String(it.keterangan || '').trim(), _i: i,
   })).filter(it => it.kegiatan || it.jam_mulai || it.jam_selesai);
   items.forEach((it, i) => {
@@ -75,7 +76,7 @@ function rundownSimpan(data, user) {
       insert_('Rundown', {
         id_rundown: id, id_batch: hari.id_batch, id_hari: hari.id_hari, urutan: i + 1,
         jam_mulai: it.jam_mulai, jam_selesai: it.jam_selesai, kegiatan: it.kegiatan,
-        pemateri: it.pemateri, keterangan: it.keterangan, status: status,
+        pemateri: it.pemateri, instansi: it.instansi, keterangan: it.keterangan, status: status,
       });
     });
   } finally {

@@ -47,6 +47,7 @@ Semua file ada di folder [`apps-script/`](../apps-script). Untuk setiap file: bu
 | `Konten.gs` | **+** → Script | `Konten` |
 | `Laporan.gs` | **+** → Script | `Laporan` |
 | `aset-logo.html` | **+** → HTML | `aset-logo` |
+| `aset-laporan.html` | **+** → HTML | `aset-laporan` |
 
 > `aset-logo.html` adalah logo untuk sampul laporan PDF, dalam bentuk teks (base64) yang hanya berisi **satu baris sangat panjang**. Salin semuanya tanpa menambah spasi atau baris baru.
 >
@@ -192,23 +193,29 @@ Semua menu ini ada di akun PIC dan diisi **per hari** (pilih hari di bagian atas
 
 ## Langkah 13 — Laporan PDF (PIC)
 
-1. Buka menu **Laporan**.
-2. **Sekali saja:** di bagian **Tanda tangan saya**, buat tanda tangan digital. Tanda tangan ini otomatis dipasang di halaman pengesahan. Kalau belum dibuat, kolomnya dikosongkan untuk tanda tangan basah.
-3. Pilih **Laporan harian** (lalu pilih harinya) atau **Laporan lengkap batch**, lalu klik **📄 Buat & unduh PDF**.
-4. PDF otomatis terunduh dan juga tersimpan di folder **Laporan** batch di Google Drive. Laporan lama bisa diunduh ulang dari **Riwayat laporan**.
+Buka menu **Laporan**.
 
-Isi laporan:
-1. **Sampul**: nama pelatihan, batch, tanggal, lokasi, jumlah peserta, PIC
-2. **Ringkasan kehadiran**: jumlah Hadir/Izin/Sakit/Alpa dan % hadir per sesi per hari
-3. **Per hari**:
-   - A. Rundown kegiatan
-   - B. Daftar hadir (jam absen, status, keterangan izin/sakit)
-   - C. Lampiran foto timestamp + tanda tangan setiap peserta yang hadir, per sesi
-   - D. Dokumentasi kegiatan (hanya foto yang ditandai ✓ "masuk laporan")
-   - E. Daftar materi
-4. **Pengesahan**: tanda tangan digital PIC batch
+**Sekali saja (Admin):** isi kartu **Data perusahaan & penandatangan**: nama penyelenggara, nomor dan masa berlaku SKP, alamat, telepon, website, email, dan nama penandatangan. Upload juga **gambar tanda tangan + cap** (PNG transparan, atau JPG berlatar putih). Data ini dipakai di kop, footer, cover, dan halaman penyelenggaraan untuk semua batch.
 
-> Laporan sebaiknya dibuat setelah Sesi 2 ditutup (setelah 17:00). Kalau dibuat lebih awal, peserta yang belum absen tercatat "Belum absen" dan sesi yang belum dibuka tercatat "–".
+**Setiap batch (PIC):** isi kartu **Data laporan resmi batch ini**: Nomor Permohonan Temank3, judul cover, bidang pembinaan, bidang jasa, jenis personil, klasifikasi, kelas, tempat kelas dan observasi/PKL, metode, jumlah pendaftar dan lulus, serta persyaratan administrasi (Surat Permohonan, BAP, Daftar Hadir Pemateri). Jadwal Kegiatan, Daftar Hadir Peserta, dan Foto Kegiatan dicentang otomatis jika datanya ada.
+
+**Rundown:** isi **Pemateri** dan **Instansi pemateri** (mis. *Disnakertrans Prov. DIY* / *Praktisi K3*) agar tabel *Daftar Materi dan Pemateri* terisi.
+
+Lalu pilih jenis laporan dan klik **📄 Buat & unduh PDF**:
+
+| Jenis | Isi |
+|---|---|
+| **Laporan resmi lengkap** | Format resmi Artha Safety: 1) Cover, 2) Laporan Penyelenggaraan Kegiatan (A–E) dengan tanda tangan + cap, 3) Jadwal Kegiatan, 4) Daftar Materi dan Pemateri, 5) Laporan Absensi per peserta (setiap sesi: tanggal, jam, alamat lokasi, foto, tanda tangan), 6) Dokumentasi Kegiatan |
+| **Laporan absensi peserta saja** | Bagian 5 saja. Bisa dibatasi nomor absen (mis. 1–15, lalu 16–30) jika laporan resmi terlalu lama |
+| **Laporan harian (internal)** | Ringkasan satu hari + pengesahan PIC (memakai tanda tangan digital PIC) |
+
+PDF otomatis terunduh dan tersimpan di folder **Laporan** batch di Google Drive. Laporan lama bisa diunduh ulang dari **Riwayat laporan**.
+
+> **Lokasi absen** di laporan berupa alamat (mis. *Jl. Kapten Haryadi No.8, Sardonoharjo, Ngaglik, Sleman…*). Alamat diambil otomatis dari koordinat GPS saat peserta absen, memakai layanan peta Google di Apps Script.
+>
+> **Ukuran file hemat:** foto absen otomatis diperkecil ke 480 px (±25–40 KB), tanda tangan ke 400 px, dan foto dokumentasi ke 1280 px (versi laporan 640 px).
+>
+> Laporan sebaiknya dibuat setelah Sesi 2 hari terakhir ditutup. Sesi yang belum dibuka tidak dicantumkan.
 
 ---
 

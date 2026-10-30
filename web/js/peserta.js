@@ -391,7 +391,7 @@ function fotoDariFile(input) {
 
 /** Perkecil foto (maks 720 px), beri watermark nama + sesi + waktu server + lokasi, simpan sebagai JPEG. */
 function prosesFoto(src, w, h, mirror) {
-  const MAX = 720;
+  const MAX = 480; // cukup untuk wajah + watermark terbaca, file ±25–40 KB
   const scale = Math.min(1, MAX / Math.max(w, h));
   const cw = Math.round(w * scale), ch = Math.round(h * scale);
   const c = document.createElement('canvas');
@@ -407,7 +407,7 @@ function prosesFoto(src, w, h, mirror) {
     wib(serverNow()).teks,
     lok.nama + ' | ' + A.pos.lat.toFixed(5) + ', ' + A.pos.lng.toFixed(5) + ' (' + A.jarak + ' m)',
   ];
-  const fs = Math.max(13, Math.round(cw / 34));
+  const fs = Math.max(12, Math.round(cw / 34));
   const pad = Math.round(fs * 0.6);
   const boxH = lines.length * (fs + 4) + pad * 2;
   ctx.fillStyle = 'rgba(0,0,0,0.6)';
@@ -417,7 +417,7 @@ function prosesFoto(src, w, h, mirror) {
   ctx.textBaseline = 'top';
   lines.forEach((t, i) => ctx.fillText(t, pad, ch - boxH + pad + i * (fs + 4), cw - pad * 2));
 
-  A.foto = c.toDataURL('image/jpeg', 0.75);
+  A.foto = c.toDataURL('image/jpeg', 0.62);
   $('#cam-area').innerHTML = '<img class="preview-img" src="' + A.foto + '" alt="Foto absen">';
   $('#cam-actions').innerHTML = `
     <button class="btn" onclick="stepFoto()">↻ Ulangi</button>
@@ -476,9 +476,9 @@ function signaturePad(canvas) {
     last = p;
   });
   ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => canvas.addEventListener(ev, () => { drawing = false; }));
-  // Diperkecil (lebar maks 600 px) agar file kecil dan ringan dimuat di laporan PDF.
+  // Diperkecil (lebar maks 400 px) agar file kecil dan ringan dimuat di laporan PDF.
   const toDataURL = () => {
-    const scale = Math.min(1, 600 / canvas.width);
+    const scale = Math.min(1, 400 / canvas.width);
     const out = document.createElement('canvas');
     out.width = Math.round(canvas.width * scale);
     out.height = Math.round(canvas.height * scale);
