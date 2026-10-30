@@ -201,12 +201,15 @@ function dokTambah(data, user) {
     throw new Error('Kegiatan rundown tidak ditemukan.');
   }
   const nama = 'H' + hari.hari_ke + '_dok_' + Utilities.formatDate(new Date(), TZ, 'HHmmss') + '_' + Math.random().toString(36).slice(2, 6) + '.jpg';
-  const fileId = saveDataUrl_(folderKonten_(batch, 'Dokumentasi', hari), data.foto, nama);
+  const folder = folderKonten_(batch, 'Dokumentasi', hari);
+  const fileId = saveDataUrl_(folder, data.foto, nama);
   shareView_(DriveApp.getFileById(fileId));
+  // Versi kecil khusus laporan PDF (agar PDF tidak terlalu besar).
+  const kecilId = data.foto_kecil ? saveDataUrl_(subfolder_(folder, 'kecil'), data.foto_kecil, nama) : '';
   const d = insert_('Dokumentasi', {
     id_dok: newId_('d'), id_batch: hari.id_batch, id_hari: hari.id_hari, id_rundown: data.id_rundown || '',
     file_id: fileId, keterangan: String(data.keterangan || '').trim(), masuk_laporan: 'ya',
-    diupload_oleh: user.nama, diupload_pada: now_().stamp,
+    diupload_oleh: user.nama, diupload_pada: now_().stamp, file_kecil_id: kecilId,
   });
   return dokView_(d);
 }
@@ -231,6 +234,7 @@ function dokUbah(data, user) {
 function dokHapus(data, user) {
   const d = dokForPic_(user, data.id_dok);
   trashFile_(d.file_id);
+  trashFile_(d.file_kecil_id);
   deleteRow_('Dokumentasi', d);
   log_(user, 'dok_hapus', d.id_dok);
   return true;

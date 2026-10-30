@@ -12,4 +12,4 @@ Teknologi: HTML + Google Apps Script, data di Google Spreadsheet, file di Google
 | [docs/PANDUAN-SETUP.md](docs/PANDUAN-SETUP.md) | Cara memasang di akun Google & membagikan link |
 | [apps-script/](apps-script) | Kode aplikasi (salin ke script.google.com) |
 
-Status: **Tahap 1 (absensi) dan Tahap 2 (rundown, materi, dokumentasi) selesai**. Berikutnya Tahap 3: laporan PDF.
+Status: **Tahap 1 (absensi), Tahap 2 (rundown, materi, dokumentasi), dan Tahap 3 (laporan PDF) selesai**. Berikutnya Tahap 4: uji coba dengan 1 batch nyata.

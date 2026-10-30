@@ -24,8 +24,8 @@ const SHEETS = {
   Materi: ['id_materi', 'id_batch', 'id_hari', 'judul', 'kategori', 'file_id', 'tipe_file', 'link',
     'tampil_mulai', 'diupload_oleh', 'diupload_pada'],
   Dokumentasi: ['id_dok', 'id_batch', 'id_hari', 'id_rundown', 'file_id', 'keterangan', 'masuk_laporan',
-    'diupload_oleh', 'diupload_pada'],
-  Laporan: ['id_laporan', 'id_batch', 'jenis', 'id_hari', 'file_id', 'dibuat_oleh', 'dibuat_pada'],
+    'diupload_oleh', 'diupload_pada', 'file_kecil_id'],
+  Laporan: ['id_laporan', 'id_batch', 'jenis', 'id_hari', 'file_id', 'dibuat_oleh', 'dibuat_pada', 'nama_file'],
   Log: ['waktu', 'id_user', 'nama', 'aksi', 'detail'],
 };
 
@@ -85,6 +85,11 @@ function routes_() {
     dokTambah: { auth: 'pic', fn: dokTambah },
     dokUbah: { auth: 'pic', fn: dokUbah },
     dokHapus: { auth: 'pic', fn: dokHapus },
+    ttdSaya: { auth: 'pic', fn: ttdSaya },
+    ttdSayaSimpan: { auth: 'pic', fn: ttdSayaSimpan },
+    laporanList: { auth: 'pic', fn: laporanList },
+    laporanBuat: { auth: 'pic', fn: laporanBuat },
+    laporanUnduh: { auth: 'pic', fn: laporanUnduh },
     // Admin
     batchBuat: { auth: 'admin', fn: batchBuat },
     picList: { auth: 'admin', fn: picList },

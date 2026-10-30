@@ -35,6 +35,7 @@ Semua file ada di folder [`apps-script/`](../apps-script) di repository ini. Unt
 | `Batch.gs` | **+** → Script | `Batch` |
 | `Absensi.gs` | **+** → Script | `Absensi` |
 | `Konten.gs` | **+** → Script | `Konten` |
+| `Laporan.gs` | **+** → Script | `Laporan` |
 | `index.html` | **+** → HTML | `index` |
 | `css.html` | **+** → HTML | `css` |
 | `js-common.html` | **+** → HTML | `js-common` |
@@ -118,10 +119,32 @@ Semua menu ini ada di akun PIC dan diisi **per hari** (pilih hari di bagian atas
 
 ---
 
+## Langkah 10 — Laporan PDF (PIC)
+
+1. Buka menu **Laporan**.
+2. **Sekali saja:** di bagian **Tanda tangan saya**, buat tanda tangan digital. Tanda tangan ini otomatis dipasang di halaman pengesahan. Kalau belum dibuat, kolomnya dikosongkan untuk tanda tangan basah.
+3. Pilih **Laporan harian** (lalu pilih harinya) atau **Laporan lengkap batch**, lalu klik **📄 Buat & unduh PDF**.
+4. PDF otomatis terunduh dan juga tersimpan di folder **Laporan** batch di Google Drive. Laporan lama bisa diunduh ulang dari **Riwayat laporan**.
+
+Isi laporan:
+1. **Sampul**: nama pelatihan, batch, tanggal, lokasi, jumlah peserta, PIC
+2. **Ringkasan kehadiran**: jumlah Hadir/Izin/Sakit/Alpa dan % hadir per sesi per hari
+3. **Per hari**:
+   - A. Rundown kegiatan
+   - B. Daftar hadir (jam absen, status, keterangan izin/sakit)
+   - C. Lampiran foto timestamp + tanda tangan setiap peserta yang hadir, per sesi
+   - D. Dokumentasi kegiatan (hanya foto yang ditandai ✓ "masuk laporan")
+   - E. Daftar materi
+4. **Pengesahan**: tanda tangan digital PIC batch
+
+> Laporan sebaiknya dibuat setelah Sesi 2 ditutup (setelah 17:00). Kalau dibuat lebih awal, peserta yang belum absen tercatat "Belum absen" dan sesi yang belum dibuka tercatat "–".
+
+---
+
 ## Memperbarui kode (versi berikutnya)
 
 1. Tempel ulang file yang berubah di editor, lalu Save. File baru (mis. `Konten.gs` di Tahap 2) dibuat seperti di Langkah 3.
-2. Jika ada sheet atau kolom baru, jalankan **`setup`** sekali lagi. Ini aman, data lama tidak terhapus.
+2. Jika ada sheet atau kolom baru, jalankan **`setup`** sekali lagi. Ini aman, data lama tidak terhapus. **Tahap 3 menambah kolom baru, jadi `setup` wajib dijalankan ulang.**
 3. Klik **Deploy** → **Manage deployments** → ✏️ edit → **Version: New version** → **Deploy**.
    Link `/exec` **tetap sama**, jadi peserta tidak perlu link baru.
 
@@ -139,6 +162,8 @@ Semua menu ini ada di akun PIC dan diisi **per hari** (pilih hari di bagian atas
 | "Akun ini sudah terhubung ke HP lain" | Peserta ganti HP / browser / menghapus data browser. PIC: **Peserta → Kelola → Reset HP**. |
 | "Lokasi pelatihan hari ini belum diatur PIC" | PIC mengisi lokasi default atau lokasi hari itu di **Jadwal & Lokasi**. |
 | Peserta tidak absen karena sakit/izin | PIC: menu **Absensi** → klik sel sesi peserta → pilih Izin/Sakit + keterangan. |
+| Laporan lengkap gagal / waktu habis | Google membatasi satu proses maksimal 6 menit. Buat **laporan harian** untuk setiap hari. |
+| PDF tidak terunduh otomatis | Buka **Riwayat laporan → Drive** (login sebagai manag3r.artha@gmail.com), atau ambil dari folder **Laporan** di Google Drive. |
 | Lupa PIN PIC | Admin: **Akun PIC → Reset PIN**. |
 | Lupa PIN Admin | Di Spreadsheet, sheet `Pengguna`, salin nilai `pin_hash` dari akun PIC yang PIN-nya diketahui ke baris ADMIN. PIN Admin sekarang sama dengan PIN PIC tersebut; segera ganti setelah login. |
 
@@ -150,5 +175,6 @@ Semua menu ini ada di akun PIC dan diisi **per hari** (pilih hari di bagian atas
 - **Folder `LMS Artha Safety / <Kode Batch> - <Nama Pelatihan>`**:
   - `Absensi/Hari-N/`: foto dan tanda tangan absen, mis. `H1_S1_001-Kikis_foto.jpg`
   - `Materi/Hari-N/` dan `Dokumentasi/Hari-N/`: file materi dan foto kegiatan (bisa dibuka lewat link)
-  - `Laporan/`: dipakai mulai Tahap 3
+  - `Laporan/`: semua laporan PDF yang pernah dibuat
+- **Folder `LMS Artha Safety / Tanda Tangan PIC`**: tanda tangan digital PIC untuk halaman pengesahan
 - Folder dan Spreadsheet **jangan dibagikan publik**. Foto absen dan tanda tangan hanya bisa dilihat PIC lewat LMS.

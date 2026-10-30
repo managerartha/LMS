@@ -386,6 +386,15 @@
       last = p;
     });
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => canvas.addEventListener(ev, () => { drawing = false; }));
-    return { clear: clear, isEmpty: () => strokes === 0, toDataURL: () => canvas.toDataURL('image/png') };
+    // Diperkecil (lebar maks 600 px) agar file kecil dan ringan dimuat di laporan PDF.
+    const toDataURL = () => {
+      const scale = Math.min(1, 600 / canvas.width);
+      const out = document.createElement('canvas');
+      out.width = Math.round(canvas.width * scale);
+      out.height = Math.round(canvas.height * scale);
+      out.getContext('2d').drawImage(canvas, 0, 0, out.width, out.height);
+      return out.toDataURL('image/png');
+    };
+    return { clear: clear, isEmpty: () => strokes === 0, toDataURL: toDataURL };
   }
 </script>

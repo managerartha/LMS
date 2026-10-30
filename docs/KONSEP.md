@@ -1,7 +1,7 @@
 # Konsep LMS Artha Safety Indonesia
 
 > Dokumen konsep v0.4 — 30 Oktober 2026
-> Status: **Tahap 1 & 2 sudah dibuat** (folder `apps-script/`). Cara pasang: [PANDUAN-SETUP.md](PANDUAN-SETUP.md).
+> Status: **Tahap 1, 2 & 3 sudah dibuat** (folder `apps-script/`). Cara pasang: [PANDUAN-SETUP.md](PANDUAN-SETUP.md).
 > Perubahan v0.3: format kode login `001-Kikis` (nomor absen + nama depan), lokasi absen bisa diubah **per hari** oleh PIC/Admin, **satu Spreadsheet untuk semua batch**.
 > Perubahan dari v0.1: teknologi diganti menjadi **HTML + Google Apps Script**, data di **Google Spreadsheet**, file di **Google Drive**; login pakai **kode peserta**; tanpa status terlambat; absen **wajib di lokasi (GPS)**; tanda tangan PIC **digital**.
 
@@ -305,8 +305,7 @@ LMS/
      ├── js-peserta.html      halaman peserta (kamera, watermark, tanda tangan)   ✅ Tahap 1
      ├── js-pic.html          halaman PIC & Admin                                 ✅ Tahap 1
      ├── Konten.gs            rundown, materi, dokumentasi                        ✅ Tahap 2
-     ├── Laporan.gs           pembuatan PDF                                       Tahap 3
-     └── laporan-template.html template PDF                                       Tahap 3
+     └── Laporan.gs           laporan PDF (template HTML → PDF), ttd digital PIC  ✅ Tahap 3
 ```
 
 Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai `clasp`).
@@ -329,7 +328,7 @@ Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai 
 |-------|-----|
 | **1 — Fondasi & Absensi** ✅ | Setup otomatis Sheets/Drive, batch & input peserta + kode otomatis (`001-Kikis`), lokasi default & per hari, login, absensi (GPS + foto + watermark + ttd), monitor PIC, auto-alpa |
 | **2 — Konten** ✅ | Rundown (draft/terbit, salin antar-hari), materi (file/link, jam tampil), dokumentasi (upload banyak foto, tandai untuk laporan) + tampilan peserta |
-| **3 — Laporan** | PDF harian & lengkap, tanda tangan digital PIC |
+| **3 — Laporan** ✅ | PDF harian & lengkap, tanda tangan digital PIC |
 | **4 — Uji coba** | Uji di 1 batch nyata, perbaikan, panduan singkat untuk PIC |
 
 ---
@@ -355,3 +354,4 @@ Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai 
 - **Watermark** digambar di HP memakai jam server (selisih jam HP dikoreksi otomatis). Jam resmi yang tercatat di Spreadsheet tetap jam server saat data diterima.
 - **Kamera**: LMS mencoba membuka kamera langsung di halaman. Jika browser HP tidak mengizinkannya, LMS membuka aplikasi kamera bawaan HP. Foto lama dari galeri (lebih dari 5 menit) ditolak.
 - **Keterbatasan GPS**: aplikasi "fake GPS" di HP Android tidak bisa dideteksi dari browser. Pencegahnya adalah foto selfie ber-watermark yang diperiksa PIC.
+- **Laporan PDF** disusun di server sebagai HTML (tata letak tabel, CSS dasar) lalu dikonversi ke PDF oleh Google. Foto absen memakai thumbnail Drive, dan foto dokumentasi memakai versi 800 px yang dibuat saat upload, supaya ukuran PDF tetap wajar. Laporan lengkap untuk batch besar bisa mendekati batas 6 menit Apps Script; alternatifnya laporan harian.
