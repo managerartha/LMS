@@ -44,14 +44,23 @@ function skl_view(?array $s): array {
     : ['terbit' => false, 'status' => '', 'nomor' => '', 'tgl_terbit' => ''];
 }
 
-/** Nomor SKL berikutnya sesuai format di Data perusahaan, urut per tahun penerbitan. */
-function skl_nomor_baru(array $batch, string $tanggal): array {
+/** Kode batch pada nomor SKL (mis. A06B087KEM); default kode batch LMS. */
+function kode_skl(array $batch): string {
+  return trim((string)(info_batch($batch)['kode_skl'] ?? '')) ?: $batch['kode_batch'];
+}
+
+/**
+ * Nomor SKL berikutnya sesuai format di Data perusahaan, mis. 09/A06B087KEM/SKL/PT-ARSINDO/X/2026.
+ * {no} = nomor urut dalam batch (2 digit), {kode} = kode batch untuk SKL, {bulan} = bulan Romawi saat terbit.
+ */
+function skl_nomor_baru(array $batch, string $tanggal, int $mulai = 0): array {
   [$y, $m] = array_map('intval', explode('-', $tanggal));
-  $urut = (int)(row('SELECT MAX(CAST(urut AS UNSIGNED)) AS n FROM skl WHERE tahun = ?', [(string)$y])['n'] ?? 0) + 1;
-  $format = org_()['format_skl'] ?: ORG_DEFAULT['format_skl'];
+  $urut = max($mulai, (int)(row('SELECT MAX(CAST(urut AS UNSIGNED)) AS n FROM skl WHERE id_batch = ?', [$batch['id_batch']])['n'] ?? 0) + 1);
+  $format = org_()['format_skl'];
+  if ($format === '' || $format === '{no}/SKL/ASI/{bulan}/{tahun}') $format = ORG_DEFAULT['format_skl']; // format awal versi sebelumnya
   if (!str_contains($format, '{no}')) $format = '{no}/' . $format;
-  $nomor = strtr($format, ['{no}' => sprintf('%03d', $urut), '{bulan}' => ROMAWI[$m - 1], '{bulan_angka}' => sprintf('%02d', $m),
-    '{tahun}' => (string)$y, '{batch}' => $batch['kode_batch']]);
+  $nomor = strtr($format, ['{no}' => sprintf('%02d', $urut), '{kode}' => kode_skl($batch), '{bulan}' => ROMAWI[$m - 1],
+    '{bulan_angka}' => sprintf('%02d', $m), '{tahun}' => (string)$y, '{batch}' => $batch['kode_batch']]);
   return [$urut, (string)$y, $nomor];
 }
 
@@ -75,7 +84,7 @@ function sklUnduh(array $data, array $user): array {
   $batch = get_batch($u['id_batch']);
   $nama = preg_replace('#[\\\\/:*?"<>|]#', '-', 'SKL ' . $u['kode_login'] . ' - ' . $u['nama'] . '.pdf');
   if ($user['role'] === 'peserta') log_($user, 'skl_unduh', $s['nomor']);
-  return ['nama' => $nama, 'data' => base64_encode(html_ke_pdf(skl_html($batch, [[$u, $s]])))];
+  return ['nama' => $nama, 'data' => base64_encode(html_ke_pdf(skl_html($batch, [[$u, $s]]), SKL_KERTAS))];
 }
 
 // ---------------------------------------------------------------- PIC / Admin
@@ -86,6 +95,7 @@ function sklList(array $data, array $user): array {
   foreach (rows('SELECT * FROM skl WHERE id_batch = ?', [$b['id_batch']]) as $s) $skl[$s['id_user']] = $s;
   return [
     'jenis_pelatihan' => jenis_pelatihan($b),
+    'kode_skl' => kode_skl($b), 'contoh_nomor' => skl_nomor_baru($b, now_()['date'])[2],
     'periode' => rentang_tgl($b['tgl_mulai'], $b['tgl_selesai']),
     'peserta' => array_map(fn($u) => ['id_user' => $u['id_user'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'],
       'kode_login' => $u['kode_login'], 'tempat_lahir' => $u['tempat_lahir'], 'tgl_lahir' => $u['tgl_lahir'],
@@ -98,7 +108,12 @@ function sklSimpanData(array $data, array $user): bool {
   $b = batch_for_pic($user, (string)($data['id_batch'] ?? ''));
   if (isset($data['jenis_pelatihan'])) {
     if (!in_array($data['jenis_pelatihan'], JENIS_PELATIHAN, true)) throw new LmsError('Jenis pelatihan tidak valid.');
-    update('batch', $b, ['jenis_pelatihan' => $data['jenis_pelatihan']]);
+    $b = update('batch', $b, ['jenis_pelatihan' => $data['jenis_pelatihan']]);
+  }
+  if (isset($data['kode_skl'])) {
+    $kode = mb_substr(trim((string)$data['kode_skl']), 0, 60);
+    if (preg_match('#[/\\s]#', $kode)) throw new LmsError('Kode batch SKL tidak boleh berisi spasi atau garis miring.');
+    $b = update('batch', $b, ['info_laporan' => json_encode(array_merge(info_batch($b), ['kode_skl' => $kode]), JSON_UNESCAPED_UNICODE)]);
   }
   $ubah = [];
   foreach ((array)($data['peserta'] ?? []) as $p) {
@@ -129,14 +144,15 @@ function sklTerbitkan(array $data, array $user): array {
     if ($s) {
       update('skl', $s, ['status' => 'terbit', 'tgl_terbit' => $now['date'], 'diubah_oleh' => $user['nama'], 'diubah_pada' => $now['stamp']]);
     } else {
-      for ($coba = 0; ; $coba++) {
-        [$urut, $tahun, $nomor] = skl_nomor_baru($b, $now['date']);
+      for ($coba = 0, $mulai = 0; ; $coba++) {
+        [$urut, $tahun, $nomor] = skl_nomor_baru($b, $now['date'], $mulai);
         try {
           insert('skl', ['id_skl' => 'k' . $id, 'id_batch' => $b['id_batch'], 'id_user' => $id, 'nomor' => $nomor, 'urut' => $urut,
             'tahun' => $tahun, 'status' => 'terbit', 'tgl_terbit' => $now['date'], 'diubah_oleh' => $user['nama'], 'diubah_pada' => $now['stamp']]);
           break;
         } catch (PDOException $e) {
-          if ($coba >= 4) throw $e; // nomor bentrok dengan penerbitan bersamaan: ambil nomor berikutnya
+          if ($coba >= 20) throw $e;
+          $mulai = $urut + 1; // nomor sudah dipakai (penerbitan bersamaan / kode batch sama): ambil nomor berikutnya
         }
       }
     }
@@ -170,49 +186,80 @@ function sklUnduhSemua(array $data, array $user): array {
   }
   if (!$list) throw new LmsError('Belum ada SKL yang diterbitkan di batch ini.');
   $nama = preg_replace('#[\\\\/:*?"<>|]#', '-', 'SKL ' . $b['kode_batch'] . ' - ' . $b['nama_pelatihan'] . '.pdf');
-  return ['nama' => $nama, 'data' => base64_encode(html_ke_pdf(skl_html($b, $list)))];
+  return ['nama' => $nama, 'data' => base64_encode(html_ke_pdf(skl_html($b, $list), SKL_KERTAS))];
 }
 
-// ---------------------------------------------------------------- Format PDF
+// ---------------------------------------------------------------- Format PDF (sesuai template Artha Safety)
 
-const SKL_CSS = '
-  @page { margin: 15mm 20mm; }
-  body { font-family: "Times New Roman", Times, serif; font-size: 12pt; color: #000; line-height: 1.45; }
-  table { border-collapse: collapse; }
-  .pb { page-break-before: always; }
-  .judul { text-align: center; font-weight: bold; font-size: 15pt; text-decoration: underline; margin-top: 18px; letter-spacing: .5px; }
-  .nomor { text-align: center; font-size: 12pt; margin-bottom: 22px; }
-  table.data td { padding: 3px 6px; vertical-align: top; font-size: 12pt; }
-  .kop-web { font-family: Helvetica, Arial, sans-serif; font-size: 8pt; color: #333; text-align: right; vertical-align: middle; }
-  .lulus { text-align: center; font-size: 16pt; font-weight: bold; letter-spacing: 3px; margin: 14px 0; }
-';
+/** Ukuran kertas template (point) dan jarak puncak huruf ke garis dasar teks 12pt. */
+const SKL_KERTAS = [0, 0, 624, 870.5];
+const SKL_ASCENT = 13.8;
 
-/** $list = [[pengguna, skl], ...]; satu halaman A4 per peserta. */
+/** 'yyyy-mm-dd' -> '04 Oktober 2003' */
+function tgl_skl(string $s): string {
+  [$y, $m, $d] = array_map('intval', explode('-', $s));
+  return sprintf('%02d %s %d', $d, BULAN_ID[$m - 1], $y);
+}
+
+/** '19 – 30 Oktober 2026' / '28 Oktober – 08 November 2026' / tanggal lengkap jika beda tahun. */
+function periode_skl(string $a, string $b): string {
+  [$y1, $m1, $d1] = array_map('intval', explode('-', $a));
+  [$y2, $m2, $d2] = array_map('intval', explode('-', $b));
+  if ($a === $b) return tgl_skl($a);
+  if ($y1 === $y2 && $m1 === $m2) return sprintf('%02d – %02d %s %d', $d1, $d2, BULAN_ID[$m1 - 1], $y1);
+  if ($y1 === $y2) return sprintf('%02d %s – %02d %s %d', $d1, BULAN_ID[$m1 - 1], $d2, BULAN_ID[$m2 - 1], $y1);
+  return tgl_skl($a) . ' – ' . tgl_skl($b);
+}
+
+/** Teks di posisi tetap: x = kiri (pt), y = garis dasar dari bawah halaman (pt), seperti di template. */
+function skl_teks(float $x, float $y, string $html, string $gaya = ''): string {
+  $top = SKL_KERTAS[3] - $y - SKL_ASCENT;
+  return '<div style="position:absolute;left:' . $x . 'pt;top:' . round($top, 1) . 'pt;' . $gaya . '">' . $html . '</div>';
+}
+
+/** Teks rata tengah pada kolom selebar $w yang berpusat di $cx. */
+function skl_tengah(float $cx, float $y, float $w, string $html): string {
+  return skl_teks($cx - $w / 2, $y, $html, 'width:' . $w . 'pt;text-align:center;');
+}
+
+/** $list = [[pengguna, skl], ...]; satu halaman per peserta. */
 function skl_html(array $batch, array $list): string {
   $org = org_();
-  $ttd = $org['ttd_id'] !== '' ? img_(file_data_url($org['ttd_id']), 'height="100"') : '<br><br><br><br><br>';
-  $out = ['<html><head><meta charset="utf-8"><style>' . SKL_CSS . '</style></head><body>'];
+  $latar = 'data:image/jpeg;base64,' . base64_encode((string)file_get_contents(__DIR__ . '/skl-latar.jpg'));
+  $judul = $batch['nama_pelatihan'];
+  // "Pembinaan Ahli K3 Umum" -> "Pembinaan <b>Ahli K3 Umum</b>", sertifikat "Ahli K3 Umum"
+  $sertifikat = preg_match('/^pembinaan\s+(.+)$/iu', $judul, $x) ? $x[1] : $judul;
+  $judulHtml = $sertifikat !== $judul ? h_(mb_substr($judul, 0, mb_strlen($judul) - mb_strlen($sertifikat))) . '<b>' . h_($sertifikat) . '</b>' : '<b>' . h_($judul) . '</b>';
+  $periode = periode_skl($batch['tgl_mulai'], $batch['tgl_selesai']);
+  $jenis = jenis_pelatihan($batch) . ' Training';
+  $W = SKL_KERTAS[2];
+  $H = SKL_KERTAS[3];
+  $css = '@page { margin: 0; } body { margin: 0; font-family: "Times New Roman", Times, serif; font-size: 12pt; color: #000; }
+    .hal { position: relative; width: ' . $W . 'pt; height: ' . ($H - 1) . 'pt; overflow: hidden; }
+    .isi { position: absolute; left: 63pt; width: 499pt; line-height: 20.9pt; text-align: justify; }
+    .isi p { margin: 0; text-indent: 36pt; }';
+  $out = ['<html><head><meta charset="utf-8"><style>' . $css . '</style></head><body>'];
   foreach ($list as $i => [$u, $s]) {
-    $ttl = trim($u['tempat_lahir'] . ($u['tgl_lahir'] !== '' ? ', ' . tgl_id($u['tgl_lahir']) : ''));
-    $out[] = ($i ? '<div class="pb"></div>' : '') . kop($org) .
-      '<div class="judul">SURAT KETERANGAN LULUS</div>' .
-      '<div class="nomor">Nomor: ' . h_($s['nomor']) . '</div>' .
-      '<p>Yang bertanda tangan di bawah ini, ' . h_($org['jabatan']) . ' ' . h_($org['nama']) .
-      ' selaku penyelenggara pelatihan (Nomor SKP ' . h_(preg_replace('/^No\.?\s*/i', '', $org['nomor_skp'])) . '), menerangkan bahwa:</p>' .
-      '<table class="data" style="margin-left:30px">' .
-      '<tr><td style="width:190px">Nama</td><td style="width:10px">:</td><td><b>' . h_(mb_strtoupper($u['nama'])) . '</b></td></tr>' .
-      '<tr><td>Tempat, Tanggal Lahir</td><td>:</td><td>' . h_($ttl ?: '-') . '</td></tr></table>' .
-      '<p>telah mengikuti seluruh rangkaian pelatihan dan dinyatakan:</p>' .
-      '<div class="lulus">LULUS</div>' .
-      '<p>pada pelatihan berikut:</p>' .
-      '<table class="data" style="margin-left:30px">' .
-      '<tr><td style="width:190px">Judul Pelatihan</td><td style="width:10px">:</td><td><b>' . h_($batch['nama_pelatihan']) . '</b></td></tr>' .
-      '<tr><td>Periode Pelatihan</td><td>:</td><td>' . h_(rentang_tgl($batch['tgl_mulai'], $batch['tgl_selesai'])) . '</td></tr>' .
-      '<tr><td>Jenis Pelatihan</td><td>:</td><td>' . h_(jenis_pelatihan($batch)) . '</td></tr></table>' .
-      '<p>Demikian surat keterangan ini dibuat untuk dapat dipergunakan sebagaimana mestinya.</p><br>' .
-      '<table style="width:100%"><tr><td style="width:55%"></td><td style="text-align:center">' .
-      h_($org['kota']) . ', ' . h_(tgl_id($s['tgl_terbit'])) . '<br>' . h_($org['nama']) . '<br>' . $ttd .
-      '<br><b><u>' . h_($org['penandatangan']) . '</u></b><br>' . h_($org['jabatan']) . '</td></tr></table>';
+    $ttl = trim($u['tempat_lahir'] . ($u['tgl_lahir'] !== '' ? ', ' . tgl_skl($u['tgl_lahir']) : ''));
+    $isiTop = $H - 428.6 - SKL_ASCENT - (20.9 - 12) / 2 - 0.7;
+    $out[] = '<div class="hal"' . ($i < count($list) - 1 ? ' style="page-break-after:always"' : '') . '>' .
+      '<img src="' . $latar . '" style="position:absolute;left:0;top:0;width:' . $W . 'pt;height:' . $H . 'pt">' .
+      skl_tengah(313.5, 606.1, 500, 'NO : ' . h_($s['nomor'])) .
+      skl_teks(99, 544.0, 'Yang bertanda tangan di bawah ini, ' . h_($org['jabatan']) . ' PT. Artha Safety Indonesia.', 'width:463pt;word-spacing:2.55pt;') .
+      skl_teks(63, 523.2, 'Menerangkan bahwa :') .
+      skl_teks(99, 481.9, 'Nama') . skl_teks(238, 481.9, ':') . skl_teks(244.3, 481.9, '<b>' . h_($u['nama']) . '</b>', 'width:318pt;') .
+      skl_teks(99, 461.2, 'Tempat, tanggal lahir') . skl_teks(238, 461.2, ':') . skl_teks(244.3, 461.2, '<b>' . h_($ttl ?: '-') . '</b>', 'width:318pt;') .
+      '<div class="isi" style="top:' . round($isiTop, 1) . 'pt">' .
+      '<p style="margin-left:-5pt;margin-right:-1pt">Telah mengikuti Kegiatan ' . $judulHtml . ' Sertifikasi <b>KEMNAKER RI</b> yang diselenggarakan pada tanggal ' .
+      h_($periode) . ' secara <i>' . h_($jenis) . '</i>.</p>' .
+      '<p>Surat keterangan ini kami terbitkan dan menjadi bukti bahwa peserta sudah menyelesaikan pelatihan dengan <b>Predikat BAIK</b> dan dinyatakan <b>LULUS</b>. ' .
+      'Adapun surat ini untuk menerangkan bahwa Sertifikat <b>' . h_($sertifikat) . '</b> sedang dalam proses penerbitan oleh <b>KEMNAKER RI</b>.</p>' .
+      '<p style="word-spacing:-0.6pt">Demikian surat keterangan ini kami sampaikan untuk dapat dipergunakan sebagaimana mestinya. Atas perhatiannya kami ucapkan terimakasih.</p></div>' .
+      skl_tengah(453.8, 221.5, 220, h_($org['kota']) . ', ' . h_(tgl_skl($s['tgl_terbit']))) .
+      skl_tengah(457.2, 200.8, 220, 'PT. Artha Safety Indonesia') .
+      skl_tengah(459.5, 118.0, 220, h_($org['penandatangan'])) .
+      skl_tengah(455.9, 97.3, 220, h_($org['jabatan'])) .
+      '</div>';
   }
   $out[] = '</body></html>';
   return implode("\n", $out);

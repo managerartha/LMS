@@ -974,8 +974,8 @@ function formOrg(inf) {
         ${f('website', 'Website')}
         ${f('email', 'Email')}
       </div>
-      <p class="small muted">Format nomor SKL: <code>{no}</code> nomor urut per tahun (001, 002, …), <code>{bulan}</code> bulan Romawi,
-        <code>{bulan_angka}</code>, <code>{tahun}</code>, <code>{batch}</code> kode batch. Nomor yang sudah terbit tidak berubah.</p>
+      <p class="small muted">Format nomor SKL: <code>{no}</code> nomor urut dalam batch (01, 02, …), <code>{kode}</code> kode batch pada nomor SKL
+        (diisi di tab SKL), <code>{bulan}</code> bulan Romawi, <code>{bulan_angka}</code>, <code>{tahun}</code>. Nomor yang sudah terbit tidak berubah.</p>
       <label>Alamat kantor</label><input id="org-alamat" value="${esc(o.alamat)}">
       <button class="btn primary mt" onclick="simpanOrg(this)">Simpan data perusahaan</button>
       <h3 class="mt">Tanda tangan + cap penandatangan</h3>
@@ -1107,7 +1107,9 @@ async function tabSkl() {
           <div><label>Periode pelatihan</label><input value="${esc(d.periode)}" disabled></div>
           <div><label>Jenis pelatihan</label>
             <select id="skl-jenis">${['Offline', 'Online', 'Blended'].map(j => `<option ${j === d.jenis_pelatihan ? 'selected' : ''}>${j}</option>`).join('')}</select></div>
+          <div><label>Kode batch pada nomor SKL</label><input id="skl-kode" value="${esc(d.kode_skl)}" placeholder="mis. A06B087KEM"></div>
         </div>
+        <p class="small muted">Contoh nomor SKL berikutnya: <b>${esc(d.contoh_nomor)}</b></p>
         <p class="small muted">Nama, judul, dan periode mengikuti data peserta & batch. Nomor SKL dibuat otomatis (unik per peserta);
           tanggal terbit = tanggal SKL diterbitkan.</p>
       </div>
@@ -1156,7 +1158,7 @@ function sklTerpilih() { return $$('.skl-cb:checked').map(cb => cb.value); }
 
 function sklDataForm() {
   return {
-    id_batch: C.batch.id_batch, jenis_pelatihan: $('#skl-jenis').value,
+    id_batch: C.batch.id_batch, jenis_pelatihan: $('#skl-jenis').value, kode_skl: $('#skl-kode').value,
     peserta: $$('.skl-tempat').map(el => ({ id_user: el.dataset.id, tempat_lahir: el.value,
       tgl_lahir: $$('.skl-tgl').find(t => t.dataset.id === el.dataset.id).value })),
   };

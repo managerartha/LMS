@@ -116,7 +116,8 @@ function laporanUnduh(array $data, array $user): array {
   return ['nama' => laporan_view($r)['nama'], 'data' => base64_encode((string)file_get_contents($f))];
 }
 
-function html_ke_pdf(string $html): string {
+/** $kertas: 'A4' atau ukuran [0, 0, lebar, tinggi] dalam point. */
+function html_ke_pdf(string $html, $kertas = 'A4'): string {
   require_once ROOT . '/vendor/autoload.php';
   @set_time_limit(600);
   @ini_set('memory_limit', '1024M');
@@ -128,7 +129,7 @@ function html_ke_pdf(string $html): string {
   pastikan_folder(STORAGE . '/tmp');
   $pdf = new Dompdf($opt);
   $pdf->loadHtml($html, 'UTF-8');
-  $pdf->setPaper('A4', 'portrait');
+  $pdf->setPaper($kertas, 'portrait');
   $pdf->render();
   return (string)$pdf->output();
 }
@@ -318,9 +319,9 @@ const ORG_DEFAULT = [
   'website' => 'www.arthasafetyindonesia.co.id',
   'email' => 'info@arthasafetyindonesia.co.id',
   'penandatangan' => 'Saut Reynald Ricardo Simbolon',
-  'jabatan' => 'Direktur',
+  'jabatan' => 'Direktur Utama',
   'kota' => 'Yogyakarta',
-  'format_skl' => '{no}/SKL/ASI/{bulan}/{tahun}',
+  'format_skl' => '{no}/{kode}/SKL/PT-ARSINDO/{bulan}/{tahun}',
   'ttd_id' => '',
 ];
 
@@ -329,7 +330,7 @@ const INFO_DEFAULT = [
   'nomor_permohonan' => '', 'judul_cover' => 'AHLI K3 UMUM', 'sub_cover' => 'Sertifikasi Kementrian Ketenagakerjaan Republik Indonesia',
   'bidang_pembinaan' => 'Calon Ahli K3 Umum', 'bidang_jasa' => 'Keahlian K3 Umum', 'jenis_personil' => 'Ahli K3', 'klasifikasi' => 'Ahli K3 Umum',
   'kelas' => 'Non Kelas', 'tempat_kelas' => 'PT Artha Safety Indonesia', 'tempat_observasi' => '', 'metode' => 'Offline Training',
-  'jumlah_pendaftar' => '', 'jumlah_lulus' => '', 'surat_permohonan' => true, 'bap' => true, 'daftar_hadir_pemateri' => true,
+  'jumlah_pendaftar' => '', 'jumlah_lulus' => '', 'kode_skl' => '', 'surat_permohonan' => true, 'bap' => true, 'daftar_hadir_pemateri' => true,
 ];
 
 function org_(): array {
