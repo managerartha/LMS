@@ -11,6 +11,7 @@ Teknologi: tampilan HTML/CSS/JS statis di cPanel (`lms.arthasafetyindonesia.com`
 | [docs/KONSEP.md](docs/KONSEP.md) | Konsep, fitur, struktur data, tahapan |
 | [docs/PANDUAN-SETUP.md](docs/PANDUAN-SETUP.md) | Cara memasang di akun Google & membagikan link |
 | [web/](web) | Tampilan LMS (upload ke cPanel) |
+| [dist/lms-satu-file.html](dist/lms-satu-file.html) | Tampilan LMS dalam satu file HTML (untuk Super Landingpage AI); dibuat dengan `tools/build-satu-file.py` |
 | [apps-script/](apps-script) | API & server (salin ke script.google.com) |
 
 Status: **Tahap 1 (absensi), Tahap 2 (rundown, materi, dokumentasi), dan Tahap 3 (laporan PDF) selesai**. Berikutnya Tahap 4: uji coba dengan 1 batch nyata.

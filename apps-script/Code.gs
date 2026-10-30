@@ -7,7 +7,7 @@
  */
 
 /** Alamat tampilan LMS. Membuka URL /exec di browser akan diarahkan ke sini. */
-const WEB_URL = 'https://lms.arthasafetyindonesia.com';
+const WEB_URL = 'https://arthasafetyindonesia.com/lms';
 
 const TZ = 'Asia/Jakarta';
 const DB_NAME = 'LMS Artha Safety - Database';

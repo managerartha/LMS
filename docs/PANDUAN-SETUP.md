@@ -117,6 +117,24 @@ window.LMS_CONFIG = {
    ```
 5. Buka **https://lms.arthasafetyindonesia.com**: halaman login dengan logo Artha Safety harus tampil.
 
+## Alternatif Bagian B — Satu file HTML di Super Landingpage AI
+
+Jika halaman di arthasafetyindonesia.com dibuat lewat **Super Landingpage AI** (Copilot Spy), yang hanya menerima satu file HTML:
+
+1. Ambil file **`dist/lms-satu-file.html`**. Isinya sudah lengkap: CSS, JavaScript, logo, dan foto ada di dalam satu file.
+2. Di bagian paling atas file (baris ±8–10), ganti `API_URL` dengan Web app URL `/exec` dari Langkah 5.
+3. Di Super Landingpage AI: buat halaman baru, isi **Custom Link (Slug URL)** dengan `lms` sehingga alamatnya **arthasafetyindonesia.com/lms**.
+4. Di **Editor HTML**: hapus seluruh isi contoh (Ctrl+A → Delete), lalu tempel isi `lms-satu-file.html` (Ctrl+V). Simpan / publish.
+5. Buka **https://arthasafetyindonesia.com/lms** dan coba login.
+
+> Jangan meminta AI di builder merapikan atau mengubah kode ini, karena bisa merusak fungsinya.
+>
+> **Uji kamera & GPS dari HP** setelah publish. Jika builder menampilkan halaman di dalam bingkai (iframe) tanpa izin kamera/GPS, absen tidak bisa dilakukan; gunakan cara cPanel (Bagian B) sebagai gantinya.
+>
+> Jika slug bukan `lms`, ubah `WEB_URL` di bagian atas `Code.gs` agar link `/exec` lama mengarah ke alamat yang benar.
+>
+> Setiap ada pembaruan tampilan, file ini dibuat ulang dengan `python3 tools/build-satu-file.py`. Tempel ulang seluruh isinya di Editor HTML, lalu ganti lagi `API_URL`.
+
 ---
 
 # Bagian C — Mulai memakai LMS
