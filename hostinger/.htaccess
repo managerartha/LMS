@@ -11,7 +11,7 @@ RewriteRule ^(app|storage|vendor)(/|$) - [F,L]
 RewriteRule ^(composer\.(json|lock)|\.user\.ini)$ - [F,L]
 
 Options -Indexes
-DirectoryIndex index.html
+DirectoryIndex index.html index.php
 
 <IfModule mod_headers.c>
   <FilesMatch "(index\.html|config\.js)$">

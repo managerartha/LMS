@@ -106,6 +106,8 @@ Lanjut ke **Langkah 3**.
 
 7. Hapus **`lms-hostinger.zip`** (klik kanan → Delete) agar tidak memenuhi penyimpanan.
 
+> **Upload lewat "Buat website" / "Upload file website" Hostinger?** Boleh. Abaikan pesan *"Sertakan juga file database Anda"*, karena LMS tidak memakai file `.sql`; tabel dibuat oleh `install.php`. Setelah website jadi, cek isi `public_html` seperti daftar di atas.
+>
 > **Kesalahan yang sering terjadi:** hasil extract masuk ke folder baru `lms-hostinger/`. Jika itu terjadi, buka folder tersebut, pilih semua isinya (Select All), klik **Move**, lalu pindahkan ke folder subdomain.
 
 ---
@@ -197,6 +199,7 @@ Saat Claude memberi file pembaruan:
 | "Not secure" / kamera & GPS tidak jalan | SSL belum aktif (Langkah 6). |
 | install.php: "Username atau password database salah" | Pakai nama **lengkap** dengan awalan `u123456789_`. Jika lupa password: Databases → Management → ⋮ pada user → **Change password**. |
 | install.php: "Nama database tidak ditemukan" | Salin nama database persis dari daftar di Databases → Management. |
+| Halaman login menampilkan "Server LMS membalas tidak sesuai (status 403)" | Pakai ZIP versi terbaru, atau di File Manager edit `.htaccess` dan ubah baris `DirectoryIndex index.html` menjadi `DirectoryIndex index.html index.php`. |
 | Halaman kosong / error 500 | Advanced → PHP Configuration → pastikan PHP 8.2/8.3. Lalu buka `/api/?cek=1` dan kirim hasilnya ke Claude. |
 | "Server LMS membalas tidak sesuai" | Buka `/api/?cek=1`. Jika ada yang bukan `ok`/`true`, perbaiki sesuai keterangannya. |
 | Upload materi gagal (file besar) | Langkah 3 bagian PHP options (`upload_max_filesize` & `post_max_size` = 64M). |

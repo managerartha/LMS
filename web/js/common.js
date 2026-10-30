@@ -19,7 +19,7 @@ function deviceId() {
 
 /** Memanggil API LMS (server PHP di hosting yang sama) di LMS_CONFIG.API_URL. */
 async function call(action, data) {
-  const url = (window.LMS_CONFIG && LMS_CONFIG.API_URL) || 'api/';
+  const url = (window.LMS_CONFIG && LMS_CONFIG.API_URL) || 'api/index.php';
   let r;
   try {
     r = await fetch(url, {
