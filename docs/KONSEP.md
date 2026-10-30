@@ -1,6 +1,7 @@
 # Konsep LMS Artha Safety Indonesia
 
-> Dokumen konsep v0.2 — 30 Oktober 2026
+> Dokumen konsep v0.3 — 30 Oktober 2026
+> Perubahan v0.3: format kode login `001-Kikis` (nomor absen + nama depan), lokasi absen bisa diubah **per hari** oleh PIC/Admin, **satu Spreadsheet untuk semua batch**.
 > Perubahan dari v0.1: teknologi diganti menjadi **HTML + Google Apps Script**, data di **Google Spreadsheet**, file di **Google Drive**; login pakai **kode peserta**; tanpa status terlambat; absen **wajib di lokasi (GPS)**; tanda tangan PIC **digital**.
 
 ---
@@ -72,9 +73,19 @@ Apps Script menyelesaikan ketiganya: tetap berupa file HTML, gratis, otomatis HT
 - **Peserta (20–30 orang)**: absen, melihat rundown, materi, dokumentasi, dan riwayat absensinya.
 
 ### 3.2 Login dengan kode peserta
-- Saat PIC menginput peserta (manual atau tempel dari Excel), **LMS otomatis membuat kode unik** untuk tiap peserta, contoh: `ASI-B07-014` atau kode acak 6 karakter `K7P2QX`.
-- Halaman login peserta: **pilih nama dari daftar** (dropdown/pencarian) → **masukkan kode**. Nama memudahkan peserta, kode menjamin hanya pemiliknya yang bisa masuk.
+- Saat PIC menginput peserta (manual atau tempel dari Excel), **LMS otomatis membuat kode** dengan format **nomor absen 3 digit + nama depan**:
+
+  | No absen | Nama lengkap | Kode login |
+  |---------:|--------------|------------|
+  | 1 | Kikis Ramadhan | `001-Kikis` |
+  | 2 | Andi Pratama | `002-Andi` |
+  | 3 | Andi Saputra | `003-Andi` |
+
+  Nomor absen membuat kode tetap unik walaupun ada nama depan yang sama. Huruf besar/kecil tidak dibedakan saat login (`001-kikis` = `001-Kikis`).
+- Kode unik **di dalam satu batch**. Batch lain boleh punya `001-...` sendiri karena setiap peserta juga terikat ke batch-nya.
+- Halaman login peserta: **pilih batch** (otomatis terpilih jika hanya ada satu batch aktif) → **ketik kode**.
 - PIC bisa **mencetak/membagikan kartu kode** (daftar nama + kode, atau QR code) di hari pertama.
+- **Pengaman tambahan.** Kode berpola ini mudah ditebak teman sekelas, jadi ada **ikat perangkat**: login pertama mengikat akun ke HP itu. Login dari HP lain perlu persetujuan PIC (tombol "Reset perangkat"). Ditambah foto selfie dan GPS saat absen, titip absen jadi sulit dilakukan.
 - PIC login dengan kode PIC + PIN.
 - Sesi login disimpan di HP (tidak perlu login ulang setiap absen) sampai batch selesai atau peserta logout.
 
@@ -82,13 +93,13 @@ Apps Script menyelesaikan ketiganya: tetap berupa file HTML, gratis, otomatis HT
 
 ## 4. Struktur Data (Google Spreadsheet)
 
-Satu file Spreadsheet **"LMS Artha Safety - Database"** dengan sheet berikut:
+**Satu file Spreadsheet untuk semua batch**: **"LMS Artha Safety - Database"**. Setiap baris data punya `id_batch`, sehingga data antar-batch terpisah tapi tetap di satu tempat dan mudah direkap lintas batch. Sheet-nya:
 
 | Sheet | Kolom |
 |-------|-------|
-| `Batch` | id_batch, nama_pelatihan, kode_batch, lokasi, tgl_mulai, tgl_selesai, sesi1_mulai, sesi1_selesai, sesi2_mulai, sesi2_selesai, lat, lng, radius_meter, folder_drive_id, status |
-| `Pengguna` | id_user, id_batch, nama, role (pic/peserta/admin), kode_login, pin (khusus PIC), instansi/jabatan, no_hp, ttd_pic_url, aktif |
-| `Hari` | id_hari, id_batch, tanggal, hari_ke |
+| `Batch` | id_batch, nama_pelatihan, kode_batch, lokasi (default), tgl_mulai, tgl_selesai, sesi1_mulai, sesi1_selesai, sesi2_mulai, sesi2_selesai, lat, lng, radius_meter (default), folder_drive_id, status (aktif/selesai) |
+| `Pengguna` | id_user, id_batch, no_absen, nama, role (pic/peserta/admin), kode_login (mis. `001-Kikis`), device_id, pin (khusus PIC), instansi/jabatan, no_hp, ttd_pic_url, aktif |
+| `Hari` | id_hari, id_batch, tanggal, hari_ke, lokasi_nama, lat, lng, radius_meter (kosong = pakai default batch), diubah_oleh |
 | `Absensi` | id_absen, id_hari, id_user, sesi (1/2), waktu_server, foto_url, ttd_url, lat, lng, jarak_meter, status (hadir/izin/sakit/alpa), keterangan, diubah_oleh, diubah_pada |
 | `Rundown` | id_rundown, id_hari, urutan, jam_mulai, jam_selesai, kegiatan, pemateri, keterangan, status (draft/terbit) |
 | `Materi` | id_materi, id_hari, judul, kategori (materi/latihan), file_id_drive, tipe_file, tampil_mulai, diupload_oleh |
@@ -165,7 +176,8 @@ Keuntungannya: PIC dan kantor tetap bisa membuka data langsung dari Spreadsheet/
 **Aturan:**
 - Satu peserta hanya bisa absen **1x per sesi** (dicek di server).
 - **Tidak ada status terlambat**: selama absen di dalam jendela sesi, statusnya **Hadir**.
-- **Lokasi wajib**: absen hanya diterima jika GPS aktif dan peserta berada dalam radius lokasi pelatihan. Koordinat dan jarak disimpan sebagai bukti.
+- **Lokasi wajib**: absen hanya diterima jika GPS aktif dan peserta berada dalam radius lokasi pelatihan **hari itu**. Koordinat dan jarak disimpan sebagai bukti.
+- **Lokasi per hari**: batch punya lokasi default. Jika hari tertentu pindah tempat (mis. praktik lapangan), PIC/Admin mengubah lokasi khusus hari itu (lihat 5.6).
 - Jam absen yang tercatat adalah **jam server Google (WIB)**, bukan jam HP.
 - Setelah sesi ditutup, peserta yang belum absen otomatis berstatus **Alpa**. PIC bisa mengubahnya menjadi **Izin / Sakit** + keterangan (tercatat di sheet `Log`).
 
@@ -220,13 +232,34 @@ Isi laporan:
 
 Cara pembuatan: Apps Script menyusun laporan dari template HTML lalu mengubahnya menjadi PDF (`HtmlService` → `getAs('application/pdf')`). Foto di dalam laporan memakai versi kecil supaya ukuran PDF tetap ringan. Format laporan resmi Artha Safety bisa ditambahkan nanti.
 
+### 5.6 Pengaturan Lokasi per Hari (PIC / Admin)
+
+```
+Pengaturan Batch → Lokasi
+┌───────────────────────────────────────────────────────────────┐
+│ Lokasi default: Kantor ASI, Jakarta (radius 150 m)    [Ubah]  │
+├────────┬──────────────┬───────────────────────────┬───────────┤
+│ Hari   │ Tanggal      │ Lokasi                    │           │
+├────────┼──────────────┼───────────────────────────┼───────────┤
+│ Hari 1 │ Sen 3 Nov    │ (default)                 │ [Ubah]    │
+│ Hari 2 │ Sel 4 Nov    │ (default)                 │ [Ubah]    │
+│ Hari 3 │ Rab 5 Nov    │ 📍 Site PT XYZ, Cikarang  │ [Ubah] [↺]│
+└────────┴──────────────┴───────────────────────────┴───────────┘
+```
+
+Cara mengatur titik lokasi (pilih salah satu):
+1. **"Pakai lokasi saya sekarang"**: PIC yang sudah berada di tempat pelatihan menekan tombol ini, lalu koordinat diambil dari GPS HP PIC. Cara ini paling mudah dan akurat.
+2. **Tempel link Google Maps** atau koordinat (mis. `-6.2088, 106.8456`).
+
+Setiap lokasi bisa diberi **nama** dan **radius** (saran 100–200 m; untuk area pabrik/site yang luas bisa lebih besar). Tombol **↺** mengembalikan hari itu ke lokasi default. Perubahan lokasi tercatat di sheet `Log`. Nama lokasi per hari juga ikut tampil di laporan PDF.
+
 ---
 
 ## 6. Peta Halaman
 
 **Peserta**
 ```
-Login (pilih nama + kode)
+Login (pilih batch + kode, mis. 001-Kikis)
 └── Dashboard hari ini
      ├── Kartu Absen Sesi 1 / Sesi 2
      ├── Rundown hari ini
@@ -248,7 +281,7 @@ Login (kode PIC + PIN)
 ├── Materi (upload per hari)
 ├── Dokumentasi (upload, pilih untuk laporan)
 ├── Laporan (harian / lengkap → PDF)
-└── Pengaturan Batch (jam sesi, titik lokasi & radius, tanda tangan PIC)
+└── Pengaturan Batch (jam sesi, lokasi default & lokasi per hari, tanda tangan PIC, reset perangkat peserta)
 ```
 
 ---
@@ -291,7 +324,7 @@ Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai 
 
 | Tahap | Isi |
 |-------|-----|
-| **1 — Fondasi & Absensi** | Setup otomatis Sheets/Drive, batch & input peserta + kode otomatis, login, absensi (GPS + foto + watermark + ttd), monitor PIC, auto-alpa |
+| **1 — Fondasi & Absensi** | Setup otomatis Sheets/Drive, batch & input peserta + kode otomatis (`001-Kikis`), lokasi default & per hari, login, absensi (GPS + foto + watermark + ttd), monitor PIC, auto-alpa |
 | **2 — Konten** | Rundown, materi, dokumentasi + galeri |
 | **3 — Laporan** | PDF harian & lengkap, tanda tangan digital PIC |
 | **4 — Uji coba** | Uji di 1 batch nyata, perbaikan, panduan singkat untuk PIC |
@@ -303,16 +336,13 @@ Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai 
 | Topik | Keputusan |
 |-------|-----------|
 | Teknologi | File HTML + Google Apps Script (web app) |
-| Penyimpanan | Google Spreadsheet (data) + Google Drive (file) |
-| Login peserta | Nama + kode yang dibuat otomatis oleh LMS saat PIC input peserta |
+| Penyimpanan | **Satu** Google Spreadsheet untuk semua batch (data) + Google Drive (file, folder per batch) |
+| Login peserta | Kode otomatis `nomor absen-nama depan` (mis. `001-Kikis`) + ikat perangkat |
 | Status terlambat | Tidak dipakai, cukup Hadir / Izin / Sakit / Alpa |
-| Lokasi | Absen wajib dalam radius lokasi pelatihan (GPS) |
+| Lokasi | Absen wajib dalam radius (GPS); lokasi default per batch, bisa diubah per hari oleh PIC/Admin |
 | Format laporan | Pakai format dari LMS dulu, format resmi menyusul |
 | Tanda tangan PIC | Digital |
 
 ## 11. Masih Perlu Dikonfirmasi
 
-1. Akun Google yang akan jadi "pemilik" LMS (disarankan akun khusus, bukan akun pribadi).
-2. Radius lokasi yang diinginkan (saran 100–200 m). Apakah lokasi pelatihan selalu sama atau berbeda tiap batch?
-3. Format kode peserta: berpola (`ASI-B07-014`) atau acak (`K7P2QX`)?
-4. Apakah satu Spreadsheet dipakai untuk semua batch, atau satu Spreadsheet per batch?
+1. Akun Google pemilik LMS: **sedang disiapkan** oleh Artha Safety (disarankan akun khusus, bukan akun pribadi).
