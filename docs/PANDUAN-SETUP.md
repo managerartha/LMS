@@ -1,13 +1,23 @@
 # Panduan Pemasangan LMS Artha Safety Indonesia
 
-Panduan ini memasang LMS di akun Google **manag3r.artha@gmail.com**. Lama pengerjaan sekitar 15–20 menit, cukup sekali saja.
+LMS terdiri dari dua bagian:
 
-Hasil akhirnya:
-- Folder **"LMS Artha Safety"** di Google Drive akun tersebut
+| Bagian | Isi | Dipasang di |
+|---|---|---|
+| **Tampilan (web)** | Folder [`web/`](../web): HTML, CSS, JS, logo | cPanel, mis. **https://lms.arthasafetyindonesia.com** |
+| **API & data** | Folder [`apps-script/`](../apps-script): kode server | Google Apps Script akun **manag3r.artha@gmail.com** |
+
+Peserta dan PIC hanya membuka alamat di domain Anda. Apps Script bekerja di belakang layar untuk membaca dan menulis Spreadsheet dan Drive, jadi peserta tidak pernah melihatnya dan banner "This application was created by a Google Apps Script user" tidak muncul.
+
+Data tetap tersimpan di Google Drive akun tersebut:
+- Folder **"LMS Artha Safety"**
 - Spreadsheet **"LMS Artha Safety - Database"** di dalam folder itu
-- Satu link aplikasi (`https://script.google.com/macros/s/…/exec`) untuk semua PIC dan peserta
+
+> **Sudah pernah memasang versi Apps Script sebelumnya?** Langsung ke bagian [Pindah dari versi lama](#pindah-dari-versi-lama-apps-script-penuh). Data lama tetap dipakai.
 
 ---
+
+# Bagian A — API di Google Apps Script
 
 ## Langkah 1 — Buat project Apps Script
 
@@ -24,7 +34,7 @@ Hasil akhirnya:
 
 ## Langkah 3 — Salin file kode
 
-Semua file ada di folder [`apps-script/`](../apps-script) di repository ini. Untuk setiap file: buat filenya di editor, hapus isi bawaan, lalu tempel seluruh isi file dari repository.
+Semua file ada di folder [`apps-script/`](../apps-script). Untuk setiap file: buat filenya di editor, hapus isi bawaan, lalu tempel seluruh isi file.
 
 | File di repository | Cara membuat di editor Apps Script | Nama yang diketik |
 |---|---|---|
@@ -36,18 +46,13 @@ Semua file ada di folder [`apps-script/`](../apps-script) di repository ini. Unt
 | `Absensi.gs` | **+** → Script | `Absensi` |
 | `Konten.gs` | **+** → Script | `Konten` |
 | `Laporan.gs` | **+** → Script | `Laporan` |
-| `index.html` | **+** → HTML | `index` |
-| `css.html` | **+** → HTML | `css` |
-| `js-common.html` | **+** → HTML | `js-common` |
-| `js-peserta.html` | **+** → HTML | `js-peserta` |
-| `js-pic.html` | **+** → HTML | `js-pic` |
 | `aset-logo.html` | **+** → HTML | `aset-logo` |
-| `aset-ikon.html` | **+** → HTML | `aset-ikon` |
-| `aset-foto.html` | **+** → HTML | `aset-foto` |
 
-> File `aset-*.html` berisi logo dan foto Artha Safety dalam bentuk teks (base64) dan isinya hanya **satu baris yang sangat panjang**. Buka file di GitHub, klik **Raw**, lalu salin semuanya (Ctrl+A, Ctrl+C) dan tempel tanpa menambah spasi atau baris baru.
+> `aset-logo.html` adalah logo untuk sampul laporan PDF, dalam bentuk teks (base64) yang hanya berisi **satu baris sangat panjang**. Salin semuanya tanpa menambah spasi atau baris baru.
 >
-> Ketik nama **tanpa** `.gs` / `.html`, karena editor menambahkannya otomatis. Nama harus persis sama, termasuk huruf kecil dan tanda strip.
+> Ketik nama **tanpa** `.gs` / `.html`. Nama harus persis sama.
+
+Jika alamat LMS Anda **bukan** `https://lms.arthasafetyindonesia.com`, ubah baris `const WEB_URL = …` di bagian atas `Code.gs`.
 
 Klik 💾 **Save** (Ctrl+S).
 
@@ -61,25 +66,68 @@ Klik 💾 **Save** (Ctrl+S).
    - Klik **Allow**. Izin yang diminta: Spreadsheet, Drive, dan akses URL eksternal (untuk membaca link Google Maps).
 4. Tunggu sampai **Execution log** menampilkan `Setup selesai.` beserta link folder Drive dan Spreadsheet.
 
-## Langkah 5 — Publikasikan sebagai web app
+## Langkah 5 — Publikasikan API
 
 1. Klik **Deploy** → **New deployment**.
 2. Klik ⚙️ di samping "Select type" dan pilih **Web app**.
 3. Isi:
-   - Description: `LMS v1`
+   - Description: `LMS API v1`
    - **Execute as: Me (manag3r.artha@gmail.com)**
-   - **Who has access: Anyone**. Ini wajib dipilih supaya peserta tidak perlu punya akun Google; keamanan login diatur oleh kode peserta dan PIN PIC.
-4. Klik **Deploy** dan salin **Web app URL** (berakhiran `/exec`). Link inilah yang dibagikan ke PIC dan peserta.
+   - **Who has access: Anyone**. Ini wajib dipilih supaya tampilan LMS di domain Anda bisa memanggil API tanpa login Google; keamanan diatur oleh kode peserta dan PIN PIC.
+4. Klik **Deploy** dan salin **Web app URL** (berakhiran `/exec`). URL ini **tidak dibagikan** ke peserta; dipakai di Langkah 7.
 
-> Tips: buat link pendek (mis. bit.ly/lms-asi) atau QR code dari URL tersebut agar peserta mudah membukanya.
+---
 
-## Langkah 6 — Login pertama & ganti PIN Admin
+# Bagian B — Tampilan di cPanel (arthasafetyindonesia.com)
 
-1. Buka Web app URL, pilih tab **PIC / Admin**.
+## Langkah 6 — Buat subdomain + SSL
+
+1. Login ke **cPanel** hosting arthasafetyindonesia.com.
+2. Buka **Domains** (atau **Subdomains** di cPanel lama) → **Create A New Domain**.
+3. Isi domain: `lms.arthasafetyindonesia.com`. Document Root otomatis terisi, mis. `public_html/lms` atau `lms.arthasafetyindonesia.com`. Catat foldernya, lalu klik **Submit**.
+4. Buka **SSL/TLS Status** → centang `lms.arthasafetyindonesia.com` → **Run AutoSSL**. Tunggu sampai gemboknya hijau.
+   **SSL (HTTPS) wajib**: tanpa HTTPS, browser memblokir kamera dan GPS.
+
+> Tidak mau memakai subdomain? Bisa juga di folder, mis. `arthasafetyindonesia.com/lms`: cukup upload ke `public_html/lms`. Sesuaikan `WEB_URL` di `Code.gs`.
+
+## Langkah 7 — Isi alamat API
+
+Di folder `web/`, buka file **`js/config.js`** dan ganti `API_URL` dengan Web app URL dari Langkah 5:
+
+```js
+window.LMS_CONFIG = {
+  API_URL: 'https://script.google.com/macros/s/AKfycb…/exec',
+};
+```
+
+(Bisa juga diubah langsung di cPanel setelah upload: **File Manager** → buka `js/config.js` → klik kanan **Edit** → **Save Changes**.)
+
+## Langkah 8 — Upload file tampilan
+
+1. Di cPanel buka **File Manager**, masuk ke Document Root dari Langkah 6.
+2. Klik **Upload** dan pilih file **`lms-web.zip`**: isi folder `web/` yang sudah di-zip, termasuk file tersembunyi `.htaccess`.
+3. Kembali ke File Manager, klik kanan `lms-web.zip` → **Extract** → **Extract Files**. Setelah itu file zip boleh dihapus.
+4. Pastikan isi folder seperti ini:
+   ```
+   .htaccess        (aktifkan "Show Hidden Files" di Settings File Manager untuk melihatnya)
+   index.html
+   css/app.css
+   js/config.js  js/common.js  js/peserta.js  js/pic.js
+   img/logo.png  img/ikon.png  img/foto.webp
+   ```
+5. Buka **https://lms.arthasafetyindonesia.com**: halaman login dengan logo Artha Safety harus tampil.
+
+---
+
+# Bagian C — Mulai memakai LMS
+
+## Langkah 9 — Login pertama & ganti PIN Admin
+
+1. Buka **https://lms.arthasafetyindonesia.com**, pilih tab **PIC / Admin**.
 2. Login dengan **Kode `ADMIN`** dan **PIN `123456`**.
 3. **Segera** klik tombol **PIN** di kanan atas dan ganti PIN-nya.
 
-## Langkah 7 — Siapkan batch pertama
+## Langkah 10 — Siapkan batch pertama
 
 1. **Akun PIC**: tambahkan 2 PIC (nama, kode login mis. `PIC-Dina`, PIN 4–8 angka).
 2. **Batch**: buat batch (nama pelatihan, kode batch mis. `B07`, tanggal mulai–selesai, pilih 2 PIC). Hari pelatihan dibuat otomatis.
@@ -90,10 +138,10 @@ Klik 💾 **Save** (Ctrl+S).
 4. **Peserta**: tempel daftar nama (satu per baris, bisa langsung copy kolom dari Excel), lalu klik **Tambah peserta**. Kode seperti `001-Kikis` dibuat otomatis.
 5. Klik **🖨 Cetak kartu kode** dan bagikan kartunya ke peserta di hari pertama.
 
-## Langkah 8 — Coba absen dari HP
+## Langkah 11 — Coba absen dari HP
 
 Sebelum batch dimulai, lakukan uji coba dengan satu akun peserta dari HP:
-1. Buka link, pilih batch, ketik kode, lalu setujui pernyataan privasi.
+1. Buka https://lms.arthasafetyindonesia.com, pilih batch, ketik kode, lalu setujui pernyataan privasi.
 2. Saat absen, **izinkan akses Lokasi dan Kamera** jika browser meminta.
 3. Pastikan foto ber-watermark dan tanda tangan muncul di menu **Absensi** milik PIC.
 4. Setelah selesai uji coba, buka **Peserta → Kelola → Reset HP** agar akun bisa dipakai peserta aslinya, dan ubah status absen uji coba di menu Absensi jika perlu.
@@ -102,7 +150,7 @@ Sebelum batch dimulai, lakukan uji coba dengan satu akun peserta dari HP:
 
 ---
 
-## Langkah 9 — Rundown, materi, dan dokumentasi (PIC)
+## Langkah 12 — Rundown, materi, dan dokumentasi (PIC)
 
 Semua menu ini ada di akun PIC dan diisi **per hari** (pilih hari di bagian atas setiap menu).
 
@@ -124,7 +172,7 @@ Semua menu ini ada di akun PIC dan diisi **per hari** (pilih hari di bagian atas
 
 ---
 
-## Langkah 10 — Laporan PDF (PIC)
+## Langkah 13 — Laporan PDF (PIC)
 
 1. Buka menu **Laporan**.
 2. **Sekali saja:** di bagian **Tanda tangan saya**, buat tanda tangan digital. Tanda tangan ini otomatis dipasang di halaman pengesahan. Kalau belum dibuat, kolomnya dikosongkan untuk tanda tangan basah.
@@ -148,12 +196,28 @@ Isi laporan:
 
 ## Memperbarui kode (versi berikutnya)
 
-1. Tempel ulang file yang berubah di editor, lalu Save. File baru (mis. `Konten.gs` di Tahap 2) dibuat seperti di Langkah 3.
-2. Jika ada sheet atau kolom baru, jalankan **`setup`** sekali lagi. Ini aman, data lama tidak terhapus. **Tahap 3 menambah kolom baru, jadi `setup` wajib dijalankan ulang.**
+**API (Apps Script):**
+1. Tempel ulang file `.gs` yang berubah di editor, lalu Save.
+2. Jika ada sheet atau kolom baru, jalankan **`setup`** sekali lagi. Ini aman, data lama tidak terhapus.
 3. Klik **Deploy** → **Manage deployments** → ✏️ edit → **Version: New version** → **Deploy**.
-   Link `/exec` **tetap sama**, jadi peserta tidak perlu link baru.
+   URL `/exec` **tetap sama**, jadi `config.js` tidak perlu diubah.
 
-> Alternatif untuk developer: gunakan [`clasp`](https://github.com/google/clasp) (`clasp login`, `clasp clone <scriptId>`, salin isi folder `apps-script/`, lalu `clasp push`).
+**Tampilan (cPanel):**
+1. Upload ulang file yang berubah ke folder yang sama (timpa file lama). **Jangan menimpa `js/config.js`** kecuali memang ingin mengubah alamat API.
+2. Di `index.html`, angka `?v=1` di belakang nama file CSS/JS dinaikkan (mis. `?v=2`) setiap ada pembaruan, agar browser peserta langsung memuat versi baru.
+
+> Alternatif untuk developer: gunakan [`clasp`](https://github.com/google/clasp) untuk Apps Script dan FTP/Git untuk cPanel.
+
+## Pindah dari versi lama (Apps Script penuh)
+
+Data (Spreadsheet & Drive) tetap dipakai, tidak perlu `setup` ulang.
+1. Di editor Apps Script: ganti isi **`Code.gs`** dengan versi baru.
+2. **Hapus** file yang tidak dipakai lagi (klik ⋮ di samping nama file → Delete): `index`, `css`, `js-common`, `js-peserta`, `js-pic`, `aset-ikon`, `aset-foto`. **`aset-logo` tetap disimpan** (dipakai laporan PDF).
+3. **Deploy** → **Manage deployments** → ✏️ → **New version** → **Deploy**. URL `/exec` tetap sama.
+4. Kerjakan Bagian B (Langkah 6–8) memakai URL `/exec` tersebut.
+5. Bagikan alamat baru **https://lms.arthasafetyindonesia.com** ke PIC dan peserta. Link `/exec` lama otomatis mengarahkan ke alamat baru.
+
+> Peserta yang sudah login di versi lama perlu login sekali lagi di alamat baru (HP-nya tetap dikenali). Jika muncul "Akun ini sudah terhubung ke HP lain", PIC cukup menekan **Reset HP**.
 
 ---
 
@@ -161,6 +225,9 @@ Isi laporan:
 
 | Masalah | Solusi |
 |---|---|
+| "Koneksi gagal. Periksa internet Anda" padahal internet lancar | `API_URL` di `js/config.js` belum diisi / salah, atau deployment Apps Script belum **Anyone**. Buka URL `/exec` di browser: harus tampil tulisan "LMS Artha Safety Indonesia ada di …". |
+| Perubahan tampilan belum muncul | Naikkan angka `?v=` di `index.html`, lalu muat ulang halaman (Ctrl+Shift+R). |
+| Kamera / GPS tidak bisa dipakai | Pastikan alamat diawali **https://** (gembok hijau). Jalankan AutoSSL di cPanel jika belum. |
 | "Izin lokasi ditolak" | Di HP: Pengaturan browser → Setelan situs → Lokasi → izinkan. Pastikan GPS HP aktif. |
 | Kamera tidak terbuka langsung | LMS otomatis membuka aplikasi kamera HP sebagai gantinya. Jika diminta, izinkan akses Kamera. |
 | "Anda berada ± … m dari lokasi" padahal sudah di lokasi | Akurasi GPS sedang rendah. Pindah ke area terbuka dan coba lagi, atau minta PIC memperbesar radius / memperbarui titik lokasi. |
@@ -168,7 +235,7 @@ Isi laporan:
 | "Lokasi pelatihan hari ini belum diatur PIC" | PIC mengisi lokasi default atau lokasi hari itu di **Jadwal & Lokasi**. |
 | Peserta tidak absen karena sakit/izin | PIC: menu **Absensi** → klik sel sesi peserta → pilih Izin/Sakit + keterangan. |
 | Laporan lengkap gagal / waktu habis | Google membatasi satu proses maksimal 6 menit. Buat **laporan harian** untuk setiap hari. |
-| PDF tidak terunduh otomatis | Buka **Riwayat laporan → Drive** (login sebagai manag3r.artha@gmail.com), atau ambil dari folder **Laporan** di Google Drive. |
+| PDF tidak terunduh otomatis | Coba tombol **⬇ Unduh** di Riwayat laporan, atau ambil dari folder **Laporan** batch di Google Drive (login sebagai manag3r.artha@gmail.com). |
 | Lupa PIN PIC | Admin: **Akun PIC → Reset PIN**. |
 | Lupa PIN Admin | Di Spreadsheet, sheet `Pengguna`, salin nilai `pin_hash` dari akun PIC yang PIN-nya diketahui ke baris ADMIN. PIN Admin sekarang sama dengan PIN PIC tersebut; segera ganti setelah login. |
 

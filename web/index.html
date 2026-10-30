@@ -1,19 +1,23 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <base target="_top">
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LMS Artha Safety Indonesia</title>
+  <meta name="description" content="Learning Management System peserta pelatihan Artha Safety Indonesia">
+  <meta name="theme-color" content="#1b1e4f">
+  <link rel="icon" type="image/png" href="img/ikon.png">
+  <link rel="apple-touch-icon" href="img/ikon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://script.google.com">
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
-  <?!= include('css'); ?>
+  <link rel="stylesheet" href="css/app.css?v=1">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <img class="logo-full" id="logo-full" alt="Artha Safety Indonesia">
-      <img class="logo-ikon" id="logo-ikon" alt="Artha Safety Indonesia">
+      <img class="logo-full" id="logo-full" src="img/logo.png" alt="Artha Safety Indonesia">
+      <img class="logo-ikon" id="logo-ikon" src="img/ikon.png" alt="Artha Safety Indonesia">
       <span class="brand-lms">LMS</span>
     </div>
     <div class="topbar-right">
@@ -30,15 +34,11 @@
   <div id="toast" class="toast hidden"></div>
   <div id="print-area"></div>
 
-  <script>
-    // Aset gambar disimpan sebagai data URI di file aset-*.html (Apps Script tidak bisa menyimpan file gambar).
-    const ASET = { logo: '<?!= include('aset-logo'); ?>', ikon: '<?!= include('aset-ikon'); ?>', foto: '<?!= include('aset-foto'); ?>' };
-    document.getElementById('logo-full').src = ASET.logo;
-    document.getElementById('logo-ikon').src = ASET.ikon;
-  </script>
-  <?!= include('js-common'); ?>
-  <?!= include('js-peserta'); ?>
-  <?!= include('js-pic'); ?>
+  <script>const ASET = { logo: 'img/logo.png', ikon: 'img/ikon.png', foto: 'img/foto.webp' };</script>
+  <script src="js/config.js?v=1"></script>
+  <script src="js/common.js?v=1"></script>
+  <script src="js/peserta.js?v=1"></script>
+  <script src="js/pic.js?v=1"></script>
   <script>boot();</script>
 </body>
 </html>

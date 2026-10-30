@@ -291,25 +291,29 @@ Login (kode PIC + PIN)
 
 ```
 LMS/
-├── docs/KONSEP.md
-└── apps-script/
-     ├── appsscript.json      konfigurasi (timezone Asia/Jakarta, akses web app)
-     ├── Code.gs              doGet, pintu API, helper Spreadsheet & Drive        ✅ Tahap 1
-     ├── Setup.gs             buat Spreadsheet & folder Drive otomatis            ✅ Tahap 1
-     ├── Auth.gs              login peserta (kode + ikat HP) / PIC (kode + PIN)   ✅ Tahap 1
-     ├── Batch.gs             batch, hari, lokasi default & per hari, peserta    ✅ Tahap 1
-     ├── Absensi.gs           absen, validasi jam & radius, auto-alpa, monitor    ✅ Tahap 1
-     ├── index.html           kerangka aplikasi (single page)                     ✅ Tahap 1
-     ├── css.html             gaya tampilan (mobile-first)                        ✅ Tahap 1
-     ├── js-common.html       utilitas, login, GPS, waktu WIB                     ✅ Tahap 1
-     ├── js-peserta.html      halaman peserta (kamera, watermark, tanda tangan)   ✅ Tahap 1
-     ├── js-pic.html          halaman PIC & Admin                                 ✅ Tahap 1
-     ├── aset-logo/ikon/foto.html  logo & foto Artha Safety (data URI base64)       ✅ Revisi tampilan
-     ├── Konten.gs            rundown, materi, dokumentasi                        ✅ Tahap 2
-     └── Laporan.gs           laporan PDF (template HTML → PDF), ttd digital PIC  ✅ Tahap 3
+├── docs/                    KONSEP.md, PANDUAN-SETUP.md
+├── web/                     tampilan — upload ke cPanel (lms.arthasafetyindonesia.com)
+│    ├── index.html           kerangka aplikasi (single page)
+│    ├── .htaccess            paksa HTTPS, cache, izin kamera & GPS
+│    ├── css/app.css          gaya tampilan (mobile-first, identitas Artha Safety)
+│    ├── js/config.js         alamat API (URL /exec Apps Script)
+│    ├── js/common.js         panggilan API, login, GPS, waktu WIB
+│    ├── js/peserta.js        dashboard peserta, absen (kamera, watermark, ttd)
+│    ├── js/pic.js            halaman PIC & Admin
+│    └── img/                 logo.png, ikon.png, foto.webp
+└── apps-script/             API & data — salin ke script.google.com
+     ├── appsscript.json      zona waktu, izin, akses web app
+     ├── Code.gs              doPost/doGet, pintu api(), helper Spreadsheet & Drive
+     ├── Setup.gs             buat Spreadsheet & folder Drive otomatis
+     ├── Auth.gs              login peserta (kode + ikat HP) / PIC (kode + PIN)
+     ├── Batch.gs             batch, hari, lokasi default & per hari, peserta
+     ├── Absensi.gs           absen, validasi jam & radius, auto-alpa, monitor
+     ├── Konten.gs            rundown, materi, dokumentasi
+     ├── Laporan.gs           laporan PDF, tanda tangan digital PIC
+     └── aset-logo.html       logo untuk sampul laporan PDF (data URI)
 ```
 
-Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai `clasp`).
+Kode dikelola di GitHub. Folder `web/` di-upload ke cPanel, folder `apps-script/` ditempel ke Apps Script (atau pakai `clasp`).
 
 ---
 
@@ -358,3 +362,4 @@ Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai 
 - **Laporan PDF** disusun di server sebagai HTML (tata letak tabel, CSS dasar) lalu dikonversi ke PDF oleh Google. Foto absen memakai thumbnail Drive, dan foto dokumentasi memakai versi 800 px yang dibuat saat upload, supaya ukuran PDF tetap wajar. Laporan lengkap untuk batch besar bisa mendekati batas 6 menit Apps Script; alternatifnya laporan harian.
 - **Identitas visual**: warna mengikuti logo Artha Safety (navy `#1B1E4F`, hijau `#22EDA4`) dengan font Plus Jakarta Sans. Halaman login menampilkan logo, foto Safety Champions, dan tagline. Dashboard peserta memakai menu samping (desktop) atau menu geser (HP), kartu sambutan bergradasi biru berisi tombol absen dan kegiatan yang sedang berlangsung, serta kartu Program, Kehadiran, dan Progres pelatihan.
 - **Kecepatan**: halaman pertama dikirim bersama data login (`me` membawa dashboard peserta / daftar batch PIC). Dashboard peserta langsung tampil dari data terakhir di perangkat lalu diperbarui di belakang. Daftar hari PIC disimpan selama batch yang sama. Penulisan ke Spreadsheet digabung per baris, dan log ditulis tanpa membaca sheet Log. Banner "This application was created by a Google Apps Script user" muncul untuk web app dari akun Gmail biasa dan tidak bisa dihapus lewat kode; pilihannya adalah menyematkan LMS di Google Sites, memakai akun Google Workspace, atau memindahkan tampilan ke hosting sendiri (Apps Script hanya sebagai API).
+- **Arsitektur sekarang (migrasi domain)**: tampilan LMS adalah file statis di folder `web/` (HTML/CSS/JS + gambar) yang di-hosting di cPanel `lms.arthasafetyindonesia.com`. Tampilan memanggil API Apps Script lewat `fetch` POST ke URL `/exec` (body `text/plain` berisi JSON `{action, data}` agar tidak memicu preflight CORS). Apps Script hanya berisi kode server (`doPost` → `api()`), sedangkan `doGet` mengarahkan ke alamat LMS. Data tetap di Google Spreadsheet & Drive milik manag3r.artha@gmail.com. Kunci akses Google tidak pernah ada di browser.

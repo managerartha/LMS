@@ -1,9 +1,13 @@
 /**
- * LMS Artha Safety Indonesia — backend Google Apps Script.
+ * LMS Artha Safety Indonesia — API (Google Apps Script).
  *
- * Semua permintaan dari tampilan (index.html) masuk lewat satu pintu: api(action, data).
+ * Tampilan LMS (folder web/) di-hosting di domain sendiri dan memanggil API ini lewat
+ * HTTP POST ke URL /exec: body JSON {action, data}. Semua aksi masuk lewat api(action, data).
  * Data disimpan di satu Google Spreadsheet, file di Google Drive.
  */
+
+/** Alamat tampilan LMS. Membuka URL /exec di browser akan diarahkan ke sini. */
+const WEB_URL = 'https://lms.arthasafetyindonesia.com';
 
 const TZ = 'Asia/Jakarta';
 const DB_NAME = 'LMS Artha Safety - Database';
@@ -29,15 +33,30 @@ const SHEETS = {
   Log: ['waktu', 'id_user', 'nama', 'aksi', 'detail'],
 };
 
-// ---------------------------------------------------------------- Web app
+// ---------------------------------------------------------------- API (web app)
 
-function doGet() {
-  return HtmlService.createTemplateFromFile('index').evaluate()
-    .setTitle('LMS Artha Safety Indonesia')
-    .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1')
-    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+/** Permintaan dari tampilan LMS. Body dikirim sebagai text/plain berisi JSON {action, data}. */
+function doPost(e) {
+  let req = {};
+  try {
+    req = JSON.parse(e.postData.contents);
+  } catch (err) {
+    req = {};
+  }
+  return ContentService.createTextOutput(JSON.stringify(api(req.action, req.data)))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
+/** Membuka URL API langsung di browser: arahkan ke alamat LMS. */
+function doGet() {
+  return HtmlService.createHtmlOutput(
+    '<p style="font-family:sans-serif">LMS Artha Safety Indonesia ada di ' +
+    '<a href="' + WEB_URL + '" target="_top">' + WEB_URL + '</a></p>' +
+    '<script>window.top.location.href = ' + JSON.stringify(WEB_URL) + ';</script>')
+    .setTitle('LMS Artha Safety Indonesia');
+}
+
+/** Isi file HTML di project (dipakai untuk logo laporan PDF: aset-logo). */
 function include(name) {
   return HtmlService.createHtmlOutputFromFile(name).getContent();
 }
