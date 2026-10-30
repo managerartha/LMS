@@ -195,7 +195,7 @@ Semua menu ini ada di akun PIC dan diisi **per hari** (pilih hari di bagian atas
 
 Buka menu **Laporan**.
 
-**Sekali saja (Admin):** isi kartu **Data perusahaan & penandatangan**: nama penyelenggara, nomor dan masa berlaku SKP, alamat, telepon, website, email, dan nama penandatangan. Upload juga **gambar tanda tangan + cap** (PNG transparan, atau JPG berlatar putih). Data ini dipakai di kop, footer, cover, dan halaman penyelenggaraan untuk semua batch.
+**Sekali saja (Admin):** isi kartu **Data perusahaan & penandatangan**: nama penyelenggara, nomor dan masa berlaku SKP, alamat, telepon, website, email, dan nama penandatangan. Upload juga **gambar tanda tangan + cap** (PNG transparan, atau JPG berlatar putih). Data ini dipakai di kop, cover, dan halaman penyelenggaraan untuk semua batch.
 
 **Setiap batch (PIC):** isi kartu **Data laporan resmi batch ini**: Nomor Permohonan Temank3, judul cover, bidang pembinaan, bidang jasa, jenis personil, klasifikasi, kelas, tempat kelas dan observasi/PKL, metode, jumlah pendaftar dan lulus, serta persyaratan administrasi (Surat Permohonan, BAP, Daftar Hadir Pemateri). Jadwal Kegiatan, Daftar Hadir Peserta, dan Foto Kegiatan dicentang otomatis jika datanya ada.
 

@@ -307,7 +307,7 @@ function pengesahan_(batch, pics, now) {
 
 // ================================================================ Laporan resmi (format Artha Safety)
 
-/** Data perusahaan untuk kop, footer, dan halaman penyelenggaraan. Disimpan di Script Properties 'ORG'. */
+/** Data perusahaan untuk kop, cover, dan halaman penyelenggaraan. Disimpan di Script Properties 'ORG'. */
 const ORG_DEFAULT = {
   nama: 'PT Artha Safety Indonesia',
   nomor_skp: 'No. 5/481/AS.01.02/V/2024',
@@ -453,7 +453,6 @@ const RESMI_CSS = [
   'table.abs td.foto { text-align: center; width: 150px; padding: 2px; }',
   'table.dok td { border: 1px solid #999; padding: 4px; text-align: center; vertical-align: top; font-size: 9pt; width: 50%; }',
   '.kop-web { font-family: Arial, sans-serif; font-size: 8pt; color: #333; text-align: right; vertical-align: middle; }',
-  '.foot { font-family: Arial, sans-serif; font-size: 7.5pt; color: #333; text-align: right; line-height: 1.4; }',
   '.cover { font-family: Arial, Helvetica, sans-serif; text-align: center; color: #000; }',
 ].join('\n');
 
@@ -463,15 +462,9 @@ function kop_(org) {
     '<div style="border-bottom:1px solid #1b1e4f;margin:4px 0 8px"></div>';
 }
 
-function footer_(org) {
-  return '<br><div class="foot">' + h_(org.telepon) + '<br>' + h_(org.alamat) + '<br>' +
-    '<span style="color:#1a56db">' + h_(org.website) + '</span><br>' + h_(org.email) + '</div>' +
-    '<img src="' + aset_().garis + '" style="width:100%;height:10px;margin-top:4px">';
-}
-
-/** Halaman resmi: kop + isi + footer, dimulai di halaman baru (kecuali halaman pertama). */
+/** Halaman resmi: kop + isi, dimulai di halaman baru (kecuali halaman pertama). */
 function halaman_(org, isi, pertama) {
-  return (pertama ? '' : '<div class="pb"></div>') + kop_(org) + isi + footer_(org);
+  return (pertama ? '' : '<div class="pb"></div>') + kop_(org) + isi;
 }
 
 function laporanResmiHtml_(batch, hariList, jenis, dari, sampai) {
