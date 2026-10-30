@@ -162,8 +162,9 @@
   }
 
   function setTopbar(sub, actionsHtml) {
-    $('#topbar-sub').textContent = sub || 'Indonesia';
+    $('#topbar-sub').textContent = sub ? '👤 ' + sub : '';
     $('#topbar-actions').innerHTML = actionsHtml || '';
+    document.body.classList.remove('login-mode');
   }
 
   async function boot() {
@@ -186,16 +187,32 @@
 
   async function showLogin(tab) {
     tab = tab || store('lms_login_tab') || 'peserta';
-    setTopbar('Indonesia', '');
+    setTopbar('', '');
+    document.body.classList.add('login-mode');
     render(`
-      <div class="card narrow">
-        <h1>Masuk</h1>
-        <p class="muted small">Learning Management System Artha Safety Indonesia</p>
-        <div class="tabs">
-          <button class="tab ${tab === 'peserta' ? 'active' : ''}" onclick="showLogin('peserta')">Peserta</button>
-          <button class="tab ${tab === 'pic' ? 'active' : ''}" onclick="showLogin('pic')">PIC / Admin</button>
-        </div>
-        <div id="login-form"><div class="muted small">Memuat…</div></div>
+      <div class="login-wrap">
+        <section class="login-hero">
+          <img class="login-logo" src="${ASET.logo}" alt="Artha Safety Indonesia">
+          <img class="login-foto" src="${ASET.foto}" alt="Safety Champions Artha Safety Indonesia">
+          <div class="chip chip-green">Empowering Safety Champions</div>
+          <h1 class="login-title">Learning Management System</h1>
+          <p class="login-lead">Portal pelatihan peserta dan PIC Artha Safety Indonesia.</p>
+          <ul class="login-fitur">
+            <li><span>📸</span> Absensi digital: foto, tanda tangan &amp; lokasi</li>
+            <li><span>🗓️</span> Rundown &amp; materi pelatihan setiap hari</li>
+            <li><span>📄</span> Laporan kegiatan otomatis</li>
+          </ul>
+        </section>
+        <section class="card login-card">
+          <h2>Masuk ke akun Anda</h2>
+          <p class="muted small">Pilih jenis akun, lalu masukkan kode Anda.</p>
+          <div class="seg">
+            <button class="${tab === 'peserta' ? 'active' : ''}" onclick="showLogin('peserta')">👷 Peserta</button>
+            <button class="${tab === 'pic' ? 'active' : ''}" onclick="showLogin('pic')">🛡️ PIC / Admin</button>
+          </div>
+          <div id="login-form"><div class="muted small">Memuat…</div></div>
+          <p class="login-foot">© ${serverNow().getFullYear()} Artha Safety Indonesia</p>
+        </section>
       </div>`);
     store('lms_login_tab', tab);
     if (tab === 'pic') {

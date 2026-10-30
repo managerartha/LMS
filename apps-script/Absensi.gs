@@ -55,9 +55,15 @@ function statusHariIni(data, user) {
   const out = {
     server_now: Date.now(),
     tanggal: now.date,
-    batch: { nama_pelatihan: batch.nama_pelatihan, kode_batch: batch.kode_batch, status: batch.status },
+    batch: {
+      nama_pelatihan: batch.nama_pelatihan, kode_batch: batch.kode_batch, status: batch.status,
+      tgl_mulai: batch.tgl_mulai, tgl_selesai: batch.tgl_selesai, lokasi_nama: batch.lokasi_nama,
+    },
     hari: null,
+    total_hari: semua.length,
+    hari_selesai: semua.filter(h => h.tanggal < now.date).length,
     berikutnya: (semua.find(h => h.tanggal > now.date) || {}).tanggal || null,
+    rekap: rekapPeserta_(batch, semua, user, now),
   };
   if (!hari) return out;
   const lok = lokasiHari_(batch, hari);
@@ -71,6 +77,18 @@ function statusHariIni(data, user) {
     }),
   };
   return out;
+}
+
+/** Jumlah sesi hadir dibanding sesi yang sudah berjalan (sesi yang masih dibuka & belum absen tidak dihitung). */
+function rekapPeserta_(batch, hariList, user, now) {
+  const r = { hadir: 0, izin: 0, sakit: 0, alpa: 0, total: 0 };
+  hariList.filter(h => h.tanggal <= now.date).forEach(h => SESI.forEach(s => {
+    const st = statusSesi_(absenOf_(h.id_hari, user.id_user, s), stateSesi_(batch, h, s, now));
+    if (r[st] === undefined) return;
+    r[st]++;
+    r.total++;
+  }));
+  return r;
 }
 
 function absen(data, user) {

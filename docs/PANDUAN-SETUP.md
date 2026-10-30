@@ -41,7 +41,12 @@ Semua file ada di folder [`apps-script/`](../apps-script) di repository ini. Unt
 | `js-common.html` | **+** → HTML | `js-common` |
 | `js-peserta.html` | **+** → HTML | `js-peserta` |
 | `js-pic.html` | **+** → HTML | `js-pic` |
+| `aset-logo.html` | **+** → HTML | `aset-logo` |
+| `aset-ikon.html` | **+** → HTML | `aset-ikon` |
+| `aset-foto.html` | **+** → HTML | `aset-foto` |
 
+> File `aset-*.html` berisi logo dan foto Artha Safety dalam bentuk teks (base64) dan isinya hanya **satu baris yang sangat panjang**. Buka file di GitHub, klik **Raw**, lalu salin semuanya (Ctrl+A, Ctrl+C) dan tempel tanpa menambah spasi atau baris baru.
+>
 > Ketik nama **tanpa** `.gs` / `.html`, karena editor menambahkannya otomatis. Nama harus persis sama, termasuk huruf kecil dan tanda strip.
 
 Klik 💾 **Save** (Ctrl+S).

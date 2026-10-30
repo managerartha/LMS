@@ -7,11 +7,11 @@ const LAPORAN_KOLOM_ABSEN = 4; // foto absen per baris pada lampiran
 
 const LAPORAN_CSS = [
   'body { font-family: Arial, Helvetica, sans-serif; font-size: 10pt; color: #1d2433; }',
-  'h1 { font-size: 20pt; color: #0b3a6e; margin: 0 0 6px; }',
-  'h2 { font-size: 14pt; color: #0b3a6e; border-bottom: 2px solid #f28c28; padding-bottom: 4px; margin: 18px 0 8px; }',
-  'h3 { font-size: 11pt; color: #0b3a6e; margin: 14px 0 6px; }',
+  'h1 { font-size: 20pt; color: #1b1e4f; margin: 0 0 6px; }',
+  'h2 { font-size: 14pt; color: #1b1e4f; border-bottom: 2px solid #22d89b; padding-bottom: 4px; margin: 18px 0 8px; }',
+  'h3 { font-size: 11pt; color: #1b1e4f; margin: 14px 0 6px; }',
   'table { border-collapse: collapse; width: 100%; }',
-  'table.data th { background: #e8eef7; color: #0b3a6e; font-size: 9pt; padding: 5px; border: 1px solid #9fb0c8; text-align: left; }',
+  'table.data th { background: #e8edff; color: #1b1e4f; font-size: 9pt; padding: 5px; border: 1px solid #9fb0c8; text-align: left; }',
   'table.data td { border: 1px solid #c9d0db; padding: 4px 5px; font-size: 9pt; vertical-align: top; }',
   'table.info td { padding: 4px 6px; font-size: 11pt; vertical-align: top; }',
   'table.grid td { border: 1px solid #c9d0db; padding: 4px; text-align: center; vertical-align: top; font-size: 8pt; }',
@@ -19,7 +19,6 @@ const LAPORAN_CSS = [
   '.small { font-size: 8pt; }',
   '.center { text-align: center; }',
   '.pb { page-break-before: always; }',
-  '.logo { color: #f28c28; border: 3px solid #f28c28; font-weight: bold; font-size: 20pt; padding: 6px 10px; }',
   '.hadir { color: #12805c; font-weight: bold; } .izin, .sakit { color: #1f5fbf; font-weight: bold; } .alpa { color: #b42318; font-weight: bold; }',
 ].join('\n');
 
@@ -171,8 +170,8 @@ function sampul_(batch, hariList, jenis, pics, jumlahPeserta) {
   const periode = hariList.length === 1 ? tglPanjang_(hariList[0].tanggal)
     : tglPanjang_(hariList[0].tanggal) + ' s.d. ' + tglPanjang_(hariList[hariList.length - 1].tanggal);
   return [
-    '<table><tr><td style="width:80px;padding-right:12px"><span class="logo">ASI</span></td>',
-    '<td><b style="font-size:14pt">ARTHA SAFETY INDONESIA</b><br><span class="muted">Learning Management System</span></td></tr></table>',
+    '<img src="' + include('aset-logo') + '" width="300" alt="Artha Safety Indonesia">',
+    '<div class="muted" style="margin-top:4px">Learning Management System</div>',
     '<br><br><br><br>',
     '<h1>' + (jenis === 'harian' ? 'LAPORAN HARIAN KEGIATAN PELATIHAN' : 'LAPORAN KEGIATAN PELATIHAN') + '</h1>',
     '<div style="font-size:16pt;margin-bottom:24px">' + h_(batch.nama_pelatihan) + '</div>',

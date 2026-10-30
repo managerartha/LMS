@@ -304,6 +304,7 @@ LMS/
      ├── js-common.html       utilitas, login, GPS, waktu WIB                     ✅ Tahap 1
      ├── js-peserta.html      halaman peserta (kamera, watermark, tanda tangan)   ✅ Tahap 1
      ├── js-pic.html          halaman PIC & Admin                                 ✅ Tahap 1
+     ├── aset-logo/ikon/foto.html  logo & foto Artha Safety (data URI base64)       ✅ Revisi tampilan
      ├── Konten.gs            rundown, materi, dokumentasi                        ✅ Tahap 2
      └── Laporan.gs           laporan PDF (template HTML → PDF), ttd digital PIC  ✅ Tahap 3
 ```
@@ -355,3 +356,4 @@ Kode dikelola di GitHub, lalu di-*upload* ke Apps Script (copy-paste atau pakai 
 - **Kamera**: LMS mencoba membuka kamera langsung di halaman. Jika browser HP tidak mengizinkannya, LMS membuka aplikasi kamera bawaan HP. Foto lama dari galeri (lebih dari 5 menit) ditolak.
 - **Keterbatasan GPS**: aplikasi "fake GPS" di HP Android tidak bisa dideteksi dari browser. Pencegahnya adalah foto selfie ber-watermark yang diperiksa PIC.
 - **Laporan PDF** disusun di server sebagai HTML (tata letak tabel, CSS dasar) lalu dikonversi ke PDF oleh Google. Foto absen memakai thumbnail Drive, dan foto dokumentasi memakai versi 800 px yang dibuat saat upload, supaya ukuran PDF tetap wajar. Laporan lengkap untuk batch besar bisa mendekati batas 6 menit Apps Script; alternatifnya laporan harian.
+- **Identitas visual**: warna mengikuti logo Artha Safety (navy `#1B1E4F`, hijau `#22EDA4`) dengan font Plus Jakarta Sans. Halaman login menampilkan logo, foto Safety Champions, dan tagline. Dashboard peserta memakai menu samping (desktop) atau menu geser (HP), kartu sambutan bergradasi biru berisi tombol absen dan kegiatan yang sedang berlangsung, serta kartu Program, Kehadiran, dan Progres pelatihan.

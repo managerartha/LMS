@@ -32,14 +32,28 @@
     });
   }
 
+  const NAV_PESERTA = [
+    ['beranda', '🏠', 'Dashboard'], ['rundown', '🗓️', 'Jadwal & Rundown'], ['materi', '📚', 'Materi'],
+    ['dok', '📷', 'Dokumentasi'], ['riwayat', '✅', 'Riwayat Absen'],
+  ];
+
   function pesertaTab(tab) {
     P.tab = tab;
+    const aktif = NAV_PESERTA.find(n => n[0] === tab);
     render(`
-      <div class="tabs">
-        ${[['beranda', 'Hari ini'], ['rundown', 'Rundown'], ['materi', 'Materi'], ['dok', 'Dokumentasi'], ['riwayat', 'Riwayat absen']]
-          .map(t => `<button class="tab ${tab === t[0] ? 'active' : ''}" onclick="pesertaTab('${t[0]}')">${t[1]}</button>`).join('')}
-      </div>
-      <div id="tab-body"><div class="center muted pad">Memuat…</div></div>`);
+      <div class="shell">
+        <nav class="sidenav">
+          ${NAV_PESERTA.map(n => `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="pesertaTab('${n[0]}')">
+            <span class="nav-ic">${n[1]}</span><span>${n[2]}</span></button>`).join('')}
+        </nav>
+        <section class="shell-main">
+          <div class="page-head">
+            <h1>${tab === 'beranda' ? 'Selamat Datang di Dashboard Peserta' : aktif[2]}</h1>
+            ${tab === 'beranda' ? `<p class="muted">Halo, ${esc(S.user.nama)} 👋</p>` : ''}
+          </div>
+          <div id="tab-body"><div class="center muted pad">Memuat…</div></div>
+        </section>
+      </div>`);
     if (tab === 'beranda') loadBeranda();
     else if (tab === 'riwayat') loadRiwayat();
     else loadKonten(tab);
@@ -52,44 +66,97 @@
       if (P.tab !== 'beranda') return;
       P.status = st;
       P.konten = konten;
-      $('#tab-body').innerHTML = berandaHtml(st) + kontenHariIniHtml(konten);
+      $('#tab-body').innerHTML = berandaHtml(st, konten) + kontenHariIniHtml(konten);
     } catch (e) {
       $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
     }
   }
 
-  function berandaHtml(st) {
-    const head = `
-      <div class="card">
-        <div class="small muted">${esc(st.batch.kode_batch)} — ${esc(st.batch.nama_pelatihan)}</div>
-        <h1>${esc(fmtTanggal(st.tanggal))}</h1>
-        ${st.hari ? `<div class="muted">Hari ke-${esc(st.hari.hari_ke)} dari ${esc(st.hari.total_hari)} · 📍 ${esc(st.hari.lokasi.nama)}</div>` : ''}
-      </div>`;
-    if (!st.hari) {
-      return head + `<div class="card center muted">Hari ini tidak ada jadwal pelatihan.
-        ${st.berikutnya ? '<br>Jadwal berikutnya: <b>' + esc(fmtTanggal(st.berikutnya)) + '</b>' : ''}</div>`;
+  function berandaHtml(st, k) {
+    return heroHtml(st, k) + statHtml(st) + (st.hari ? `
+      <h2 class="section-title">Absensi Hari Ini</h2>
+      <div class="grid2">${st.hari.sesi.map(sesiCardHtml).join('')}</div>` : '');
+  }
+
+  /** Kartu utama bergradasi: hari ini, sesi yang sedang dibuka, dan kegiatan yang sedang berjalan. */
+  function heroHtml(st, k) {
+    const b = st.batch;
+    let chip, judul, sub, aksi = '', now = '';
+    if (st.hari) {
+      const h = st.hari;
+      const buka = h.sesi.find(s => s.state === 'buka' && s.status !== 'hadir');
+      chip = buka ? `<span class="chip chip-live">● Absen Sesi ${buka.sesi} dibuka</span>`
+        : `<span class="chip chip-glass">Hari ke-${esc(h.hari_ke)} dari ${esc(h.total_hari)}</span>`;
+      judul = `${esc(b.nama_pelatihan)} – Hari Ke-${esc(h.hari_ke)}`;
+      sub = `${esc(fmtTanggal(st.tanggal))} · ${esc(h.sesi[0].mulai)}–${esc(h.sesi[h.sesi.length - 1].selesai)} WIB · 📍 ${esc(h.lokasi.nama)}`;
+      if (buka) aksi = `<button class="btn white big" onclick="mulaiAbsen(${buka.sesi})">📸 Absen Sesi ${buka.sesi} Sekarang</button>`;
+      const hk = k.hari.find(x => x.tanggal === k.tanggal);
+      const jalan = hk && hk.rundown.find(r => k.jam >= r.jam_mulai && k.jam < r.jam_selesai);
+      if (jalan) now = `<div class="hero-now">▶ Sedang berlangsung: <b>${esc(jalan.kegiatan)}</b> (${esc(jalan.jam_mulai)}–${esc(jalan.jam_selesai)})</div>`;
+    } else {
+      chip = '<span class="chip chip-glass">Tidak ada jadwal hari ini</span>';
+      judul = esc(b.nama_pelatihan);
+      sub = st.berikutnya ? 'Jadwal pelatihan berikutnya: <b>' + esc(fmtTanggal(st.berikutnya)) + '</b>'
+        : st.hari_selesai ? 'Pelatihan telah selesai. Terima kasih atas partisipasi Anda!' : '';
     }
-    const cards = st.hari.sesi.map(s => {
-      const done = s.status === 'hadir';
-      let body;
-      if (done) {
-        body = `<div class="alert ok">✅ Sudah absen pukul <b>${esc(jamSaja(s.absen.waktu))} WIB</b></div>`;
-      } else if (s.state === 'buka') {
-        body = (s.status !== 'belum' ? `<div class="mb">${badge(s.status)} <span class="small muted">${esc(s.absen && s.absen.keterangan || '')}</span></div>` : '') +
-          `<button class="btn accent block big" onclick="mulaiAbsen(${s.sesi})">📸 Absen Sesi ${s.sesi} sekarang</button>`;
-      } else if (s.state === 'belum_dibuka') {
-        body = `<div class="muted small">Tombol absen aktif pukul ${esc(s.mulai)} WIB.</div>`;
-      } else {
-        body = `<div>${badge(s.status)} ${s.absen && s.absen.keterangan ? '<span class="small muted">' + esc(s.absen.keterangan) + '</span>' : ''}</div>`;
-      }
-      return `
-        <div class="card sesi-card ${done ? 'done' : s.state === 'buka' ? 'buka' : ''}">
-          <div class="row"><h2 class="grow">Sesi ${s.sesi} — ${s.sesi === 1 ? 'Pagi' : 'Siang'}</h2>
-            <span class="sesi-time">${esc(s.mulai)}–${esc(s.selesai)} WIB</span></div>
-          ${body}
-        </div>`;
-    }).join('');
-    return head + cards;
+    return `
+      <div class="hero">
+        <div class="hero-text">${chip}<h2 class="hero-title">${judul}</h2><div class="hero-sub">${sub}</div>${now}</div>
+        ${aksi ? `<div class="hero-aksi">${aksi}</div>` : ''}
+      </div>`;
+  }
+
+  function statHtml(st) {
+    const b = st.batch, r = st.rekap;
+    const pct = r.total ? Math.round(r.hadir / r.total * 100) + '%' : '–';
+    const hariKe = st.hari ? Number(st.hari.hari_ke) : st.hari_selesai;
+    const progres = st.total_hari ? Math.round(hariKe / st.total_hari * 100) : 0;
+    const status = st.hari ? 'Sedang berlangsung' : st.berikutnya && !st.hari_selesai ? 'Belum dimulai' : st.berikutnya ? 'Jeda' : 'Selesai';
+    const tgl = b.tgl_mulai === b.tgl_selesai ? fmtTanggal(b.tgl_mulai) : fmtTanggal(b.tgl_mulai).replace(/^\w+, /, '') + ' – ' + fmtTanggal(b.tgl_selesai).replace(/^\w+, /, '');
+    return `
+      <div class="grid3">
+        <div class="card stat-card">
+          <span class="chip chip-blue">Program Anda</span>
+          <div class="stat-main">${esc(b.nama_pelatihan)}</div>
+          <div class="small muted">Batch ${esc(b.kode_batch)} • ${esc(tgl)}</div>
+        </div>
+        <div class="card stat-card">
+          <span class="chip chip-blue">Kehadiran Saya</span>
+          <div class="mini-row">
+            <div class="mini-box"><div class="mini-label">Sesi hadir</div><div class="mini-val">${r.hadir} / ${r.total}</div></div>
+            <div class="mini-box"><div class="mini-label">Persentase</div><div class="mini-val">${pct}</div></div>
+          </div>
+        </div>
+        <div class="card stat-card">
+          <span class="chip chip-green">Progres Pelatihan</span>
+          <div class="row" style="justify-content:space-between;margin-top:10px">
+            <div><div class="mini-label">Hari ke</div><div class="stat-main" style="margin:0">${hariKe} / ${st.total_hari}</div></div>
+            <div style="text-align:right"><div class="mini-label">Status</div><b>${status}</b></div>
+          </div>
+          <div class="progress mt"><span style="width:${progres}%"></span></div>
+        </div>
+      </div>`;
+  }
+
+  function sesiCardHtml(s) {
+    const done = s.status === 'hadir';
+    let body;
+    if (done) {
+      body = `<div class="alert ok">✅ Sudah absen pukul <b>${esc(jamSaja(s.absen.waktu))} WIB</b></div>`;
+    } else if (s.state === 'buka') {
+      body = (s.status !== 'belum' ? `<div class="mb">${badge(s.status)} <span class="small muted">${esc(s.absen && s.absen.keterangan || '')}</span></div>` : '') +
+        `<button class="btn accent block big" onclick="mulaiAbsen(${s.sesi})">📸 Absen Sesi ${s.sesi} sekarang</button>`;
+    } else if (s.state === 'belum_dibuka') {
+      body = `<div class="muted small">Tombol absen aktif pukul ${esc(s.mulai)} WIB.</div>`;
+    } else {
+      body = `<div>${badge(s.status)} ${s.absen && s.absen.keterangan ? '<span class="small muted">' + esc(s.absen.keterangan) + '</span>' : ''}</div>`;
+    }
+    return `
+      <div class="card sesi-card ${done ? 'done' : s.state === 'buka' ? 'buka' : ''}">
+        <div class="row"><h2 class="grow">Sesi ${s.sesi} — ${s.sesi === 1 ? 'Pagi' : 'Siang'}</h2>
+          <span class="sesi-time">${esc(s.mulai)}–${esc(s.selesai)} WIB</span></div>
+        ${body}
+      </div>`;
   }
 
   // ----------------------------------------------------- Rundown, materi, dokumentasi
@@ -97,9 +164,11 @@
     const h = k.hari.find(x => x.tanggal === k.tanggal);
     let html = '';
     if (h) {
-      html += `<div class="card"><h2>Rundown hari ini</h2>${rundownHtml(h.rundown, k.jam)}</div>`;
-      html += `<div class="card"><h2>Materi hari ini</h2>${materiHtml(h.materi)}</div>`;
-      if (h.dok.length) html += `<div class="card"><h2>Dokumentasi hari ini</h2>${galeriHtml(h, 6)}</div>`;
+      html += `<div class="grid2 split">
+        <div class="card"><h2>🗓️ Rundown Hari Ini</h2>${rundownHtml(h.rundown, k.jam)}</div>
+        <div class="card"><h2>📚 Materi Hari Ini</h2>${materiHtml(h.materi)}</div>
+      </div>`;
+      if (h.dok.length) html += `<div class="card"><h2>📷 Dokumentasi Hari Ini</h2>${galeriHtml(h, 6)}</div>`;
     }
     return html + `<button class="btn block" onclick="loadBeranda()">↻ Muat ulang</button>`;
   }

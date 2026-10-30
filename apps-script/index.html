@@ -5,18 +5,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>LMS Artha Safety Indonesia</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
   <?!= include('css'); ?>
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <div class="logo">ASI</div>
-      <div>
-        <div class="brand-name">LMS Artha Safety</div>
-        <div class="brand-sub" id="topbar-sub">Indonesia</div>
-      </div>
+      <img class="logo-full" id="logo-full" alt="Artha Safety Indonesia">
+      <img class="logo-ikon" id="logo-ikon" alt="Artha Safety Indonesia">
+      <span class="brand-lms">LMS</span>
     </div>
-    <div id="topbar-actions"></div>
+    <div class="topbar-right">
+      <span class="user-chip" id="topbar-sub"></span>
+      <div id="topbar-actions"></div>
+    </div>
   </header>
 
   <main id="app"><div class="center muted pad">Memuat…</div></main>
@@ -27,6 +30,12 @@
   <div id="toast" class="toast hidden"></div>
   <div id="print-area"></div>
 
+  <script>
+    // Aset gambar disimpan sebagai data URI di file aset-*.html (Apps Script tidak bisa menyimpan file gambar).
+    const ASET = { logo: '<?!= include('aset-logo'); ?>', ikon: '<?!= include('aset-ikon'); ?>', foto: '<?!= include('aset-foto'); ?>' };
+    document.getElementById('logo-full').src = ASET.logo;
+    document.getElementById('logo-ikon').src = ASET.ikon;
+  </script>
   <?!= include('js-common'); ?>
   <?!= include('js-peserta'); ?>
   <?!= include('js-pic'); ?>
