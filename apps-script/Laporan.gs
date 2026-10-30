@@ -310,8 +310,8 @@ function pengesahan_(batch, pics, now) {
 /** Data perusahaan untuk kop, cover, dan halaman penyelenggaraan. Disimpan di Script Properties 'ORG'. */
 const ORG_DEFAULT = {
   nama: 'PT Artha Safety Indonesia',
-  nomor_skp: 'No. 5/481/AS.01.02/V/2024',
-  masa_skp: '28 Mei 2026',
+  nomor_skp: 'No. 5/000666/AS.01.02.4103.6.15/V/2026',
+  masa_skp: '20 Mei 2028',
   alamat: 'Ruko De Mercy Square No R8. Jl. Kapten Haryadi Komp. Merapi Regency, Sardonoharjo, Ngaglik, Sleman Yogyakarta',
   telepon: '0812-6363-6376',
   telepon_kantor: '(0274) 5063025',
