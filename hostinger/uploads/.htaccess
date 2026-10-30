@@ -1,0 +1,9 @@
+# File materi & dokumentasi boleh dibuka, tetapi tidak boleh ada skrip yang dijalankan di sini.
+Options -Indexes
+<FilesMatch "\.(php|phtml|phar|pl|py|cgi|sh|htaccess)$">
+  Require all denied
+</FilesMatch>
+<IfModule mod_headers.c>
+  Header set Cache-Control "public, max-age=2592000"
+  Header set X-Content-Type-Options "nosniff"
+</IfModule>

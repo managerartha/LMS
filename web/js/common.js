@@ -17,27 +17,20 @@ function deviceId() {
   return id;
 }
 
-/**
- * Memanggil API LMS (Google Apps Script) di LMS_CONFIG.API_URL.
- * Content-Type text/plain agar browser tidak mengirim preflight CORS (tidak didukung Apps Script).
- */
+/** Memanggil API LMS (server PHP di hosting yang sama) di LMS_CONFIG.API_URL. */
 async function call(action, data) {
-  const url = (window.LMS_CONFIG && LMS_CONFIG.API_URL) || '';
-  if (!/^https:\/\/script\.google\.com\/macros\/s\/[\w-]{20,}\/exec$/.test(url) || /GANTI/.test(url)) {
-    throw new Error('API_URL belum diisi dengan benar. Isi dengan Web app URL Apps Script yang berakhiran /exec (bukan /dev).');
-  }
+  const url = (window.LMS_CONFIG && LMS_CONFIG.API_URL) || 'api/';
   let r;
   try {
     r = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: action, data: Object.assign({ token: S.token }, data || {}) }),
-      redirect: 'follow',
     });
   } catch (err) {
     throw new Error(navigator.onLine === false
       ? 'Tidak ada internet. Periksa koneksi Anda lalu coba lagi.'
-      : 'Server LMS tidak bisa dihubungi. Pastikan deployment Apps Script sudah "New version" dengan akses "Anyone", lalu coba lagi.');
+      : 'Server LMS tidak bisa dihubungi. Periksa internet Anda lalu coba lagi.');
   }
   const text = await r.text();
   let res;
@@ -45,7 +38,7 @@ async function call(action, data) {
     res = JSON.parse(text);
   } catch (err) {
     console.error('Balasan API bukan JSON', r.status, text.slice(0, 500));
-    throw new Error('Server LMS membalas tidak sesuai (status ' + r.status + '). Kemungkinan Code.gs versi baru belum di-deploy sebagai "New version".');
+    throw new Error('Server LMS membalas tidak sesuai (status ' + r.status + '). Buka api/?cek=1 untuk mengecek pemasangan.');
   }
   if (res && res.ok) return res.data;
   const msg = res && res.error ? res.error : 'Terjadi kesalahan.';

@@ -729,7 +729,7 @@ function uploadMateri(form) {
   const file = form.file.files[0];
   const link = form.link.value.trim();
   if (!file && !link) return toast('Pilih file atau isi link.', 'error');
-  if (file && file.size > 20 * 1024 * 1024) return toast('File lebih dari 20 MB. Simpan sebagai PDF atau gunakan link Google Drive.', 'error');
+  if (file && file.size > 20 * 1024 * 1024) return toast('File lebih dari 20 MB. Simpan sebagai PDF, atau upload ke Google Drive lalu gunakan link.', 'error');
   busy(form.querySelector('button.primary'), async () => {
     const data = { id_hari: C.idHari, kategori: form.kategori.value, tampil_mulai: form.tampil_mulai.value, judul: form.judul.value };
     if (file) data.file = { nama: file.name, data: await bacaFile(file) };
@@ -882,10 +882,10 @@ async function tabLaporan() {
             <div class="grow"><b>${esc(l.nama)}</b><div class="small muted">${esc(l.dibuat_pada)} · ${esc(l.dibuat_oleh)}</div></div>
             <div class="row">
               <button class="btn sm" onclick="unduhLaporan(this, ${i})">⬇ Unduh</button>
-              <a class="btn sm" href="${esc(l.drive)}" target="_blank" rel="noopener">Drive</a>
+              ${l.drive ? `<a class="btn sm" href="${esc(l.drive)}" target="_blank" rel="noopener">Drive</a>` : ''}
             </div>
           </div>`).join('') : '<div class="muted small">Belum ada laporan.</div>'}
-        <p class="small muted">Semua laporan juga tersimpan di folder <b>Laporan</b> batch ini di Google Drive.</p>
+        <p class="small muted">Semua laporan juga tersimpan di server LMS dan bisa diunduh ulang kapan saja.</p>
       </div>`);
     lapJenis('resmi');
   } catch (e) { errBox(v, e); }

@@ -1,3 +1,5 @@
+> **Memakai Hostinger?** Untuk pemasangan, ikuti [PANDUAN-HOSTINGER.md](PANDUAN-HOSTINGER.md). Bagian A–B di bawah hanya untuk versi Apps Script lama. Bagian C (cara memakai LMS) tetap berlaku.
+
 # Panduan Pemasangan LMS Artha Safety Indonesia
 
 LMS terdiri dari dua bagian:

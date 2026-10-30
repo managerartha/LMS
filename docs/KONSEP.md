@@ -1,6 +1,7 @@
 # Konsep LMS Artha Safety Indonesia
 
-> Dokumen konsep v0.4 — 30 Oktober 2026
+> Dokumen konsep v0.5 — 30 Oktober 2026
+> **Arsitektur terbaru: Hostinger (PHP + MySQL)**, lihat bagian 12 dan [PANDUAN-HOSTINGER.md](PANDUAN-HOSTINGER.md). Bagian 2 & 4 di bawah menjelaskan versi Apps Script sebelumnya.
 > Status: **Tahap 1, 2 & 3 sudah dibuat** (folder `apps-script/`). Cara pasang: [PANDUAN-SETUP.md](PANDUAN-SETUP.md).
 > Perubahan v0.3: format kode login `001-Kikis` (nomor absen + nama depan), lokasi absen bisa diubah **per hari** oleh PIC/Admin, **satu Spreadsheet untuk semua batch**.
 > Perubahan dari v0.1: teknologi diganti menjadi **HTML + Google Apps Script**, data di **Google Spreadsheet**, file di **Google Drive**; login pakai **kode peserta**; tanpa status terlambat; absen **wajib di lokasi (GPS)**; tanda tangan PIC **digital**.
@@ -364,4 +365,26 @@ Kode dikelola di GitHub. Folder `web/` di-upload ke cPanel, folder `apps-script/
 - **Kecepatan**: halaman pertama dikirim bersama data login (`me` membawa dashboard peserta / daftar batch PIC). Dashboard peserta langsung tampil dari data terakhir di perangkat lalu diperbarui di belakang. Daftar hari PIC disimpan selama batch yang sama. Penulisan ke Spreadsheet digabung per baris, dan log ditulis tanpa membaca sheet Log. Banner "This application was created by a Google Apps Script user" muncul untuk web app dari akun Gmail biasa dan tidak bisa dihapus lewat kode; pilihannya adalah menyematkan LMS di Google Sites, memakai akun Google Workspace, atau memindahkan tampilan ke hosting sendiri (Apps Script hanya sebagai API).
 - **Arsitektur sekarang (migrasi domain)**: tampilan LMS adalah file statis di folder `web/` (HTML/CSS/JS + gambar) yang di-hosting di cPanel `lms.arthasafetyindonesia.com`. Tampilan memanggil API Apps Script lewat `fetch` POST ke URL `/exec` (body `text/plain` berisi JSON `{action, data}` agar tidak memicu preflight CORS). Apps Script hanya berisi kode server (`doPost` → `api()`), sedangkan `doGet` mengarahkan ke alamat LMS. Data tetap di Google Spreadsheet & Drive milik manag3r.artha@gmail.com. Kunci akses Google tidak pernah ada di browser.
 - **Laporan resmi (format Artha Safety)**: cover, Laporan Penyelenggaraan Kegiatan (A–E, tanda tangan + cap penandatangan), Jadwal Kegiatan, Daftar Materi dan Pemateri (dari rundown: pemateri + instansi), Laporan Absensi per peserta (identitas permohonan di atas; tiap sesi: tanggal, jam, alamat lokasi hasil reverse geocoding, foto, tanda tangan), dan Dokumentasi Kegiatan. Kop dari `aset-laporan.html` (tanpa footer). Data perusahaan disimpan di Script Properties `ORG`, data laporan per batch di kolom `Batch.info_laporan` (JSON). Foto absen 480 px, tanda tangan 400 px, dokumentasi 1280 px (versi laporan 640 px).
+
+## 12. Arsitektur Hostinger (PHP + MySQL), versi utama
+
+Dipindahkan dari Apps Script karena lambat (1–3 detik per permintaan, laporan bisa melewati batas 6 menit).
+
+```
+Browser (HP/laptop) ──HTTPS──▶ lms.arthasafetyindonesia.com (Hostinger Cloud)
+                                 ├── index.html, css/, js/, img/   tampilan (sama dengan web/)
+                                 ├── api/index.php                 POST JSON {action, data} → api()
+                                 ├── api/unduh.php                 unduh file materi
+                                 ├── app/*.php                     logika server (port 1:1 dari *.gs)
+                                 ├── vendor/                       dompdf (pembuat PDF)
+                                 ├── storage/  (privat)            foto absen, tanda tangan, laporan PDF
+                                 ├── uploads/  (publik, nama acak) materi & dokumentasi
+                                 └── MySQL                         tabel = sheet versi lama (+ token, pengaturan, geo_cache, log)
+```
+
+- **Kecepatan**: permintaan biasa ±0,1–0,3 detik; laporan resmi ±1 detik (diuji: 3 peserta × 2 hari = 0,7 detik).
+- **Keamanan**: `app/`, `storage/`, `vendor/` ditolak lewat `.htaccess`; skrip tidak bisa dijalankan di `uploads/`; PIN di-hash (`password_hash`); token login di tabel `token`; absen dobel dicegah oleh UNIQUE (hari, peserta, sesi).
+- **Alamat lokasi** dari OpenStreetMap Nominatim (gratis), di-cache per ±100 m di tabel `geo_cache`.
+- **Dokumen Office** (PPT/Word/Excel) dibuka lewat penampil online Microsoft; PDF & gambar dibuka langsung.
+- **Pemasangan**: `install.php` mengecek hosting, membuat `app/config.php`, tabel, dan akun Admin (ADMIN/123456). Pengecekan: `/api/?cek=1`.
 

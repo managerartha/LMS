@@ -268,7 +268,7 @@ function lihatFoto(idHari, idDok) {
   const d = h.dok.find(x => x.id_dok === idDok);
   const keg = d.id_rundown && h.rundown.find(r => r.id_rundown === d.id_rundown);
   openModal(`
-    <img class="thumb" src="${esc(d.thumb.replace('sz=w600', 'sz=w1600'))}" alt="" referrerpolicy="no-referrer">
+    <img class="thumb" src="${esc(d.buka)}" alt="" referrerpolicy="no-referrer">
     ${keg ? `<div class="small muted mt">${esc(keg.jam_mulai)} · ${esc(keg.kegiatan)}</div>` : ''}
     ${d.keterangan ? `<p>${esc(d.keterangan)}</p>` : ''}
     <div class="row mt"><a class="btn" href="${esc(d.buka)}" target="_blank" rel="noopener">Buka ukuran penuh</a>
