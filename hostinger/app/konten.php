@@ -107,9 +107,13 @@ function materi_view(array $m): array {
     'unduh' => $file ? 'api/unduh.php?id=' . rawurlencode($m['id_materi']) : ''];
 }
 
+/** Kategori materi (urutan tampil) => label. */
+const KATEGORI_MATERI = ['materi' => 'Materi presentasi', 'modul' => 'Modul', 'bahan_ajar' => 'Bahan ajar', 'latihan' => 'Lembar latihan'];
+
 function materi_hari(string $idHari): array {
   $list = rows('SELECT * FROM materi WHERE id_hari = ?', [$idHari]);
-  usort($list, fn($a, $b) => strcmp($a['kategori'], $b['kategori']) ?: strcmp($a['diupload_pada'], $b['diupload_pada']));
+  $urut = array_flip(array_keys(KATEGORI_MATERI));
+  usort($list, fn($a, $b) => ($urut[$a['kategori']] ?? 9) <=> ($urut[$b['kategori']] ?? 9) ?: strcmp($a['diupload_pada'], $b['diupload_pada']));
   return $list;
 }
 
@@ -129,7 +133,7 @@ function materiList(array $data, array $user): array {
 function materiTambah(array $data, array $user): array {
   $hari = hari_for_user($user, (string)($data['id_hari'] ?? ''));
   $batch = get_batch($hari['id_batch']);
-  $kategori = ($data['kategori'] ?? '') === 'latihan' ? 'latihan' : 'materi';
+  $kategori = array_key_exists($data['kategori'] ?? '', KATEGORI_MATERI) ? $data['kategori'] : 'materi';
   $tampil = (string)($data['tampil_mulai'] ?? '');
   if ($tampil !== '' && !is_time($tampil)) throw new LmsError('Jam tampil tidak valid (JJ:MM).');
   $fileId = '';

@@ -287,7 +287,7 @@ function bagian_hari(array $batch, array $r, array $peserta): string {
   $out[] = '<h3>E. Materi</h3>';
   $out[] = $materi ? '<table class="data"><tr><th style="width:30px">No</th><th>Judul</th><th>Kategori</th><th>Jenis</th></tr>' .
     implode('', array_map(fn($m, $i) => '<tr><td class="center">' . ($i + 1) . '</td><td>' . h_($m['judul']) . '</td><td>' .
-      ($m['kategori'] === 'latihan' ? 'Lembar latihan' : 'Materi') . '</td><td>' . h_(strtoupper($m['tipe_file'])) . '</td></tr>', $materi, array_keys($materi))) . '</table>'
+      (['latihan' => 'Lembar latihan', 'modul' => 'Modul', 'bahan_ajar' => 'Bahan ajar'][$m['kategori']] ?? 'Materi') . '</td><td>' . h_(strtoupper($m['tipe_file'])) . '</td></tr>', $materi, array_keys($materi))) . '</table>'
     : '<p class="muted">Tidak ada materi.</p>';
   return implode("\n", $out);
 }

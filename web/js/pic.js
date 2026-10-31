@@ -1,8 +1,8 @@
 // ===================================================== Halaman PIC / Admin
-const C = { view: 0, batches: [], batch: null, tab: 'monitor', hari: [], idHari: null, timer: null, monitor: null, peserta: [], pics: [] };
+const C = { view: 0, batches: [], batch: null, tab: 'dashboard', hari: [], idHari: null, timer: null, monitor: null, peserta: [], pics: [] };
 
 async function showPic(meRes) {
-  C.tab = 'monitor';
+  C.tab = 'dashboard';
   setTopbar(S.user.nama + (S.user.role === 'admin' ? ' · Admin' : ' · PIC'),
     '<button class="btn sm" onclick="dialogGantiPin()">PIN</button> <button class="btn sm" onclick="logoutNow()">Keluar</button>');
   render('<div class="center muted pad">Memuat…</div>');
@@ -13,8 +13,9 @@ async function showPic(meRes) {
   }
   C.hariFor = null;
   const saved = store('lms_pic_batch');
-  C.batch = C.batches.find(b => b.id_batch === saved) || C.batches[0] || null;
-  picTab(C.batch ? C.tab : (S.user.role === 'admin' ? 'batch' : 'monitor'));
+  const tampil = C.batches.filter(b => b.status !== 'arsip');
+  C.batch = tampil.find(b => b.id_batch === saved) || tampil[0] || null;
+  picTab(C.tab);
 }
 
 function pilihBatch(id) {
@@ -25,30 +26,58 @@ function pilihBatch(id) {
   picTab(C.tab);
 }
 
+/** Menu PIC/Admin: [kode, ikon, label, grup]. Grup tampil sebagai judul kecil di menu samping (layar lebar). */
+const NAV_PIC = [
+  ['dashboard', '🏠', 'Dashboard', ''],
+  ['monitor', '✅', 'Absensi', 'Kegiatan harian'], ['rundown', '🗓️', 'Rundown', 'Kegiatan harian'],
+  ['materi', '📚', 'Materi', 'Kegiatan harian'], ['dok', '📷', 'Dokumentasi', 'Kegiatan harian'],
+  ['peserta', '👥', 'Peserta', 'Persiapan'], ['lokasi', '📍', 'Jadwal & Lokasi', 'Persiapan'],
+  ['laporan', '📄', 'Laporan', 'Akhir pelatihan'], ['skl', '🎓', 'SKL', 'Akhir pelatihan'],
+  ['batch', '🗂️', 'Batch', 'Admin'], ['pic', '🔑', 'Akun PIC', 'Admin'],
+];
+const TAB_BATCH = ['monitor', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
+
 function picTab(tab) {
   C.tab = tab;
   C.view++; // hasil muat dari tab sebelumnya yang datang terlambat akan diabaikan
   clearInterval(C.timer);
   const admin = S.user.role === 'admin';
-  const tabs = [['monitor', 'Absensi'], ['rundown', 'Rundown'], ['materi', 'Materi'], ['dok', 'Dokumentasi'], ['laporan', 'Laporan'], ['skl', 'SKL'], ['peserta', 'Peserta'], ['lokasi', 'Jadwal & Lokasi']];
-  if (admin) tabs.push(['batch', 'Batch'], ['pic', 'Akun PIC']);
-  const butuhBatch = ['monitor', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'].indexOf(tab) >= 0;
+  const nav = NAV_PIC.filter(n => admin || n[3] !== 'Admin');
+  const aktif = nav.find(n => n[0] === tab) || nav[0];
+  const butuhBatch = TAB_BATCH.indexOf(tab) >= 0;
+  // Batch arsip disembunyikan dari pilihan, kecuali sedang dibuka dari tab Batch.
+  const pilihan = C.batches.filter(b => b.status !== 'arsip' || (C.batch && b.id_batch === C.batch.id_batch));
+  let grup = '';
   render(`
-    ${C.batches.length ? `
-      <div class="row mb">
-        <select class="grow" onchange="pilihBatch(this.value)">
-          ${C.batches.map(b => `<option value="${esc(b.id_batch)}" ${C.batch && b.id_batch === C.batch.id_batch ? 'selected' : ''}>
-            ${esc(b.kode_batch)} — ${esc(b.nama_pelatihan)}${b.status !== 'aktif' ? ' (selesai)' : ''}</option>`).join('')}
-        </select>
-      </div>` : ''}
-    <div class="tabs">${tabs.map(t => `<button class="tab ${t[0] === tab ? 'active' : ''}" onclick="picTab('${t[0]}')">${t[1]}</button>`).join('')}</div>
-    <div id="tab-body"><div class="center muted pad">Memuat…</div></div>`);
+    <div class="shell">
+      <nav class="sidenav">
+        ${nav.map(n => {
+          const judul = n[3] && n[3] !== grup ? `<div class="nav-group">${esc(n[3])}</div>` : '';
+          grup = n[3];
+          return judul + `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="picTab('${n[0]}')">
+            <span class="nav-ic">${n[1]}</span><span>${n[2]}</span></button>`;
+        }).join('')}
+      </nav>
+      <section class="shell-main">
+        <div class="page-head"><h1>${esc(aktif[2])}</h1></div>
+        ${butuhBatch && pilihan.length ? `
+          <div class="batch-pilih mb">
+            <span class="small muted">Batch</span>
+            <select class="grow" onchange="pilihBatch(this.value)">
+              ${pilihan.map(b => `<option value="${esc(b.id_batch)}" ${C.batch && b.id_batch === C.batch.id_batch ? 'selected' : ''}>
+                ${esc(b.kode_batch)} — ${esc(b.nama_pelatihan)}${b.status === 'arsip' ? ' (arsip)' : b.status !== 'aktif' ? ' (selesai)' : ''}</option>`).join('')}
+            </select>
+          </div>` : ''}
+        <div id="tab-body"><div class="center muted pad">Memuat…</div></div>
+      </section>
+    </div>`);
   if (butuhBatch && !C.batch) {
     $('#tab-body').innerHTML = '<div class="card center muted">' +
-      (admin ? 'Belum ada batch. Buat batch baru di tab <b>Batch</b>.' : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.') + '</div>';
+      (admin ? 'Belum ada batch. Buat batch baru di menu <b>Batch</b>.' : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.') + '</div>';
     return;
   }
-  ({ monitor: tabMonitor, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl, peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun })[tab]();
+  ({ dashboard: tabDashboard, monitor: tabMonitor, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl,
+    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun })[aktif[0]]();
 }
 
 /** Mengisi isi tab, hanya jika pengguna belum berpindah tab sejak data mulai dimuat. */
@@ -429,9 +458,9 @@ async function tabBatch() {
       </div>
       <div class="card table-wrap">
         <h2>Semua batch</h2>
-        ${C.batches.length ? `<table>
+        ${C.batches.some(b => b.status !== 'arsip') ? `<table>
           <thead><tr><th>Batch</th><th>Tanggal</th><th>PIC</th><th>Peserta</th><th></th></tr></thead>
-          <tbody>${C.batches.map((b, i) => `
+          <tbody>${C.batches.map((b, i) => b.status === 'arsip' ? '' : `
             <tr>
               <td><b>${esc(b.kode_batch)}</b> ${b.status === 'aktif' ? '<span class="badge b-hadir">aktif</span>' : '<span class="badge b-none">selesai</span>'}
                 <div class="small">${esc(b.nama_pelatihan)}</div></td>
@@ -439,10 +468,28 @@ async function tabBatch() {
               <td class="small">${esc(b.pic_nama.join(', ') || '—')}</td>
               <td>${esc(b.jumlah_peserta)}</td>
               <td class="row"><button class="btn sm" onclick="dialogBatch(${i})">Ubah</button>
+                ${b.status === 'selesai' || b.tgl_selesai < wib(serverNow()).tanggal
+                  ? `<button class="btn sm" onclick="arsipBatch(this, ${i}, true)">🗄 Arsipkan</button>` : ''}
                 ${b.folder_url ? `<a class="btn sm" href="${esc(b.folder_url)}" target="_blank">Drive</a>` : ''}</td>
             </tr>`).join('')}
           </tbody></table>` : '<div class="muted">Belum ada batch.</div>'}
-      </div>`);
+      </div>
+      ${C.batches.some(b => b.status === 'arsip') ? `
+      <div class="card table-wrap">
+        <h2>🗄 Arsip pelatihan</h2>
+        <p class="small muted">Batch arsip disembunyikan dari pilihan batch dan Dashboard. Datanya tetap tersimpan dan bisa dibuka atau dipulihkan.</p>
+        <table>
+          <thead><tr><th>Batch</th><th>Tanggal</th><th>Peserta</th><th></th></tr></thead>
+          <tbody>${C.batches.map((b, i) => b.status !== 'arsip' ? '' : `
+            <tr>
+              <td><b>${esc(b.kode_batch)}</b> <span class="badge b-none">arsip</span><div class="small">${esc(b.nama_pelatihan)}</div></td>
+              <td class="small">${esc(b.tgl_mulai)}<br>${esc(b.tgl_selesai)}</td>
+              <td>${esc(b.jumlah_peserta)}</td>
+              <td class="row"><button class="btn sm" onclick="bukaArsip('${esc(b.id_batch)}')">Lihat data</button>
+                <button class="btn sm" onclick="arsipBatch(this, ${i}, false)">↩ Pulihkan</button></td>
+            </tr>`).join('')}
+          </tbody></table>
+      </div>` : ''}`);
   } catch (e) { errBox(v, e); }
 }
 
@@ -482,7 +529,8 @@ function dialogBatch(i) {
       <label class="check mt"><input type="checkbox" name="lewati_weekend" ${b.lewati_weekend === 'ya' ? 'checked' : ''}> Lewati Sabtu & Minggu</label>
       <label>Status</label>
       <select name="status"><option value="aktif" ${b.status === 'aktif' ? 'selected' : ''}>Aktif</option>
-        <option value="selesai" ${b.status === 'selesai' ? 'selected' : ''}>Selesai (peserta tidak bisa login)</option></select>
+        <option value="selesai" ${b.status === 'selesai' ? 'selected' : ''}>Selesai (peserta tidak bisa login)</option>
+        <option value="arsip" ${b.status === 'arsip' ? 'selected' : ''}>Diarsipkan (disembunyikan dari daftar)</option></select>
       <label>PIC batch</label>
       ${picCheckboxes(b.pic_ids ? b.pic_ids.split(',') : [])}
       <p class="small muted">Jika tanggal diubah, hari yang sudah berisi absensi tidak akan dihapus.</p>
@@ -505,11 +553,33 @@ function simpanBatch(form, id) {
   });
 }
 
+/** Arsipkan (arsip = true) atau pulihkan batch. Peserta dengan SKL terbit tetap bisa mengunduh SKL. */
+function arsipBatch(btn, i, arsip) {
+  const b = C.batches[i];
+  if (arsip && !confirm('Arsipkan batch ' + b.kode_batch + '?\n\nBatch disembunyikan dari pilihan batch dan Dashboard, peserta tidak bisa login ' +
+    '(kecuali untuk mengunduh SKL yang sudah terbit). Data tetap tersimpan dan bisa dipulihkan.')) return;
+  busy(btn, async () => {
+    await call('batchUbah', { id_batch: b.id_batch, batch: { status: arsip ? 'arsip' : 'selesai' } });
+    toast(arsip ? 'Batch ' + b.kode_batch + ' diarsipkan.' : 'Batch ' + b.kode_batch + ' dipulihkan (status Selesai).', 'ok');
+    C.batches = await call('batchList');
+    if (arsip && C.batch && C.batch.id_batch === b.id_batch) C.batch = C.batches.find(x => x.status !== 'arsip') || null;
+    picTab('batch');
+  });
+}
+
+/** Membuka data batch arsip (absensi, laporan, SKL, dst.) tanpa memulihkannya. */
+function bukaArsip(id) {
+  C.batch = C.batches.find(b => b.id_batch === id);
+  C.idHari = null;
+  C.hariFor = null;
+  picTab('laporan');
+}
+
 // ----------------------------------------------------- Tab: Akun PIC (Admin)
 async function tabPicAkun() {
   const v = C.view;
   try {
-    C.pics = await call('picList');
+    [C.pics, C.batches] = await Promise.all([call('picList'), call('batchList')]);
     setBody(v, `
       <div class="card">
         <h2>Tambah akun PIC</h2>
@@ -526,13 +596,59 @@ async function tabPicAkun() {
       <div class="card table-wrap">
         <h2>Akun PIC & Admin</h2>
         <table><thead><tr><th>Nama</th><th>Kode</th><th>Peran</th><th></th></tr></thead>
-          <tbody>${C.pics.map(p => `
-            <tr><td>${esc(p.nama)}<div class="small muted">${esc(p.no_hp)}</div></td>
-              <td class="kode">${esc(p.kode_login)}</td><td>${esc(p.role)}</td>
-              <td><button class="btn sm" onclick="resetPinPic(this, '${esc(p.id_user)}', '${esc(p.nama)}')">Reset PIN</button></td></tr>`).join('')}
+          <tbody>${C.pics.map((p, i) => `
+            <tr><td>${esc(p.nama)} ${p.aktif === 'tidak' ? '<span class="badge b-alpa">nonaktif</span>' : ''}
+                <div class="small muted">${p.no_hp && p.no_hp !== '0' ? esc(p.no_hp) : ''}</div></td>
+              <td class="kode">${esc(p.kode_login)}</td><td>${p.role === 'admin' ? 'Admin' : 'PIC'}</td>
+              <td class="row"><button class="btn sm" onclick="dialogPic(${i})">✏️ Edit</button>
+                <button class="btn sm" onclick="resetPinPic(this, '${esc(p.id_user)}', '${esc(p.nama)}')">Reset PIN</button></td></tr>`).join('')}
           </tbody></table>
       </div>`);
   } catch (e) { errBox(v, e); }
+}
+
+function dialogPic(i) {
+  const p = C.pics[i];
+  const saya = p.id_user === S.user.id_user;
+  const batches = C.batches.filter(b => b.status !== 'arsip');
+  openModal(`
+    <h2>Edit akun ${esc(p.nama)}</h2>
+    <form onsubmit="event.preventDefault(); simpanPic(this, '${esc(p.id_user)}')">
+      <label>Nama</label><input name="nama" value="${esc(p.nama)}" required>
+      <div class="grid2">
+        <div><label>Kode login</label><input name="kode" value="${esc(p.kode_login)}" required></div>
+        <div><label>No HP</label><input name="no_hp" value="${esc(p.no_hp === '0' ? '' : p.no_hp)}"></div>
+      </div>
+      <label>Hak akses</label>
+      <select name="role" ${saya ? 'disabled' : ''}>
+        <option value="pic" ${p.role !== 'admin' ? 'selected' : ''}>PIC — mengelola batch yang ditugaskan</option>
+        <option value="admin" ${p.role === 'admin' ? 'selected' : ''}>Admin — semua batch, akun PIC, data perusahaan</option>
+      </select>
+      <label class="check mt"><input type="checkbox" name="aktif" ${p.aktif !== 'tidak' ? 'checked' : ''} ${saya ? 'disabled' : ''}>
+        Akun aktif (bisa login)</label>
+      <label>Batch yang ditangani</label>
+      ${batches.length ? batches.map(b => `<label class="check"><input type="checkbox" name="batch" value="${esc(b.id_batch)}"
+          ${(b.pic_ids || '').split(',').indexOf(p.id_user) >= 0 ? 'checked' : ''}>
+          ${esc(b.kode_batch)} <span class="small muted">— ${esc(b.nama_pelatihan)}</span></label>`).join('')
+        : '<div class="small muted">Belum ada batch.</div>'}
+      <p class="small muted">${saya ? 'Peran dan status akun Anda sendiri tidak bisa diubah di sini. ' : ''}Admin otomatis bisa membuka semua batch.
+        Akun nonaktif langsung keluar dari semua perangkat. PIN diubah lewat tombol <b>Reset PIN</b>.</p>
+      <div class="row mt"><button type="button" class="btn" onclick="closeModal()">Batal</button>
+        <button class="btn primary grow">Simpan</button></div>
+    </form>`);
+}
+
+function simpanPic(form, id) {
+  busy(form.querySelector('button.primary'), async () => {
+    const p = C.pics.find(x => x.id_user === id);
+    await call('picUbah', { id_user: id, nama: form.nama.value, kode: form.kode.value, no_hp: form.no_hp.value,
+      role: form.role.disabled ? p.role : form.role.value, aktif: form.aktif.disabled ? true : form.aktif.checked,
+      batch_ids: $$('input[name=batch]:checked', form).map(x => x.value) });
+    closeModal(); toast('Akun ' + form.nama.value + ' disimpan.', 'ok');
+    if (id === S.user.id_user) { S.user.nama = form.nama.value; }
+    C.batches = await call('batchList');
+    tabPicAkun();
+  });
 }
 
 function tambahPic(form) {
@@ -691,7 +807,7 @@ async function tabMateri() {
         <form onsubmit="event.preventDefault(); uploadMateri(this)">
           <div class="grid2">
             <div><label>Kategori</label>
-              <select name="kategori"><option value="materi">Materi presentasi</option><option value="latihan">Lembar latihan</option></select></div>
+              <select name="kategori">${Object.keys(KATEGORI_MATERI).map(k => `<option value="${k}">${KATEGORI_MATERI[k]}</option>`).join('')}</select></div>
             <div><label>Tampil ke peserta mulai jam (opsional)</label><input type="time" name="tampil_mulai"></div>
           </div>
           <label>File (PDF, PPT, Word, Excel, gambar — maks. 20 MB)</label>
@@ -710,7 +826,7 @@ async function tabMateri() {
           <div class="materi-item">
             <div class="materi-ikon">${IKON_FILE[m.tipe_file] || '📄'}</div>
             <div class="grow"><b>${esc(m.judul)}</b>
-              <div class="small muted">${m.kategori === 'latihan' ? 'Lembar latihan' : 'Materi'} · ${esc(m.tipe_file.toUpperCase())}
+              <div class="small muted">${esc(KATEGORI_MATERI[m.kategori] || 'Materi')} · ${esc(m.tipe_file.toUpperCase())}
                 ${m.tampil_mulai ? ' · tampil mulai ' + esc(m.tampil_mulai) : ''}</div></div>
             <div class="row">
               <a class="btn sm" href="${esc(m.buka)}" target="_blank" rel="noopener">Buka</a>
@@ -1204,4 +1320,89 @@ function sklUnduhSemua(btn) {
     const res = await call('sklUnduhSemua', { id_batch: C.batch.id_batch });
     simpanFile(res.nama, res.data, 'application/pdf');
   }, 'Menyusun PDF…');
+}
+
+// ----------------------------------------------------- Tab: Dashboard (PIC & Admin)
+const LEVEL_PENGINGAT = { bad: ['b-alpa', 'Segera'], warn: ['b-belum', 'Perlu'], info: ['b-izin', 'Info'] };
+const FASE_BATCH = { berjalan: ['b-hadir', 'Berjalan'], akan: ['b-izin', 'Akan datang'], selesai: ['b-none', 'Selesai'] };
+const TAB_LABEL = { peserta: 'Peserta', lokasi: 'Jadwal & Lokasi', rundown: 'Rundown', materi: 'Materi', dok: 'Dokumentasi',
+  monitor: 'Absensi', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
+
+async function tabDashboard() {
+  const v = C.view;
+  try {
+    const d = await call('dasborPic');
+    C.dasbor = d;
+    const bs = d.batches;
+    const semua = [];
+    bs.forEach((b, i) => b.pengingat.forEach((p, j) => semua.push({ b: b, i: i, j: j, p: p })));
+    const urut = { bad: 0, warn: 1, info: 2 };
+    semua.sort((x, y) => urut[x.p.level] - urut[y.p.level]);
+    const berjalan = bs.filter(b => b.fase === 'berjalan');
+    let hadir = 0, total = 0;
+    berjalan.forEach(b => (b.hari_ini ? b.hari_ini.sesi : []).forEach(s => {
+      if (s.state !== 'belum_dibuka') { hadir += s.hadir; total += b.peserta; }
+    }));
+    const penting = semua.filter(x => x.p.level !== 'info').length;
+    setBody(v, `
+      <p class="muted" style="margin-top:-4px">Halo, ${esc(S.user.nama)} 👋 · ${esc(fmtTanggal(d.tanggal))}, ${esc(d.jam)} WIB</p>
+      <div class="dash-stats">
+        <div class="card stat-card"><span class="chip chip-blue">Batch berjalan</span><div class="stat-main">${berjalan.length}</div>
+          <div class="small muted">${bs.filter(b => b.fase === 'akan').length} akan datang · ${bs.filter(b => b.fase === 'selesai').length} selesai</div></div>
+        <div class="card stat-card"><span class="chip chip-blue">Peserta aktif</span><div class="stat-main">${berjalan.reduce((n, b) => n + b.peserta, 0)}</div>
+          <div class="small muted">di batch yang sedang berjalan</div></div>
+        <div class="card stat-card"><span class="chip chip-green">Kehadiran hari ini</span><div class="stat-main">${total ? Math.round(hadir / total * 100) + '%' : '–'}</div>
+          <div class="small muted">${total ? hadir + ' dari ' + total + ' absen sesi' : 'belum ada sesi yang dibuka'}</div></div>
+        <div class="card stat-card"><span class="chip ${penting ? 'chip-live' : 'chip-green'}">Pengingat</span><div class="stat-main">${penting}</div>
+          <div class="small muted">perlu ditindaklanjuti${semua.length > penting ? ' · ' + (semua.length - penting) + ' info' : ''}</div></div>
+      </div>
+      <div class="card">
+        <h2>🔔 Pengingat</h2>
+        ${semua.length ? `<div class="reminder-list">${semua.map(x => `
+          <div class="reminder r-${x.p.level}">
+            <span class="badge ${LEVEL_PENGINGAT[x.p.level][0]}">${LEVEL_PENGINGAT[x.p.level][1]}</span>
+            <div class="grow"><b>${esc(x.b.kode_batch)}</b> · ${esc(x.p.teks)}</div>
+            <button class="btn sm" onclick="bukaPengingat(${x.i}, ${x.j})">Buka ${esc(TAB_LABEL[x.p.tab] || '')} →</button>
+          </div>`).join('')}</div>`
+          : '<div class="alert info small">✅ Semua beres. Tidak ada pengingat saat ini.</div>'}
+      </div>
+      <h2 class="section-title">Batch saya</h2>
+      ${bs.length ? `<div class="grid2">${bs.map((b, i) => `
+        <div class="card dash-batch">
+          <div class="row"><div class="grow"><b>${esc(b.kode_batch)}</b> <span class="badge ${FASE_BATCH[b.fase][0]}">${FASE_BATCH[b.fase][1]}</span>
+            <div class="small">${esc(b.nama_pelatihan)}</div></div>
+            <button class="btn sm" onclick="bukaBatchDasbor(${i}, 'monitor')">Buka</button></div>
+          <div class="small muted mt">${esc(fmtTanggal(b.tgl_mulai))} – ${esc(fmtTanggal(b.tgl_selesai))} · ${b.peserta} peserta</div>
+          ${b.hari_ini ? `
+            <div class="small mt"><b>Hari ke-${esc(b.hari_ini.hari_ke)} dari ${esc(b.hari_ini.total_hari)}</b></div>
+            ${b.hari_ini.sesi.map(s => {
+              const pct = b.peserta ? Math.round(s.hadir / b.peserta * 100) : 0;
+              const ket = s.state === 'belum_dibuka' ? 'belum dibuka' : s.state === 'buka' ? 'berlangsung' : 'ditutup';
+              return `<div class="dash-sesi"><div class="row small"><span class="grow">Sesi ${s.sesi} · ${esc(s.mulai)}–${esc(s.selesai)} (${ket})</span>
+                <b>${s.hadir}/${b.peserta}</b></div><div class="bar"><span style="width:${pct}%"></span></div></div>`;
+            }).join('')}`
+            : `<div class="small muted mt">${b.fase === 'akan' ? 'Mulai ' + esc(fmtTanggal(b.tgl_mulai)) : b.fase === 'selesai' ? 'Pelatihan sudah selesai'
+              : b.berikutnya ? 'Tidak ada jadwal hari ini · berikutnya ' + esc(fmtTanggal(b.berikutnya)) : 'Tidak ada jadwal hari ini'}</div>`}
+          <div class="small mt">${b.pengingat.length ? '🔔 ' + b.pengingat.length + ' pengingat' : '✅ Tidak ada pengingat'}</div>
+        </div>`).join('')}</div>`
+        : `<div class="card center muted">${S.user.role === 'admin' ? 'Belum ada batch aktif. Buat batch baru di menu <b>Batch</b>.'
+          : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.'}</div>`}`);
+  } catch (e) { errBox(v, e); }
+}
+
+/** Pindah ke batch & tab tujuan pengingat (dan hari terkait, jika ada). */
+function bukaPengingat(i, j) {
+  const b = C.dasbor.batches[i], p = b.pengingat[j];
+  bukaBatchDasbor(i, p.tab, p.id_hari);
+}
+
+function bukaBatchDasbor(i, tab, idHari) {
+  const id = C.dasbor.batches[i].id_batch;
+  if (tab !== 'batch') {
+    C.batch = C.batches.find(b => b.id_batch === id) || C.batch;
+    store('lms_pic_batch', id);
+    if (C.hariFor !== id) C.hariFor = null;
+    C.idHari = idHari || null;
+  }
+  picTab(tab);
 }

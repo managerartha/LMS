@@ -133,6 +133,44 @@ function picTambah(array $data, array $user): array {
   return public_user($u);
 }
 
+/** Mengubah akun PIC/Admin: nama, kode, no HP, peran, status aktif, dan batch yang ditangani. */
+function picUbah(array $data, array $user): array {
+  $u = row("SELECT * FROM pengguna WHERE id_user = ? AND role IN ('pic', 'admin')", [(string)($data['id_user'] ?? '')]);
+  if (!$u) throw new LmsError('Akun PIC tidak ditemukan.');
+  $nama = preg_replace('/\s+/', ' ', trim((string)($data['nama'] ?? '')));
+  $kode = trim((string)($data['kode'] ?? ''));
+  $role = ($data['role'] ?? '') === 'admin' ? 'admin' : 'pic';
+  $aktif = !empty($data['aktif']);
+  if ($nama === '') throw new LmsError('Nama wajib diisi.');
+  if (!preg_match('/^[A-Za-z0-9._-]{3,30}$/', $kode)) throw new LmsError('Kode login 3–30 karakter (huruf, angka, titik, strip).');
+  if (row("SELECT id_user FROM pengguna WHERE role IN ('pic', 'admin') AND LOWER(kode_login) = ? AND id_user <> ?", [strtolower($kode), $u['id_user']])) {
+    throw new LmsError('Kode login sudah dipakai akun lain.');
+  }
+  if ($u['id_user'] === $user['id_user'] && ($role !== 'admin' || !$aktif)) {
+    throw new LmsError('Anda tidak bisa menurunkan peran atau menonaktifkan akun Anda sendiri.');
+  }
+  if ($u['role'] === 'admin' && ($role !== 'admin' || !$aktif)) {
+    $lain = row("SELECT COUNT(*) AS n FROM pengguna WHERE role = 'admin' AND aktif <> 'tidak' AND id_user <> ?", [$u['id_user']]);
+    if (!(int)$lain['n']) throw new LmsError('Harus ada minimal satu Admin aktif.');
+  }
+  $u = update('pengguna', $u, ['nama' => $nama, 'kode_login' => $kode, 'no_hp' => trim((string)($data['no_hp'] ?? '')),
+    'role' => $role, 'aktif' => $aktif ? 'ya' : 'tidak']);
+  if (!$aktif) q('DELETE FROM token WHERE id_user = ?', [$u['id_user']]); // langsung keluar dari semua perangkat
+  if (isset($data['batch_ids']) && is_array($data['batch_ids'])) {
+    $pilih = array_map('strval', $data['batch_ids']);
+    foreach (rows("SELECT * FROM batch WHERE status <> 'arsip'") as $b) { // batch arsip tidak tampil di formulir, jadi tidak diubah
+      $ids = pic_ids($b);
+      $ada = in_array($u['id_user'], $ids, true);
+      $mau = in_array($b['id_batch'], $pilih, true);
+      if ($ada === $mau) continue;
+      $ids = $mau ? array_merge($ids, [$u['id_user']]) : array_values(array_diff($ids, [$u['id_user']]));
+      update('batch', $b, ['pic_ids' => implode(',', $ids)]);
+    }
+  }
+  log_($user, 'pic_ubah', "$nama ($kode), $role" . ($aktif ? '' : ', nonaktif'));
+  return public_user($u);
+}
+
 function picResetPin(array $data, array $user): bool {
   $u = row("SELECT * FROM pengguna WHERE id_user = ? AND role IN ('pic', 'admin')", [(string)($data['id_user'] ?? '')]);
   if (!$u) throw new LmsError('PIC tidak ditemukan.');

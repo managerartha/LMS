@@ -113,6 +113,9 @@ function wib(date) {
 
 function jamSaja(stamp) { return stamp ? stamp.slice(11, 16) : ''; }
 
+/** Kategori materi (sama dengan server). */
+const KATEGORI_MATERI = { materi: 'Materi presentasi', modul: 'Modul', bahan_ajar: 'Bahan ajar', latihan: 'Lembar latihan' };
+
 const STATUS_LABEL = { hadir: 'Hadir', izin: 'Izin', sakit: 'Sakit', alpa: 'Alpa', belum: 'Belum absen', '': '—' };
 function badge(status) {
   return '<span class="badge b-' + (status || 'none') + '">' + esc(STATUS_LABEL[status] || status) + '</span>';

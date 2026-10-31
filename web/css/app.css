@@ -219,6 +219,32 @@ body.login-mode .topbar { display: none; }
 .mini-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
 .mini-val { font-size: 22px; font-weight: 800; color: var(--hero-1); }
 
+/* ---------- PIC/Admin: menu berkelompok, pilihan batch, dashboard & pengingat */
+.shell-main { min-width: 0; }
+.nav-group { display: none; }
+.batch-pilih { display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--line);
+  border-radius: 12px; padding: 6px 6px 6px 14px; }
+.batch-pilih select { border: 0; background: transparent; font-weight: 700; color: var(--navy); padding: 8px 4px; min-width: 0; }
+.dash-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.dash-stats .card { margin-bottom: 0; }
+.dash-stats .stat-main { font-size: 28px; }
+@media (min-width: 900px) {
+  .nav-group { display: block; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase;
+    color: var(--muted); padding: 12px 14px 4px; }
+  .dash-stats { grid-template-columns: repeat(4, 1fr); }
+}
+.reminder-list { display: flex; flex-direction: column; gap: 8px; }
+.reminder { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 12px; border-radius: 12px;
+  background: #f6f7fb; border-left: 4px solid var(--line); font-size: 14px; }
+.reminder .grow { min-width: 180px; }
+.reminder.r-bad { background: var(--bad-bg); border-left-color: var(--bad); }
+.reminder.r-warn { background: var(--warn-bg); border-left-color: #f0a030; }
+.reminder.r-info { border-left-color: var(--info); }
+.dash-batch .grid2 { margin: 0; }
+.dash-sesi { margin-top: 8px; }
+.bar { height: 8px; background: #eef0f6; border-radius: 99px; overflow: hidden; margin-top: 4px; }
+.bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); border-radius: 99px; }
+
 #print-area { display: none; }
 .cards-print { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .kartu { border: 1.5px dashed #555; border-radius: 8px; padding: 10px; break-inside: avoid; font-size: 12px; }

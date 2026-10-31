@@ -246,7 +246,7 @@ function materiHtml(items) {
       <div class="materi-ikon">${IKON_FILE[m.tipe_file] || '📄'}</div>
       <div class="grow">
         <b>${esc(m.judul)}</b>
-        <div class="small muted">${m.kategori === 'latihan' ? 'Lembar latihan' : 'Materi'} · ${esc(m.tipe_file.toUpperCase())}</div>
+        <div class="small muted">${esc(m.kategori === 'materi' ? 'Materi' : KATEGORI_MATERI[m.kategori] || 'Materi')} · ${esc(m.tipe_file.toUpperCase())}</div>
       </div>
       <div class="row">
         <a class="btn sm" href="${esc(m.buka)}" target="_blank" rel="noopener">Buka</a>

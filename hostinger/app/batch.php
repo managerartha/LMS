@@ -38,7 +38,8 @@ function batch_view(array $b): array {
 
 function batchList(array $data, array $user): array {
   $list = array_values(array_filter(rows('SELECT * FROM batch'), fn($b) => can_access_batch($user, $b)));
-  usort($list, fn($a, $b) => $a['status'] === $b['status'] ? strcmp($b['tgl_mulai'], $a['tgl_mulai']) : ($a['status'] === 'aktif' ? -1 : 1));
+  $urut = ['aktif' => 0, 'selesai' => 1, 'arsip' => 2];
+  usort($list, fn($a, $b) => ($urut[$a['status']] ?? 1) <=> ($urut[$b['status']] ?? 1) ?: strcmp($b['tgl_mulai'], $a['tgl_mulai']));
   return array_map('batch_view', $list);
 }
 
@@ -94,7 +95,7 @@ function batchUbah(array $data, array $user): array {
   foreach ($editable as $k) if (array_key_exists($k, $d)) $changes[$k] = str_val($d[$k]);
   if ($user['role'] === 'admin' && isset($d['pic_ids']) && is_array($d['pic_ids'])) $changes['pic_ids'] = implode(',', $d['pic_ids']);
   if ($user['role'] === 'admin' && array_key_exists('lewati_weekend', $d)) $changes['lewati_weekend'] = $d['lewati_weekend'] ? 'ya' : '';
-  if (isset($changes['status']) && !in_array($changes['status'], ['aktif', 'selesai'], true)) throw new LmsError('Status tidak valid.');
+  if (isset($changes['status']) && !in_array($changes['status'], ['aktif', 'selesai', 'arsip'], true)) throw new LmsError('Status tidak valid.');
   validasi_batch(array_merge($b, $changes));
   $hariBerubah = false;
   foreach (['tgl_mulai', 'tgl_selesai', 'lewati_weekend'] as $k) if (isset($changes[$k]) && $changes[$k] !== $b[$k]) $hariBerubah = true;

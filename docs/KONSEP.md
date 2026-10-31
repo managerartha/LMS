@@ -398,3 +398,16 @@ Browser (HP/laptop) ──HTTPS──▶ lms.arthasafetyindonesia.com (Hostinger
 - Data: tabel `skl` (satu baris per peserta), kolom `pengguna.tempat_lahir`, `pengguna.tgl_lahir`, `batch.jenis_pelatihan`. Ditambahkan otomatis ke database yang sudah terpasang (`pastikan_skema()`).
 - PDF dibuat saat diunduh (`app/skl.php`, fungsi `skl_html`) dari data terbaru; PIC juga bisa mengunduh semua SKL terbit satu batch dalam satu PDF.
 - **Tata letak**: sama dengan template "Surat Keterangan Mengikuti" Artha Safety (kertas 624×870,5 pt). Latar, logo, judul, tanda tangan & cap direktur diambil dari template (`app/skl-latar.jpg`); teks diisi di posisi yang sama.
+
+## 14. Dashboard PIC/Admin, menu, arsip, kategori materi, edit akun PIC
+
+- **Dashboard** (menu pertama setelah login PIC/Admin, `app/dasbor.php`): ringkasan batch berjalan, peserta aktif, kehadiran hari ini, dan **pengingat** per batch (bukan arsip) dengan tombol langsung ke menu terkait:
+  - lokasi absen hari ini / hari pelatihan berikutnya (H-3) belum diatur;
+  - rundown hari ini/berikutnya belum dibuat atau masih draft; materi belum diupload;
+  - dokumentasi hari pelatihan sebelumnya (dan hari ini setelah sesi 2) belum diupload;
+  - peserta belum ditambahkan (≤ 7 hari sebelum mulai); peserta yang belum absen pada sesi berjalan;
+  - setelah selesai: laporan resmi belum dibuat, SKL belum diterbitkan, batch perlu ditutup/diarsipkan.
+- **Menu** PIC/Admin memakai gaya yang sama dengan menu peserta: menu samping berikon & berkelompok (Kegiatan harian, Persiapan, Akhir pelatihan, Admin) di layar lebar, menu geser di HP.
+- **Arsip batch**: status `arsip` (tombol *Arsipkan* di menu Batch untuk batch yang selesai/lewat tanggal). Batch arsip disembunyikan dari pilihan batch & Dashboard; datanya tetap bisa dilihat (*Lihat data*) atau dipulihkan (*Pulihkan* → status Selesai). Peserta dengan SKL terbit tetap bisa mengunduh SKL.
+- **Kategori materi**: Materi presentasi, Modul, Bahan ajar, Lembar latihan.
+- **Edit akun PIC** (Admin, `picUbah`): nama, kode login, no HP, hak akses (PIC/Admin), aktif/nonaktif (nonaktif = langsung keluar dari semua perangkat), dan batch yang ditangani. Admin tidak bisa menurunkan/menonaktifkan akunnya sendiri; minimal satu Admin aktif.
