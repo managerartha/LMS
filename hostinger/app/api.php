@@ -24,7 +24,7 @@ const ROUTES = [
   'ttdSaya' => 'pic', 'ttdSayaSimpan' => 'pic', 'laporanList' => 'pic', 'laporanBuat' => 'pic', 'laporanUnduh' => 'pic',
   'infoLaporanGet' => 'pic', 'infoLaporanSimpan' => 'pic',
   'sklSaya' => 'user', 'sklUnduh' => 'user', 'sklList' => 'pic', 'sklSimpanData' => 'pic', 'sklTerbitkan' => 'pic', 'sklTahan' => 'pic', 'sklUnduhSemua' => 'pic',
-  'batchBuat' => 'admin', 'picList' => 'admin', 'picTambah' => 'admin', 'picResetPin' => 'admin', 'picUbah' => 'admin', 'dasborPic' => 'pic',
+  'batchBuat' => 'admin', 'picList' => 'admin', 'picTambah' => 'admin', 'picResetPin' => 'admin', 'picUbah' => 'admin', 'batchHapus' => 'admin', 'dasborPic' => 'pic',
   'narasumberList' => 'pic', 'narasumberAbsen' => 'pic', 'narasumberHapus' => 'pic', 'orgSimpan' => 'admin', 'orgTtdSimpan' => 'admin',
 ];
 

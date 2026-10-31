@@ -105,6 +105,43 @@ function batchUbah(array $data, array $user): array {
   return batch_view($b);
 }
 
+/**
+ * Menghapus batch beserta SEMUA datanya (hari, peserta, absensi, rundown, materi, dokumentasi, laporan, SKL,
+ * absensi narasumber) dan file-filenya. Tidak bisa dibatalkan. Konfirmasi = kode batch diketik ulang.
+ */
+function batchHapus(array $data, array $user): bool {
+  $b = get_batch((string)($data['id_batch'] ?? ''));
+  if (trim((string)($data['konfirmasi'] ?? '')) !== $b['kode_batch']) throw new LmsError('Ketik kode batch "' . $b['kode_batch'] . '" dengan benar untuk menghapus.');
+  $pdo = db();
+  $pdo->beginTransaction();
+  try {
+    q("DELETE FROM token WHERE id_user IN (SELECT id_user FROM pengguna WHERE role = 'peserta' AND id_batch = ?)", [$b['id_batch']]);
+    q("DELETE FROM pengguna WHERE role = 'peserta' AND id_batch = ?", [$b['id_batch']]);
+    foreach (['absensi', 'rundown', 'materi', 'dokumentasi', 'laporan', 'skl', 'absen_narasumber', 'hari'] as $t) {
+      q("DELETE FROM `$t` WHERE id_batch = ?", [$b['id_batch']]);
+    }
+    q('DELETE FROM batch WHERE id_batch = ?', [$b['id_batch']]);
+    $pdo->commit();
+  } catch (Throwable $e) {
+    $pdo->rollBack();
+    throw $e;
+  }
+  // File batch: storage/<folder> (foto absen, tanda tangan, laporan) dan uploads/<folder> (materi, dokumentasi).
+  if ($b['folder'] !== '' && !row('SELECT id_batch FROM batch WHERE folder = ?', [$b['folder']])) {
+    foreach ([STORAGE, UPLOADS] as $root) hapus_folder($root . '/' . folder_aman($b['folder']));
+  }
+  log_($user, 'batch_hapus', $b['kode_batch'] . ' — ' . $b['nama_pelatihan']);
+  return true;
+}
+
+function hapus_folder(string $dir): void {
+  if (!is_dir($dir) || is_link($dir)) return;
+  foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST) as $f) {
+    $f->isDir() && !$f->isLink() ? @rmdir($f->getPathname()) : @unlink($f->getPathname());
+  }
+  @rmdir($dir);
+}
+
 /** Menyamakan daftar hari dengan rentang tanggal batch. Hari yang sudah ada absensinya tidak dihapus. */
 function sync_hari(array $batch): void {
   $want = [];

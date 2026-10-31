@@ -419,3 +419,9 @@ Browser (HP/laptop) ──HTTPS──▶ lms.arthasafetyindonesia.com (Hostinger
 - Tabel `absen_narasumber` (snapshot nama, instansi, materi, jam; tanda tangan PNG di `storage/<batch>/narasumber/`), ditambahkan otomatis (skema versi 3).
 - Rekap otomatis: laporan resmi mendapat halaman **DAFTAR HADIR NARASUMBER** (setelah daftar materi & pemateri; hanya jika ada narasumber) dan persyaratan *Daftar Hadir Pemateri* tercentang otomatis bila ada tanda tangan; laporan harian mendapat tabel **Daftar Hadir Narasumber** di bawah rundown.
 - Dashboard: pengingat narasumber yang sesinya sudah dimulai (hari ini) atau hari pelatihan sebelumnya tetapi belum tanda tangan.
+
+## 16. Hapus batch
+
+- Menu **Batch** (Admin): tombol **🗑 Hapus** di setiap batch (aktif, selesai, maupun arsip). Wajib mengetik ulang kode batch.
+- Menghapus permanen batch beserta peserta (dan sesi login-nya), hari, absensi, rundown, materi, dokumentasi, laporan, SKL, absensi narasumber, serta folder file `storage/<batch>` dan `uploads/<batch>`. Akun PIC/Admin dan batch lain tidak tersentuh.
+- Untuk pelatihan sungguhan yang sudah selesai gunakan **Arsipkan**; hapus ditujukan untuk batch percobaan/dummy.

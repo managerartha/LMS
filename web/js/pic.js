@@ -471,7 +471,8 @@ async function tabBatch() {
               <td class="row"><button class="btn sm" onclick="dialogBatch(${i})">Ubah</button>
                 ${b.status === 'selesai' || b.tgl_selesai < wib(serverNow()).tanggal
                   ? `<button class="btn sm" onclick="arsipBatch(this, ${i}, true)">🗄 Arsipkan</button>` : ''}
-                ${b.folder_url ? `<a class="btn sm" href="${esc(b.folder_url)}" target="_blank">Drive</a>` : ''}</td>
+                ${b.folder_url ? `<a class="btn sm" href="${esc(b.folder_url)}" target="_blank">Drive</a>` : ''}
+                <button class="btn sm danger" onclick="dialogHapusBatch(${i})">🗑 Hapus</button></td>
             </tr>`).join('')}
           </tbody></table>` : '<div class="muted">Belum ada batch.</div>'}
       </div>
@@ -487,7 +488,8 @@ async function tabBatch() {
               <td class="small">${esc(b.tgl_mulai)}<br>${esc(b.tgl_selesai)}</td>
               <td>${esc(b.jumlah_peserta)}</td>
               <td class="row"><button class="btn sm" onclick="bukaArsip('${esc(b.id_batch)}')">Lihat data</button>
-                <button class="btn sm" onclick="arsipBatch(this, ${i}, false)">↩ Pulihkan</button></td>
+                <button class="btn sm" onclick="arsipBatch(this, ${i}, false)">↩ Pulihkan</button>
+                <button class="btn sm danger" onclick="dialogHapusBatch(${i})">🗑 Hapus</button></td>
             </tr>`).join('')}
           </tbody></table>
       </div>` : ''}`);
@@ -566,6 +568,37 @@ function arsipBatch(btn, i, arsip) {
     if (arsip && C.batch && C.batch.id_batch === b.id_batch) C.batch = C.batches.find(x => x.status !== 'arsip') || null;
     picTab('batch');
   });
+}
+
+/** Hapus permanen batch (mis. batch percobaan): wajib mengetik ulang kode batch. */
+function dialogHapusBatch(i) {
+  const b = C.batches[i];
+  openModal(`
+    <h2>Hapus batch ${esc(b.kode_batch)}?</h2>
+    <div class="alert bad small"><b>Tidak bisa dibatalkan.</b> Semua data batch <b>${esc(b.kode_batch)} — ${esc(b.nama_pelatihan)}</b> akan dihapus permanen:
+      ${esc(b.jumlah_peserta)} peserta beserta absensi, foto & tanda tangannya, rundown, materi, dokumentasi, laporan PDF, SKL, dan absensi narasumber.</div>
+    <p class="small muted">Untuk pelatihan sungguhan yang sudah selesai, gunakan <b>🗄 Arsipkan</b> agar datanya tetap tersimpan.
+      Hapus hanya untuk batch percobaan/dummy.</p>
+    <label>Ketik kode batch <b>${esc(b.kode_batch)}</b> untuk konfirmasi</label>
+    <input id="hapus-kode" autocomplete="off" placeholder="${esc(b.kode_batch)}">
+    <div class="row mt"><button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn primary grow" style="background:var(--bad);border-color:var(--bad)" onclick="hapusBatch(this, ${i})">🗑 Hapus permanen</button></div>`);
+}
+
+function hapusBatch(btn, i) {
+  const b = C.batches[i];
+  const kode = $('#hapus-kode').value.trim();
+  if (kode !== b.kode_batch) return toast('Kode batch tidak sesuai. Ketik: ' + b.kode_batch, 'error');
+  busy(btn, async () => {
+    await call('batchHapus', { id_batch: b.id_batch, konfirmasi: kode });
+    closeModal(); toast('Batch ' + b.kode_batch + ' dihapus.', 'ok');
+    C.batches = await call('batchList');
+    if (C.batch && C.batch.id_batch === b.id_batch) {
+      C.batch = C.batches.find(x => x.status !== 'arsip') || null;
+      C.idHari = null; C.hariFor = null;
+    }
+    picTab('batch');
+  }, 'Menghapus…');
 }
 
 /** Membuka data batch arsip (absensi, laporan, SKL, dst.) tanpa memulihkannya. */
