@@ -82,6 +82,15 @@ function dasbor_batch(array $b, array $now, array $user): array {
     if ($hIni && $now['time'] >= $b['sesi2_selesai'] && !row('SELECT id_dok FROM dokumentasi WHERE id_hari = ? LIMIT 1', [$hIni['id_hari']])) {
       $p[] = pengingat_('info', 'Dokumentasi hari ini belum diupload.', 'dok', $hIni['id_hari']);
     }
+    // Narasumber yang sesinya sudah dimulai tapi belum tanda tangan (hari ini & hari pelatihan sebelumnya)
+    foreach ([[$hIni, true], [$fase === 'berjalan' ? $kemarin : null, false]] as [$h, $isToday]) {
+      if (!$h) continue;
+      $belum = array_filter(daftar_narasumber($h), fn($x) => !$x['absen'] && (!$isToday || $x['jam_mulai'] <= $now['time']));
+      if ($belum) {
+        $p[] = pengingat_('warn', count($belum) . ' narasumber ' . ($isToday ? 'hari ini' : label_hari($h)) . ' belum tanda tangan absensi ('
+          . implode(', ', array_map(fn($x) => $x['nama'], array_slice(array_values($belum), 0, 3))) . (count($belum) > 3 ? ', …' : '') . ').', 'narasumber', $h['id_hari']);
+      }
+    }
     // Sesi yang sedang berjalan
     foreach ($absenHariIni['sesi'] ?? [] as $s) {
       if ($s['state'] === 'buka' && $s['belum'] > 0) {

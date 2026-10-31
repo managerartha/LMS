@@ -9,6 +9,7 @@ require_once __DIR__ . '/konten.php';
 require_once __DIR__ . '/laporan.php';
 require_once __DIR__ . '/skl.php';
 require_once __DIR__ . '/dasbor.php';
+require_once __DIR__ . '/narasumber.php';
 
 /** auth: '' = publik, 'user' = sudah login, 'pic' = PIC/Admin, 'admin' = Admin. */
 const ROUTES = [
@@ -23,7 +24,8 @@ const ROUTES = [
   'ttdSaya' => 'pic', 'ttdSayaSimpan' => 'pic', 'laporanList' => 'pic', 'laporanBuat' => 'pic', 'laporanUnduh' => 'pic',
   'infoLaporanGet' => 'pic', 'infoLaporanSimpan' => 'pic',
   'sklSaya' => 'user', 'sklUnduh' => 'user', 'sklList' => 'pic', 'sklSimpanData' => 'pic', 'sklTerbitkan' => 'pic', 'sklTahan' => 'pic', 'sklUnduhSemua' => 'pic',
-  'batchBuat' => 'admin', 'picList' => 'admin', 'picTambah' => 'admin', 'picResetPin' => 'admin', 'picUbah' => 'admin', 'dasborPic' => 'pic', 'orgSimpan' => 'admin', 'orgTtdSimpan' => 'admin',
+  'batchBuat' => 'admin', 'picList' => 'admin', 'picTambah' => 'admin', 'picResetPin' => 'admin', 'picUbah' => 'admin', 'dasborPic' => 'pic',
+  'narasumberList' => 'pic', 'narasumberAbsen' => 'pic', 'narasumberHapus' => 'pic', 'orgSimpan' => 'admin', 'orgTtdSimpan' => 'admin',
 ];
 
 function waktu(): array { return ['now' => lms_ms()]; }

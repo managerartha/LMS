@@ -243,6 +243,7 @@ function bagian_hari(array $batch, array $r, array $peserta): string {
   $out[] = $rd ? '<table class="data"><tr><th style="width:85px">Waktu</th><th>Kegiatan</th><th>Pemateri</th><th>Keterangan</th></tr>' .
     implode('', array_map(fn($x) => '<tr><td>' . h_($x['jam_mulai']) . '–' . h_($x['jam_selesai']) . '</td><td>' . h_($x['kegiatan']) . '</td><td>' .
       h_($x['pemateri']) . '</td><td>' . h_($x['keterangan']) . '</td></tr>', $rd)) . '</table>' : '<p class="muted">Rundown belum diisi.</p>';
+  $out[] = narasumber_harian($h);
   $out[] = '<h3>B. Daftar Hadir</h3>';
   $head = implode('', array_map(fn($s) => '<th>Sesi ' . $s . ' (' . h_(jam_sesi($batch, $s)['mulai']) . '–' . h_(jam_sesi($batch, $s)['selesai']) . ')</th>', SESI));
   $body = '';
@@ -428,6 +429,8 @@ function laporan_resmi_html(array $batch, array $hariList, string $jenis, int $d
     $out[] = halaman($org, penyelenggaraan($batch, $hariList, $info, $org));
     $out[] = halaman($org, jadwal_kegiatan($hariList));
     $out[] = halaman($org, daftar_materi($hariList));
+    $narasumber = daftar_hadir_narasumber($hariList);
+    if ($narasumber !== '') $out[] = halaman($org, $narasumber);
   }
   $out[] = absensi_peserta($batch, $hariList, $info, $peserta, $now, $jenis !== 'resmi');
   if ($jenis === 'resmi') $out[] = halaman($org, dokumentasi_resmi($hariList));
@@ -456,8 +459,9 @@ function penyelenggaraan(array $batch, array $hariList, array $info, array $org)
   $adaRundown = (bool)row('SELECT id_rundown FROM rundown WHERE id_batch = ? LIMIT 1', [$batch['id_batch']]);
   $adaAbsen = (bool)row("SELECT id_absen FROM absensi WHERE id_batch = ? AND status = 'hadir' LIMIT 1", [$batch['id_batch']]);
   $adaDok = (bool)row('SELECT id_dok FROM dokumentasi WHERE id_batch = ? LIMIT 1', [$batch['id_batch']]);
+  $adaNarasumber = (bool)row('SELECT id_an FROM absen_narasumber WHERE id_batch = ? LIMIT 1', [$batch['id_batch']]);
   $syarat = [['Surat Permohonan', $info['surat_permohonan']], ['BAP', $info['bap']], ['Jadwal Kegiatan', $adaRundown],
-    ['Daftar Hadir Pemateri', $info['daftar_hadir_pemateri']], ['Daftar Hadir Peserta', $adaAbsen], ['Foto Kegiatan', $adaDok]];
+    ['Daftar Hadir Pemateri', $info['daftar_hadir_pemateri'] || $adaNarasumber], ['Daftar Hadir Peserta', $adaAbsen], ['Foto Kegiatan', $adaDok]];
   $jumlah = count(peserta_batch($batch['id_batch'], false));
   $pendaftar = $info['jumlah_pendaftar'] === '' ? $jumlah : $info['jumlah_pendaftar'];
   $sp = '&nbsp;&nbsp;';

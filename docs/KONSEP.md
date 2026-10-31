@@ -411,3 +411,11 @@ Browser (HP/laptop) ──HTTPS──▶ lms.arthasafetyindonesia.com (Hostinger
 - **Arsip batch**: status `arsip` (tombol *Arsipkan* di menu Batch untuk batch yang selesai/lewat tanggal). Batch arsip disembunyikan dari pilihan batch & Dashboard; datanya tetap bisa dilihat (*Lihat data*) atau dipulihkan (*Pulihkan* → status Selesai). Peserta dengan SKL terbit tetap bisa mengunduh SKL.
 - **Kategori materi**: Materi presentasi, Modul, Bahan ajar, Lembar latihan.
 - **Edit akun PIC** (Admin, `picUbah`): nama, kode login, no HP, hak akses (PIC/Admin), aktif/nonaktif (nonaktif = langsung keluar dari semua perangkat), dan batch yang ditangani. Admin tidak bisa menurunkan/menonaktifkan akunnya sendiri; minimal satu Admin aktif.
+
+## 15. Absensi narasumber
+
+- Menu **Absensi Narasumber** (PIC/Admin saja, `app/narasumber.php`): narasumber cukup **tanda tangan digital** di perangkat PIC/Admin, tanpa foto. Waktu tercatat dari server.
+- Daftar per hari diambil otomatis dari **rundown** (setiap kegiatan yang mencantumkan pemateri); narasumber di luar rundown bisa dicatat lewat **＋ Narasumber lain**. Satu tanda tangan per kegiatan; **Ulangi** menghapus tanda tangan agar bisa diisi ulang. Hanya bisa diisi pada hari pelatihan itu atau sesudahnya.
+- Tabel `absen_narasumber` (snapshot nama, instansi, materi, jam; tanda tangan PNG di `storage/<batch>/narasumber/`), ditambahkan otomatis (skema versi 3).
+- Rekap otomatis: laporan resmi mendapat halaman **DAFTAR HADIR NARASUMBER** (setelah daftar materi & pemateri; hanya jika ada narasumber) dan persyaratan *Daftar Hadir Pemateri* tercentang otomatis bila ada tanda tangan; laporan harian mendapat tabel **Daftar Hadir Narasumber** di bawah rundown.
+- Dashboard: pengingat narasumber yang sesinya sudah dimulai (hari ini) atau hari pelatihan sebelumnya tetapi belum tanda tangan.

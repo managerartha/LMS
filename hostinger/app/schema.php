@@ -21,6 +21,8 @@ const SCHEMA = [
     'diupload_oleh', 'diupload_pada', 'file_kecil_id'],
   'laporan' => ['id_laporan', 'id_batch', 'jenis', 'id_hari', 'file_id', 'dibuat_oleh', 'dibuat_pada', 'nama_file'],
   'skl' => ['id_skl', 'id_batch', 'id_user', 'nomor', 'urut', 'tahun', 'status', 'tgl_terbit', 'diubah_oleh', 'diubah_pada'],
+  'absen_narasumber' => ['id_an', 'id_batch', 'id_hari', 'id_rundown', 'nama', 'instansi', 'materi', 'jam_mulai', 'jam_selesai',
+    'ttd_id', 'waktu_server', 'dibuat_oleh'],
   'log' => ['id_log', 'waktu', 'id_user', 'nama', 'aksi', 'detail'],
   'pengaturan' => ['kunci', 'nilai'],
   'geo_cache' => ['kunci', 'alamat'],
@@ -28,7 +30,7 @@ const SCHEMA = [
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '2';
+const SCHEMA_VERSI = '3';
 
 const SCHEMA_TEXT = ['info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 
@@ -43,6 +45,7 @@ const SCHEMA_INDEX = [
   'dokumentasi' => [['id_hari'], ['id_batch']],
   'laporan' => [['id_batch']],
   'skl' => [['id_batch']],
+  'absen_narasumber' => [['id_hari'], ['id_batch']],
 ];
 
 /** Satu absen per peserta per sesi per hari (mencegah absen dobel di tingkat database). */

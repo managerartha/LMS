@@ -29,13 +29,14 @@ function pilihBatch(id) {
 /** Menu PIC/Admin: [kode, ikon, label, grup]. Grup tampil sebagai judul kecil di menu samping (layar lebar). */
 const NAV_PIC = [
   ['dashboard', '🏠', 'Dashboard', ''],
-  ['monitor', '✅', 'Absensi', 'Kegiatan harian'], ['rundown', '🗓️', 'Rundown', 'Kegiatan harian'],
+  ['monitor', '✅', 'Absensi', 'Kegiatan harian'], ['narasumber', '🎤', 'Absensi Narasumber', 'Kegiatan harian'],
+  ['rundown', '🗓️', 'Rundown', 'Kegiatan harian'],
   ['materi', '📚', 'Materi', 'Kegiatan harian'], ['dok', '📷', 'Dokumentasi', 'Kegiatan harian'],
   ['peserta', '👥', 'Peserta', 'Persiapan'], ['lokasi', '📍', 'Jadwal & Lokasi', 'Persiapan'],
   ['laporan', '📄', 'Laporan', 'Akhir pelatihan'], ['skl', '🎓', 'SKL', 'Akhir pelatihan'],
   ['batch', '🗂️', 'Batch', 'Admin'], ['pic', '🔑', 'Akun PIC', 'Admin'],
 ];
-const TAB_BATCH = ['monitor', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
+const TAB_BATCH = ['monitor', 'narasumber', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
 
 function picTab(tab) {
   C.tab = tab;
@@ -76,7 +77,7 @@ function picTab(tab) {
       (admin ? 'Belum ada batch. Buat batch baru di menu <b>Batch</b>.' : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.') + '</div>';
     return;
   }
-  ({ dashboard: tabDashboard, monitor: tabMonitor, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl,
+  ({ dashboard: tabDashboard, monitor: tabMonitor, narasumber: tabNarasumber, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl,
     peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun })[aktif[0]]();
 }
 
@@ -1326,7 +1327,7 @@ function sklUnduhSemua(btn) {
 const LEVEL_PENGINGAT = { bad: ['b-alpa', 'Segera'], warn: ['b-belum', 'Perlu'], info: ['b-izin', 'Info'] };
 const FASE_BATCH = { berjalan: ['b-hadir', 'Berjalan'], akan: ['b-izin', 'Akan datang'], selesai: ['b-none', 'Selesai'] };
 const TAB_LABEL = { peserta: 'Peserta', lokasi: 'Jadwal & Lokasi', rundown: 'Rundown', materi: 'Materi', dok: 'Dokumentasi',
-  monitor: 'Absensi', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
+  monitor: 'Absensi', narasumber: 'Absensi Narasumber', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
 
 async function tabDashboard() {
   const v = C.view;
@@ -1405,4 +1406,87 @@ function bukaBatchDasbor(i, tab, idHari) {
     C.idHari = idHari || null;
   }
   picTab(tab);
+}
+
+// ----------------------------------------------------- Tab: Absensi narasumber (tanda tangan saja)
+async function tabNarasumber() {
+  const v = C.view;
+  try {
+    await muatHari();
+    if (!C.idHari) return setBody(v, '<div class="card center muted">Batch ini belum memiliki hari pelatihan.</div>');
+    const res = await call('narasumberList', { id_hari: C.idHari });
+    C.ns = res.items;
+    const h = hariAktif();
+    const nanti = !res.bisa_isi;
+    const sudah = C.ns.filter(x => x.absen).length;
+    setBody(v, `
+      <div class="card">
+        <div class="row">${hariSelect('tabNarasumber')}</div>
+        <p class="small muted mt">Setiap narasumber menandatangani daftar hadir di HP/laptop PIC pada sesinya (tanpa foto).
+          Daftar diambil dari <b>Rundown</b> (kegiatan yang mencantumkan pemateri) dan otomatis masuk ke laporan resmi &amp; laporan harian.</p>
+      </div>
+      <div class="card">
+        <div class="row mb"><h2 class="grow">Narasumber ${esc('Hari ke-' + h.hari_ke)} (${sudah}/${C.ns.length} tanda tangan)</h2>
+          ${nanti ? '' : '<button class="btn sm" onclick="dialogNarasumber(-1)">＋ Narasumber lain</button>'}</div>
+        ${nanti ? '<div class="alert info small">Absensi narasumber bisa diisi mulai hari pelatihan ini berlangsung.</div>' : ''}
+        ${C.ns.length ? `<div class="table-wrap"><table>
+          <thead><tr><th>Waktu</th><th>Materi</th><th>Narasumber</th><th>Tanda tangan</th><th></th></tr></thead>
+          <tbody>${C.ns.map((x, i) => `
+            <tr>
+              <td class="small">${esc(x.jam_mulai)}–${esc(x.jam_selesai)}</td>
+              <td>${esc(x.materi)}</td>
+              <td>${esc(x.nama)}<div class="small muted">${esc(x.instansi)}</div></td>
+              <td>${x.absen ? `<img src="${x.absen.ttd}" alt="Tanda tangan" style="height:46px;background:#fff">
+                  <div class="small muted">${esc(jamSaja(x.absen.waktu))} WIB · ${esc(x.absen.oleh)}</div>`
+                : '<span class="badge b-belum">Belum</span>'}</td>
+              <td>${x.absen ? `<button class="btn sm danger" onclick="hapusNarasumber(this, ${i})">Ulangi</button>`
+                : nanti ? '' : `<button class="btn sm primary" onclick="dialogNarasumber(${i})">✍️ Tanda tangan</button>`}</td>
+            </tr>`).join('')}
+          </tbody></table></div>`
+          : `<div class="muted small">Belum ada narasumber untuk hari ini. Isi nama <b>Pemateri</b> pada kegiatan di menu <b>Rundown</b>,
+              atau catat lewat tombol <b>＋ Narasumber lain</b>.</div>`}
+      </div>`);
+  } catch (e) { errBox(v, e); }
+}
+
+/** i = indeks baris dari rundown; -1 = narasumber lain (diisi manual). */
+function dialogNarasumber(i) {
+  const x = i >= 0 ? C.ns[i] : null;
+  openModal(`
+    <h2>Absensi narasumber</h2>
+    ${x ? `<p class="small muted">${esc(x.jam_mulai)}–${esc(x.jam_selesai)} · ${esc(x.materi)}</p>` : `
+      <label>Materi / kegiatan</label><input id="ns-materi" placeholder="mis. Dasar-dasar K3">
+      <div class="grid2">
+        <div><label>Jam mulai</label><input id="ns-mulai" type="time"></div>
+        <div><label>Jam selesai</label><input id="ns-selesai" type="time"></div>
+      </div>`}
+    <label>Nama narasumber</label><input id="ns-nama" value="${esc(x ? x.nama : '')}">
+    <label>Instansi</label><input id="ns-instansi" value="${esc(x ? x.instansi : '')}" placeholder="mis. Disnakertrans Prov. DIY / Praktisi K3">
+    <label class="mt">Tanda tangan narasumber</label>
+    <canvas id="sigpad" class="sigpad"></canvas>
+    <p class="small muted">Serahkan HP/laptop kepada narasumber untuk tanda tangan. Waktu tercatat otomatis dari server.</p>
+    <div class="row mt">
+      <button class="btn" onclick="C.pad.clear()">Hapus</button>
+      <button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn primary grow" onclick="simpanNarasumber(this, ${i})">Simpan</button>
+    </div>`);
+  C.pad = signaturePad($('#sigpad'));
+}
+
+function simpanNarasumber(btn, i) {
+  if (C.pad.isEmpty()) return toast('Tanda tangan masih kosong.', 'error');
+  const x = i >= 0 ? C.ns[i] : null;
+  const data = { id_hari: C.idHari, nama: $('#ns-nama').value, instansi: $('#ns-instansi').value, ttd: C.pad.toDataURL() };
+  if (x) data.id_rundown = x.id_rundown;
+  else Object.assign(data, { materi: $('#ns-materi').value, jam_mulai: $('#ns-mulai').value, jam_selesai: $('#ns-selesai').value });
+  busy(btn, async () => {
+    await call('narasumberAbsen', data);
+    closeModal(); toast('Absensi ' + data.nama + ' tersimpan.', 'ok'); tabNarasumber();
+  });
+}
+
+function hapusNarasumber(btn, i) {
+  const x = C.ns[i];
+  if (!confirm('Hapus tanda tangan ' + x.nama + ' agar bisa diulang?')) return;
+  busy(btn, async () => { await call('narasumberHapus', { id_an: x.absen.id_an }); toast('Tanda tangan dihapus.', 'ok'); tabNarasumber(); });
 }
