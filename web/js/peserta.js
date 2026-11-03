@@ -36,7 +36,7 @@ function doSetuju(btn) {
 }
 
 const NAV_PESERTA = [
-  ['beranda', '🏠', 'Dashboard'], ['rundown', '🗓️', 'Jadwal & Rundown'], ['materi', '📚', 'Materi'],
+  ['beranda', '🏠', 'Dashboard'], ['panduan', '📘', 'Panduan Pelatihan'], ['rundown', '🗓️', 'Jadwal & Rundown'], ['materi', '📚', 'Materi'],
   ['dok', '📷', 'Dokumentasi'], ['riwayat', '✅', 'Riwayat Absen'], ['skl', '🎓', 'Surat Keterangan Lulus'],
 ];
 
@@ -54,10 +54,13 @@ function pesertaTab(tab) {
           <h1>${tab === 'beranda' ? 'Selamat Datang di Dashboard Peserta' : aktif[2]}</h1>
           ${tab === 'beranda' ? `<p class="muted">Halo, ${esc(S.user.nama)} 👋</p>` : ''}
         </div>
+        ${tab === 'beranda' ? '<div id="video-area"></div>' : ''}
         <div id="tab-body"><div class="center muted pad">Memuat…</div></div>
       </section>
     </div>`);
+  P.videoKey = null;
   if (tab === 'beranda') loadBeranda();
+  else if (tab === 'panduan') loadPanduan();
   else if (tab === 'riwayat') loadRiwayat();
   else if (tab === 'skl') loadSkl();
   else loadKonten(tab);
@@ -66,7 +69,8 @@ function pesertaTab(tab) {
 function tampilBeranda(b) {
   P.status = b.status;
   P.konten = b.konten;
-  $('#tab-body').innerHTML = sklBannerHtml(b.skl) + berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
+  if (b.panduan) { P.panduan = b.panduan; tampilVideoArea(b.panduan); }
+  $('#tab-body').innerHTML = sklBannerHtml(b.skl) + panduanBannerHtml(b.panduan) + berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
 }
 
 /** Tampilkan data tersimpan dulu (instan), lalu ganti dengan data terbaru dari server. */
@@ -131,7 +135,7 @@ function statHtml(st) {
   const hariKe = st.hari ? Number(st.hari.hari_ke) : st.hari_selesai;
   const progres = st.total_hari ? Math.round(hariKe / st.total_hari * 100) : 0;
   const status = st.hari ? 'Sedang berlangsung' : st.berikutnya && !st.hari_selesai ? 'Belum dimulai' : st.berikutnya ? 'Jeda' : 'Selesai';
-  const tgl = b.tgl_mulai === b.tgl_selesai ? fmtTanggal(b.tgl_mulai) : fmtTanggal(b.tgl_mulai).replace(/^\w+, /, '') + ' – ' + fmtTanggal(b.tgl_selesai).replace(/^\w+, /, '');
+  const tgl = b.tanggal_teks ? b.tanggal_teks : b.tgl_mulai === b.tgl_selesai ? fmtTanggal(b.tgl_mulai) : fmtTanggal(b.tgl_mulai).replace(/^\w+, /, '') + ' – ' + fmtTanggal(b.tgl_selesai).replace(/^\w+, /, '');
   return `
     <div class="grid3">
       <div class="card stat-card">
@@ -527,4 +531,191 @@ function unduhSkl(btn) {
     const res = await call('sklUnduh');
     simpanFile(res.nama, res.data, 'application/pdf');
   }, 'Menyiapkan PDF…');
+}
+
+// ----------------------------------------------------- Panduan pelatihan: video wajib, tata tertib & guideline
+/** Kartu video wajib di Dashboard. Dibuat ulang hanya jika daftar/status video berubah, agar video yang sedang diputar tidak terputus. */
+function tampilVideoArea(pd) {
+  const el = $('#video-area');
+  if (!el) return;
+  const key = JSON.stringify(pd.video.map(v => [v.id_video, !!v.ditonton]));
+  if (key === P.videoKey) return;
+  P.videoKey = key;
+  el.innerHTML = videoCardHtml(pd.video, 'vb');
+  pasangSemuaVideo(pd.video, 'vb');
+}
+
+function videoCardHtml(video, pre) {
+  if (!video.length) return '';
+  const belum = video.filter(v => !v.ditonton).length;
+  return `
+    <div class="card video-card ${belum ? 'wajib' : ''}">
+      <div class="row mb"><h2 class="grow">🎬 ${belum ? 'Video Wajib Ditonton' : 'Video Pengarahan'}</h2>
+        <span class="badge ${belum ? 'b-belum' : 'b-hadir'}">${belum ? belum + ' belum ditonton' : '✅ Sudah ditonton semua'}</span></div>
+      ${belum ? '<p class="small muted">Berisi pengarahan umum dan garis besar pelatihan. Tonton sampai selesai; status tercatat otomatis.</p>' : ''}
+      ${video.map(v => `
+        <div class="video-item" id="${pre}-item-${esc(v.id_video)}">
+          <div class="row"><b class="grow">${esc(v.judul)}</b>${v.ditonton
+            ? `<span class="badge b-hadir">✅ Sudah ditonton</span> <button class="btn sm" onclick="putarVideo('${pre}', '${esc(v.id_video)}')">▶ Putar ulang</button>`
+            : '<span class="badge b-belum">Belum ditonton</span>'}</div>
+          <div class="video-wrap ${v.ditonton ? 'hidden' : ''}"><div id="${pre}-v-${esc(v.id_video)}"></div></div>
+          <div class="small muted hidden" id="${pre}-cadangan-${esc(v.id_video)}">Status tidak bisa tercatat otomatis di perangkat ini.
+            <button class="btn sm" onclick="tandaiTonton('${esc(v.id_video)}', true)">✔ Saya sudah menonton</button></div>
+        </div>`).join('')}
+    </div>`;
+}
+
+/** Banner di Dashboard jika ada tata tertib/guideline yang belum disetujui. */
+function panduanBannerHtml(pd) {
+  if (!pd || !pd.dokumen.length) return '';
+  const belum = pd.dokumen.filter(d => !d.disetujui);
+  if (!belum.length) return '';
+  return `
+    <div class="alert warn row">
+      <div class="grow">📘 <b>Wajib dibaca: ${esc(belum.map(d => d.jenis_label).join(' & '))}</b>
+        <div class="small">Baca lalu tekan "Saya sudah membaca dan menyetujui".</div></div>
+      <button class="btn primary sm" onclick="pesertaTab('panduan')">Buka →</button>
+    </div>`;
+}
+
+async function loadPanduan() {
+  const lama = P.panduan || ((cacheGet('beranda') || {}).panduan);
+  if (lama) tampilPanduan(lama);
+  try {
+    const pd = await call('panduanPeserta');
+    if (P.tab !== 'panduan') return;
+    tampilPanduan(pd);
+  } catch (e) {
+    if (!lama) $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+    else toast(e.message, 'error');
+  }
+}
+
+function tampilPanduan(pd) {
+  P.panduan = pd;
+  const key = JSON.stringify([pd.video.map(v => [v.id_video, !!v.ditonton]), pd.dokumen.map(d => [d.id_dp, !!d.disetujui])]);
+  if (key === P.videoKey) return;
+  P.videoKey = key;
+  const skema = pd.skema ? ' · ' + pd.skema : '';
+  $('#tab-body').innerHTML = videoCardHtml(pd.video, 'vp') + `
+    <div class="card">
+      <h2>📘 Tata Tertib & Guideline</h2>
+      <p class="small muted">${esc(pd.nama_pelatihan)}${esc(skema)}</p>
+      ${pd.dokumen.length ? pd.dokumen.map(d => `
+        <div class="dok-item">
+          <div class="materi-item">
+            <div class="materi-ikon">📄</div>
+            <div class="grow"><span class="chip chip-blue">${esc(d.jenis_label)}</span><div class="mt"><b>${esc(d.judul)}</b></div>
+              <div class="small muted">${esc((d.tipe_file || '').toUpperCase())}</div></div>
+            <div class="row"><a class="btn sm" href="${esc(d.buka)}" target="_blank" rel="noopener">Buka</a>
+              ${d.unduh ? `<a class="btn sm" href="${esc(d.unduh)}">⬇ Unduh</a>` : ''}</div>
+          </div>
+          ${d.disetujui ? `<div class="alert info small">✅ Anda sudah membaca dan menyetujui pada ${esc(fmtTanggal(d.disetujui.slice(0, 10)))}, ${esc(jamSaja(d.disetujui))} WIB.</div>`
+            : `<button class="btn primary block" onclick="setujuDok(this, '${esc(d.id_dp)}', '${esc(d.jenis_label)}')">✔ Saya sudah membaca dan menyetujui</button>`}
+        </div>`).join('') : '<div class="muted small">Tata tertib & guideline untuk pelatihan ini belum tersedia.</div>'}
+    </div>`;
+  pasangSemuaVideo(pd.video, 'vp');
+}
+
+function setujuDok(btn, id, label) {
+  if (!confirm('Saya menyatakan sudah membaca dan menyetujui ' + label + ' pelatihan ini.')) return;
+  busy(btn, async () => {
+    const pd = await call('setujuDokumen', { id_dp: id });
+    toast(label + ' disetujui. Terima kasih!', 'ok');
+    simpanPanduanCache(pd);
+    P.videoKey = null;
+    tampilPanduan(pd);
+  });
+}
+
+function simpanPanduanCache(pd) {
+  P.panduan = pd;
+  const b = cacheGet('beranda');
+  if (b) { b.panduan = pd; cacheSet('beranda', b); }
+}
+
+// Pemutar YouTube (IFrame API) untuk mendeteksi video ditonton sampai ±90%.
+const YTV = { muat: null, pemain: {}, timer: {} };
+
+function muatYT() {
+  if (window.YT && window.YT.Player) return Promise.resolve();
+  if (!YTV.muat) {
+    YTV.muat = new Promise((resolve, reject) => {
+      const lama = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => { if (lama) lama(); resolve(); };
+      const s = document.createElement('script');
+      s.src = 'https://www.youtube.com/iframe_api';
+      s.onerror = () => { YTV.muat = null; reject(new Error('YouTube tidak bisa dimuat')); };
+      document.head.appendChild(s);
+      setTimeout(() => reject(new Error('YouTube lambat dimuat')), 12000);
+    });
+  }
+  return YTV.muat;
+}
+
+function pasangSemuaVideo(video, pre) {
+  video.filter(v => !v.ditonton).forEach(v => pasangVideo(pre, v));
+}
+
+function pasangVideo(pre, v) {
+  const elId = pre + '-v-' + v.id_video;
+  muatYT().then(() => {
+    if (!document.getElementById(elId)) return;
+    YTV.pemain[elId] = new YT.Player(elId, {
+      videoId: v.youtube_id, host: 'https://www.youtube-nocookie.com', width: '100%', height: '100%',
+      playerVars: { rel: 0, modestbranding: 1, playsinline: 1 },
+      events: { onStateChange: e => pantauVideo(e, elId, v) },
+    });
+  }).catch(() => {
+    // Cadangan: pemutar biasa + tombol konfirmasi manual.
+    const el = document.getElementById(elId);
+    if (!el) return;
+    el.outerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(v.youtube_id)}?rel=0&playsinline=1"
+      allow="encrypted-media; picture-in-picture; fullscreen" allowfullscreen title="${esc(v.judul)}"></iframe>`;
+    const c = document.getElementById(pre + '-cadangan-' + v.id_video);
+    if (c && !v.ditonton) c.classList.remove('hidden');
+  });
+}
+
+function pantauVideo(e, elId, v) {
+  clearInterval(YTV.timer[elId]);
+  if (e.data === YT.PlayerState.ENDED) return tandaiTonton(v.id_video);
+  if (e.data !== YT.PlayerState.PLAYING) return;
+  YTV.timer[elId] = setInterval(() => {
+    const p = YTV.pemain[elId];
+    if (!p || !document.getElementById(elId)) return clearInterval(YTV.timer[elId]);
+    const d = p.getDuration ? p.getDuration() : 0;
+    if (d > 0 && p.getCurrentTime() / d >= 0.9) { clearInterval(YTV.timer[elId]); tandaiTonton(v.id_video); }
+  }, 3000);
+}
+
+/** Mencatat video sudah ditonton; tampilan diperbarui tanpa menghentikan video yang sedang diputar. */
+async function tandaiTonton(id, manual) {
+  const pd = P.panduan;
+  const v = pd && pd.video.find(x => x.id_video === id);
+  if (!v || v.ditonton) return;
+  try {
+    await call('videoTonton', { id_video: id });
+    v.ditonton = new Date().toISOString();
+    simpanPanduanCache(pd);
+    toast('✅ ' + v.judul + ' tercatat sudah ditonton.', 'ok');
+    ['vb', 'vp'].forEach(pre => {
+      const item = document.getElementById(pre + '-item-' + id);
+      if (!item) return;
+      const badge = item.querySelector('.badge');
+      if (badge) { badge.className = 'badge b-hadir'; badge.textContent = '✅ Sudah ditonton'; }
+      const c = document.getElementById(pre + '-cadangan-' + id);
+      if (c) c.classList.add('hidden');
+      if (manual) item.querySelector('.video-wrap').classList.add('hidden');
+    });
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function putarVideo(pre, id) {
+  const item = document.getElementById(pre + '-item-' + id);
+  const wrap = item && item.querySelector('.video-wrap');
+  if (!wrap) return;
+  wrap.classList.remove('hidden');
+  const v = P.panduan.video.find(x => x.id_video === id);
+  if (v && document.getElementById(pre + '-v-' + id)) pasangVideo(pre, v);
 }

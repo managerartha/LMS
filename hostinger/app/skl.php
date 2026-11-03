@@ -96,7 +96,7 @@ function sklList(array $data, array $user): array {
   return [
     'jenis_pelatihan' => jenis_pelatihan($b),
     'kode_skl' => kode_skl($b), 'contoh_nomor' => skl_nomor_baru($b, now_()['date'])[2],
-    'periode' => rentang_tgl($b['tgl_mulai'], $b['tgl_selesai']),
+    'periode' => tanggal_batch_teks($b),
     'peserta' => array_map(fn($u) => ['id_user' => $u['id_user'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'],
       'kode_login' => $u['kode_login'], 'tempat_lahir' => $u['tempat_lahir'], 'tgl_lahir' => $u['tgl_lahir'],
       'skl' => skl_view($skl[$u['id_user']] ?? null)], peserta_batch($b['id_batch'], false)),
@@ -230,7 +230,7 @@ function skl_html(array $batch, array $list): string {
   // "Pembinaan Ahli K3 Umum" -> "Pembinaan <b>Ahli K3 Umum</b>", sertifikat "Ahli K3 Umum"
   $sertifikat = preg_match('/^pembinaan\s+(.+)$/iu', $judul, $x) ? $x[1] : $judul;
   $judulHtml = $sertifikat !== $judul ? h_(mb_substr($judul, 0, mb_strlen($judul) - mb_strlen($sertifikat))) . '<b>' . h_($sertifikat) . '</b>' : '<b>' . h_($judul) . '</b>';
-  $periode = periode_skl($batch['tgl_mulai'], $batch['tgl_selesai']);
+  $periode = tanggal_batch_teks($batch, true);
   $jenis = jenis_pelatihan($batch) . ' Training';
   $W = SKL_KERTAS[2];
   $H = SKL_KERTAS[3];

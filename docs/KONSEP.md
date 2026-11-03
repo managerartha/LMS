@@ -425,3 +425,13 @@ Browser (HP/laptop) ──HTTPS──▶ lms.arthasafetyindonesia.com (Hostinger
 - Menu **Batch** (Admin): tombol **🗑 Hapus** di setiap batch (aktif, selesai, maupun arsip). Wajib mengetik ulang kode batch.
 - Menghapus permanen batch beserta peserta (dan sesi login-nya), hari, absensi, rundown, materi, dokumentasi, laporan, SKL, absensi narasumber, serta folder file `storage/<batch>` dan `uploads/<batch>`. Akun PIC/Admin dan batch lain tidak tersentuh.
 - Untuk pelatihan sungguhan yang sudah selesai gunakan **Arsipkan**; hapus ditujukan untuk batch percobaan/dummy.
+
+## 17. Program pelatihan, tata tertib & guideline, video pengarahan, tanggal pilihan
+
+Semua perubahan bersifat **tambahan** (skema versi 4: tabel `program`, `dokumen_program`, `persetujuan`, `video`, `video_tonton`; kolom `batch.id_program`, `batch.tanggal_custom`). Data lama tidak diubah; batch lama berjalan seperti sebelumnya sampai Admin memilihkan program. Diuji dengan sidik jari (md5) isi 11 tabel lama dan semua file sebelum/sesudah update: identik.
+
+- **Program pelatihan** (Admin, menu *Pustaka Pelatihan*): pengelompok batch sejenis. Batch dihubungkan ke program + skema (Offline/Online/Blended, kolom `jenis_pelatihan` yang sama dengan SKL) di form Batch.
+- **Tata tertib & guideline** (`app/pustaka.php`): upload sekali per program × skema (atau *Semua skema*) × jenis. Dokumen untuk skema batch diutamakan, lalu *Semua skema*. **Revisi** = upload ulang: dipakai batch yang mulai sejak tanggal revisi; batch yang sudah berjalan tetap memakai versi yang berlaku saat batch mulai (versi terakhir ≤ tanggal mulai, atau versi pertama). Peserta bisa membuka/mengunduh dan menekan **Saya sudah membaca dan menyetujui** (tabel `persetujuan`).
+- **Video pengarahan** (YouTube, semua batch): kartu *Video Wajib Ditonton* paling atas di Dashboard peserta dan di menu *Panduan Pelatihan*. Tercatat ditonton otomatis saat diputar ±90% (YouTube IFrame API); jika API tidak bisa dimuat, muncul tombol cadangan *Saya sudah menonton*. Hanya pengingat, tidak menghalangi absen.
+- **Rekap PIC** (menu *Tata Tertib & Video*): dokumen & video yang berlaku untuk batch, serta siapa yang sudah menyetujui / menonton. Dashboard memberi pengingat (program belum dipilih, dokumen belum di-upload, peserta belum setuju/menonton).
+- **Tanggal pilihan**: form batch punya mode *Rentang tanggal* atau *Pilih tanggal sendiri* (mis. 1, 3, 9, 14). `tgl_mulai/tgl_selesai` = tanggal pertama/terakhir; hari pelatihan dibuat dari daftar itu. Laporan resmi & SKL menulis *"1, 3, 9 dan 14 Juni 2026"* (`tanggal_batch_teks`). Tanggal yang sudah berisi absensi tidak dihapus.

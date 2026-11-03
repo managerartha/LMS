@@ -53,7 +53,8 @@ function statusHariIni(array $data, array $user): array {
   $out = [
     'server_now' => lms_ms(), 'tanggal' => $now['date'],
     'batch' => ['nama_pelatihan' => $batch['nama_pelatihan'], 'kode_batch' => $batch['kode_batch'], 'status' => $batch['status'],
-      'tgl_mulai' => $batch['tgl_mulai'], 'tgl_selesai' => $batch['tgl_selesai'], 'lokasi_nama' => $batch['lokasi_nama']],
+      'tgl_mulai' => $batch['tgl_mulai'], 'tgl_selesai' => $batch['tgl_selesai'], 'lokasi_nama' => $batch['lokasi_nama'],
+      'tanggal_teks' => $batch['tanggal_custom'] !== '' ? tanggal_batch_teks($batch) : ''],
     'hari' => null, 'total_hari' => count($semua),
     'hari_selesai' => count(array_filter($semua, fn($h) => $h['tanggal'] < $now['date'])),
     'berikutnya' => $berikutnya, 'rekap' => rekap_peserta($batch, $semua, $user, $now),

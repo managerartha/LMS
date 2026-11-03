@@ -33,10 +33,11 @@ const NAV_PIC = [
   ['rundown', '🗓️', 'Rundown', 'Kegiatan harian'],
   ['materi', '📚', 'Materi', 'Kegiatan harian'], ['dok', '📷', 'Dokumentasi', 'Kegiatan harian'],
   ['peserta', '👥', 'Peserta', 'Persiapan'], ['lokasi', '📍', 'Jadwal & Lokasi', 'Persiapan'],
+  ['kepatuhan', '📘', 'Tata Tertib & Video', 'Persiapan'],
   ['laporan', '📄', 'Laporan', 'Akhir pelatihan'], ['skl', '🎓', 'SKL', 'Akhir pelatihan'],
-  ['batch', '🗂️', 'Batch', 'Admin'], ['pic', '🔑', 'Akun PIC', 'Admin'],
+  ['batch', '🗂️', 'Batch', 'Admin'], ['pustaka', '📚', 'Pustaka Pelatihan', 'Admin'], ['pic', '🔑', 'Akun PIC', 'Admin'],
 ];
-const TAB_BATCH = ['monitor', 'narasumber', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
+const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
 
 function picTab(tab) {
   C.tab = tab;
@@ -78,7 +79,7 @@ function picTab(tab) {
     return;
   }
   ({ dashboard: tabDashboard, monitor: tabMonitor, narasumber: tabNarasumber, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl,
-    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun })[aktif[0]]();
+    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka })[aktif[0]]();
 }
 
 /** Mengisi isi tab, hanya jika pengguna belum berpindah tab sejak data mulai dimuat. */
@@ -439,7 +440,8 @@ function resetLokasiHari(btn, idHari) {
 async function tabBatch() {
   const v = C.view;
   try {
-    [C.pics, C.batches] = await Promise.all([call('picList'), call('batchList')]);
+    [C.pics, C.batches, C.programs] = await Promise.all([call('picList'), call('batchList'), call('programList')]);
+    C.tc = { nb: [] };
     setBody(v, `
       <div class="card">
         <h2>Buat batch baru</h2>
@@ -447,10 +449,9 @@ async function tabBatch() {
           <div class="grid2">
             <div><label>Nama pelatihan</label><input name="nama_pelatihan" required placeholder="mis. Ahli K3 Umum"></div>
             <div><label>Kode batch</label><input name="kode_batch" required placeholder="mis. B07"></div>
-            <div><label>Tanggal mulai</label><input type="date" name="tgl_mulai" required></div>
-            <div><label>Tanggal selesai</label><input type="date" name="tgl_selesai" required></div>
           </div>
-          <label class="check mt"><input type="checkbox" name="lewati_weekend"> Lewati Sabtu & Minggu</label>
+          ${programSkemaHtml({})}
+          ${formTanggalHtml('nb', {})}
           <label>PIC batch (pilih 2)</label>
           ${picCheckboxes([])}
           <p class="small muted">Jam sesi default 08:00–12:00 dan 13:00–17:00. Lokasi diatur di tab <b>Jadwal & Lokasi</b> setelah batch dibuat.</p>
@@ -464,8 +465,9 @@ async function tabBatch() {
           <tbody>${C.batches.map((b, i) => b.status === 'arsip' ? '' : `
             <tr>
               <td><b>${esc(b.kode_batch)}</b> ${b.status === 'aktif' ? '<span class="badge b-hadir">aktif</span>' : '<span class="badge b-none">selesai</span>'}
-                <div class="small">${esc(b.nama_pelatihan)}</div></td>
-              <td class="small">${esc(b.tgl_mulai)}<br>${esc(b.tgl_selesai)}</td>
+                <div class="small">${esc(b.nama_pelatihan)}</div>
+                <div class="small muted">${b.id_program ? '📚 ' + esc(namaProgram(b.id_program)) : '<span class="badge b-belum">program belum dipilih</span>'}${b.jenis_pelatihan ? ' · ' + esc(b.jenis_pelatihan) : ''}</div></td>
+              <td class="small">${esc(b.tgl_mulai)}<br>${esc(b.tgl_selesai)}${b.tanggal_custom ? '<div class="muted">' + b.tanggal_custom.split(',').length + ' tanggal pilihan</div>' : ''}</td>
               <td class="small">${esc(b.pic_nama.join(', ') || '—')}</td>
               <td>${esc(b.jumlah_peserta)}</td>
               <td class="row"><button class="btn sm" onclick="dialogBatch(${i})">Ubah</button>
@@ -506,12 +508,13 @@ function picCheckboxes(selected) {
 function formPicIds(form) { return $$('input[name=pic]:checked', form).map(x => x.value); }
 
 function buatBatch(form) {
+  const tgl = tanggalForm(form, 'nb');
+  if (!tgl) return;
   busy(form.querySelector('button.primary'), async () => {
-    const b = await call('batchBuat', { batch: {
+    const b = await call('batchBuat', { batch: Object.assign({
       nama_pelatihan: form.nama_pelatihan.value, kode_batch: form.kode_batch.value,
-      tgl_mulai: form.tgl_mulai.value, tgl_selesai: form.tgl_selesai.value,
-      lewati_weekend: form.lewati_weekend.checked, pic_ids: formPicIds(form),
-    } });
+      pic_ids: formPicIds(form), id_program: form.id_program.value, jenis_pelatihan: form.jenis_pelatihan.value,
+    }, tgl) });
     toast('Batch ' + b.kode_batch + ' dibuat.', 'ok');
     C.batches = await call('batchList');
     C.tab = 'lokasi';
@@ -519,17 +522,16 @@ function buatBatch(form) {
   });
 }
 
-function dialogBatch(i) {
+async function dialogBatch(i) {
   const b = C.batches[i];
+  if (!C.programs) C.programs = await call('programList').catch(() => []);
+  C.tc = Object.assign(C.tc || {}, { ub: b.tanggal_custom ? b.tanggal_custom.split(',') : [] });
   openModal(`
     <h2>Ubah batch ${esc(b.kode_batch)}</h2>
     <form id="form-batch" onsubmit="event.preventDefault(); simpanBatch(this, '${esc(b.id_batch)}')">
       <label>Nama pelatihan</label><input name="nama_pelatihan" value="${esc(b.nama_pelatihan)}" required>
-      <div class="grid2">
-        <div><label>Tanggal mulai</label><input type="date" name="tgl_mulai" value="${esc(b.tgl_mulai)}" required></div>
-        <div><label>Tanggal selesai</label><input type="date" name="tgl_selesai" value="${esc(b.tgl_selesai)}" required></div>
-      </div>
-      <label class="check mt"><input type="checkbox" name="lewati_weekend" ${b.lewati_weekend === 'ya' ? 'checked' : ''}> Lewati Sabtu & Minggu</label>
+      ${programSkemaHtml(b)}
+      ${formTanggalHtml('ub', b)}
       <label>Status</label>
       <select name="status"><option value="aktif" ${b.status === 'aktif' ? 'selected' : ''}>Aktif</option>
         <option value="selesai" ${b.status === 'selesai' ? 'selected' : ''}>Selesai (peserta tidak bisa login)</option>
@@ -543,11 +545,13 @@ function dialogBatch(i) {
 }
 
 function simpanBatch(form, id) {
+  const tgl = tanggalForm(form, 'ub');
+  if (!tgl) return;
   busy(form.querySelector('button.primary'), async () => {
-    await call('batchUbah', { id_batch: id, batch: {
-      nama_pelatihan: form.nama_pelatihan.value, tgl_mulai: form.tgl_mulai.value, tgl_selesai: form.tgl_selesai.value,
-      status: form.status.value, pic_ids: formPicIds(form), lewati_weekend: form.lewati_weekend.checked,
-    } });
+    await call('batchUbah', { id_batch: id, batch: Object.assign({
+      nama_pelatihan: form.nama_pelatihan.value, status: form.status.value, pic_ids: formPicIds(form),
+      id_program: form.id_program.value, jenis_pelatihan: form.jenis_pelatihan.value,
+    }, tgl) });
     closeModal(); toast('Batch disimpan.', 'ok');
     C.hariFor = null;
     C.batches = await call('batchList');
@@ -1360,7 +1364,7 @@ function sklUnduhSemua(btn) {
 const LEVEL_PENGINGAT = { bad: ['b-alpa', 'Segera'], warn: ['b-belum', 'Perlu'], info: ['b-izin', 'Info'] };
 const FASE_BATCH = { berjalan: ['b-hadir', 'Berjalan'], akan: ['b-izin', 'Akan datang'], selesai: ['b-none', 'Selesai'] };
 const TAB_LABEL = { peserta: 'Peserta', lokasi: 'Jadwal & Lokasi', rundown: 'Rundown', materi: 'Materi', dok: 'Dokumentasi',
-  monitor: 'Absensi', narasumber: 'Absensi Narasumber', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
+  monitor: 'Absensi', narasumber: 'Absensi Narasumber', kepatuhan: 'Tata Tertib & Video', pustaka: 'Pustaka', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
 
 async function tabDashboard() {
   const v = C.view;
@@ -1522,4 +1526,275 @@ function hapusNarasumber(btn, i) {
   const x = C.ns[i];
   if (!confirm('Hapus tanda tangan ' + x.nama + ' agar bisa diulang?')) return;
   busy(btn, async () => { await call('narasumberHapus', { id_an: x.absen.id_an }); toast('Tanda tangan dihapus.', 'ok'); tabNarasumber(); });
+}
+
+// ----------------------------------------------------- Form batch: program, skema, tanggal (rentang / pilihan)
+function namaProgram(id) {
+  const p = (C.programs || []).find(x => x.id_program === id);
+  return p ? p.nama : '(program dihapus)';
+}
+
+function programSkemaHtml(b) {
+  const list = (C.programs || []).filter(p => p.aktif || p.id_program === b.id_program);
+  return `
+    <div class="grid2">
+      <div><label>Program pelatihan</label>
+        <select name="id_program"><option value="">— belum dipilih —</option>
+          ${list.map(p => `<option value="${esc(p.id_program)}" ${p.id_program === b.id_program ? 'selected' : ''}>${esc(p.nama)}</option>`).join('')}</select></div>
+      <div><label>Skema pelatihan</label>
+        <select name="jenis_pelatihan"><option value="">— belum dipilih —</option>
+          ${['Offline', 'Online', 'Blended'].map(j => `<option ${j === b.jenis_pelatihan ? 'selected' : ''}>${j}</option>`).join('')}</select></div>
+    </div>
+    <p class="small muted">Program & skema menentukan tata tertib dan guideline yang tampil ke peserta.
+      ${list.length ? '' : 'Belum ada program — tambahkan di menu <b>Pustaka Pelatihan</b>.'}</p>`;
+}
+
+/** Pilihan tanggal: rentang (mulai–selesai) atau tanggal pilihan yang tidak harus berurutan. */
+function formTanggalHtml(pre, b) {
+  const custom = !!b.tanggal_custom;
+  return `
+    <label>Tanggal pelatihan</label>
+    <div class="seg seg-tgl">
+      <button type="button" id="${pre}-m-rentang" class="${custom ? '' : 'active'}" onclick="modeTanggal('${pre}', false)">Rentang tanggal</button>
+      <button type="button" id="${pre}-m-custom" class="${custom ? 'active' : ''}" onclick="modeTanggal('${pre}', true)">Pilih tanggal sendiri</button>
+    </div>
+    <div id="${pre}-rentang" class="${custom ? 'hidden' : ''}">
+      <div class="grid2">
+        <div><label>Tanggal mulai</label><input type="date" name="tgl_mulai" value="${esc(custom ? '' : b.tgl_mulai || '')}"></div>
+        <div><label>Tanggal selesai</label><input type="date" name="tgl_selesai" value="${esc(custom ? '' : b.tgl_selesai || '')}"></div>
+      </div>
+      <label class="check mt"><input type="checkbox" name="lewati_weekend" ${b.lewati_weekend === 'ya' ? 'checked' : ''}> Lewati Sabtu & Minggu</label>
+    </div>
+    <div id="${pre}-custom" class="${custom ? '' : 'hidden'}">
+      <div class="row"><input type="date" id="${pre}-tc-input" class="grow">
+        <button type="button" class="btn" onclick="tcTambah('${pre}')">＋ Tambah tanggal</button></div>
+      <div class="tc-list" id="${pre}-tc-list">${tcHtml(pre)}</div>
+      <p class="small muted">Contoh: 1, 3, 9 dan 14 → Hari ke-1 s/d ke-4. Tanggal yang sudah berisi absensi tidak akan dihapus.</p>
+    </div>
+    <input type="hidden" name="mode_tgl_${pre}" value="${custom ? 'custom' : 'rentang'}">`;
+}
+
+function modeTanggal(pre, custom) {
+  $('#' + pre + '-m-rentang').classList.toggle('active', !custom);
+  $('#' + pre + '-m-custom').classList.toggle('active', custom);
+  $('#' + pre + '-rentang').classList.toggle('hidden', custom);
+  $('#' + pre + '-custom').classList.toggle('hidden', !custom);
+  $('input[name=mode_tgl_' + pre + ']').value = custom ? 'custom' : 'rentang';
+}
+
+function tcHtml(pre) {
+  const list = (C.tc && C.tc[pre]) || [];
+  return list.length ? list.map((t, i) => `<span class="tc-chip"><b>Hari ${i + 1}</b> ${esc(fmtTanggal(t))}
+      <button type="button" title="Hapus" onclick="tcHapus('${pre}', '${t}')">✕</button></span>`).join('')
+    : '<span class="small muted">Belum ada tanggal dipilih.</span>';
+}
+
+function tcTambah(pre) {
+  const el = $('#' + pre + '-tc-input');
+  if (!el.value) return toast('Pilih tanggal dulu.', 'error');
+  C.tc[pre] = Array.from(new Set((C.tc[pre] || []).concat(el.value))).sort();
+  el.value = '';
+  $('#' + pre + '-tc-list').innerHTML = tcHtml(pre);
+}
+
+function tcHapus(pre, t) {
+  C.tc[pre] = C.tc[pre].filter(x => x !== t);
+  $('#' + pre + '-tc-list').innerHTML = tcHtml(pre);
+}
+
+/** Data tanggal dari form; null (dengan pesan) jika belum lengkap. */
+function tanggalForm(form, pre) {
+  if (form['mode_tgl_' + pre].value === 'custom') {
+    if (!C.tc[pre].length) { toast('Tambahkan minimal satu tanggal pelatihan.', 'error'); return null; }
+    return { tanggal_custom: C.tc[pre], lewati_weekend: false };
+  }
+  if (!form.tgl_mulai.value || !form.tgl_selesai.value) { toast('Isi tanggal mulai dan tanggal selesai.', 'error'); return null; }
+  return { tgl_mulai: form.tgl_mulai.value, tgl_selesai: form.tgl_selesai.value, lewati_weekend: form.lewati_weekend.checked, tanggal_custom: [] };
+}
+
+// ----------------------------------------------------- Tab: Pustaka pelatihan (Admin)
+const SKEMA_LABEL = { semua: 'Semua skema', Offline: 'Offline', Online: 'Online', Blended: 'Blended' };
+
+async function tabPustaka() {
+  const v = C.view;
+  try {
+    const [programs, dok, video] = await Promise.all([call('programList'), call('pustakaDokList'), call('videoList')]);
+    C.programs = programs; C.pdok = dok; C.video = video;
+    const aktif = programs.filter(p => p.aktif);
+    // Dokumen dikelompokkan per program → skema + jenis; versi terbaru di atas.
+    const grup = {};
+    dok.forEach(d => { const k = d.id_program + '|' + d.skema + '|' + d.jenis; (grup[k] = grup[k] || []).push(d); });
+    setBody(v, `
+      <div class="card">
+        <h2>📚 Program pelatihan</h2>
+        <p class="small muted">Kelompok untuk batch sejenis, mis. <i>Petugas P3K</i>. Setiap batch dihubungkan ke satu program di menu <b>Batch → Ubah</b>.</p>
+        <form class="row" onsubmit="event.preventDefault(); simpanProgram(this)">
+          <input name="nama" class="grow" placeholder="Nama program, mis. Petugas P3K" required>
+          <button class="btn primary">＋ Tambah program</button>
+        </form>
+        ${programs.length ? `<div class="table-wrap mt"><table><thead><tr><th>Program</th><th>Batch</th><th></th></tr></thead><tbody>
+          ${programs.map((p, i) => `<tr><td><b>${esc(p.nama)}</b> ${p.aktif ? '' : '<span class="badge b-none">nonaktif</span>'}</td>
+            <td>${p.jumlah_batch}</td>
+            <td class="row"><button class="btn sm" onclick="ubahProgram(this, ${i})">✏️ Ubah nama</button>
+              <button class="btn sm" onclick="aktifProgram(this, ${i})">${p.aktif ? 'Nonaktifkan' : 'Aktifkan'}</button></td></tr>`).join('')}
+        </tbody></table></div>` : '<div class="small muted mt">Belum ada program.</div>'}
+      </div>
+
+      <div class="card">
+        <h2>📘 Tata tertib & guideline</h2>
+        <p class="small muted">Upload <b>sekali</b> per program & skema; otomatis tampil di semua batch program itu. Upload ulang untuk jenis yang sama =
+          <b>revisi</b>: dipakai batch yang mulai sejak hari ini, sedangkan batch yang sudah berjalan tetap memakai versi sebelumnya.
+          Dokumen <i>Semua skema</i> dipakai jika tidak ada dokumen khusus untuk skema batch.</p>
+        ${aktif.length ? `
+        <form onsubmit="event.preventDefault(); uploadPustaka(this)">
+          <div class="grid2">
+            <div><label>Program</label><select name="id_program" required>${aktif.map(p => `<option value="${esc(p.id_program)}">${esc(p.nama)}</option>`).join('')}</select></div>
+            <div><label>Skema</label><select name="skema">${Object.keys(SKEMA_LABEL).map(k => `<option value="${k}">${SKEMA_LABEL[k]}</option>`).join('')}</select></div>
+            <div><label>Jenis dokumen</label><select name="jenis"><option value="tata_tertib">Tata Tertib</option><option value="guideline">Guideline Pelatihan</option></select></div>
+            <div><label>Judul (opsional)</label><input name="judul" placeholder="Kosongkan untuk memakai nama file"></div>
+          </div>
+          <label>File (PDF disarankan, maks. 20 MB)</label>
+          <input type="file" name="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png">
+          <label>…atau link (Google Drive dll.)</label><input name="link" placeholder="https://">
+          <button class="btn primary mt">Upload</button>
+        </form>` : '<div class="alert warn small">Tambahkan program pelatihan terlebih dahulu.</div>'}
+        ${Object.keys(grup).length ? programs.map(p => {
+          const slot = Object.keys(grup).filter(k => k.startsWith(p.id_program + '|'));
+          if (!slot.length) return '';
+          return `<h3 class="mt">${esc(p.nama)}</h3>` + slot.map(k => {
+            const versi = grup[k], d = versi[0];
+            return `<div class="materi-item">
+              <div class="materi-ikon">📄</div>
+              <div class="grow"><b>${esc(d.jenis_label)}</b> · ${esc(SKEMA_LABEL[d.skema] || d.skema)}
+                <div class="small">${esc(d.judul)}</div>
+                <div class="small muted">Versi terbaru: ${esc(d.diunggah_pada.slice(0, 16))} · ${esc(d.diunggah_oleh)}</div>
+                ${versi.length > 1 ? `<details class="small"><summary>Versi sebelumnya (${versi.length - 1})</summary>
+                  ${versi.slice(1).map(x => `<div class="row mt"><span class="grow">${esc(x.judul)} · ${esc(x.diunggah_pada.slice(0, 16))}</span>
+                    <a class="btn sm" href="${esc(x.buka)}" target="_blank" rel="noopener">Buka</a>
+                    <button class="btn sm danger" onclick="hapusPustaka(this, '${esc(x.id_dp)}')">Hapus</button></div>`).join('')}</details>` : ''}</div>
+              <div class="row"><a class="btn sm" href="${esc(d.buka)}" target="_blank" rel="noopener">Buka</a>
+                <button class="btn sm danger" onclick="hapusPustaka(this, '${esc(d.id_dp)}')">Hapus</button></div>
+            </div>`;
+          }).join('');
+        }).join('') : '<div class="small muted mt">Belum ada dokumen.</div>'}
+      </div>
+
+      <div class="card">
+        <h2>🎬 Video pengarahan (semua batch)</h2>
+        <p class="small muted">Tampil di Dashboard semua peserta sebagai video wajib ditonton. Isi link dari YouTube (tombol <i>Bagikan</i>).</p>
+        <form onsubmit="event.preventDefault(); simpanVideo(this, '')">
+          <div class="grid2">
+            <div><label>Judul</label><input name="judul" required placeholder="mis. Technical Meeting"></div>
+            <div><label>Link YouTube</label><input name="url" required placeholder="https://youtu.be/…"></div>
+            <div><label>Urutan tampil</label><input name="urutan" type="number" min="1" value="${video.length + 1}"></div>
+          </div>
+          <button class="btn primary mt">＋ Tambah video</button>
+        </form>
+        ${video.map((x, i) => `
+          <div class="materi-item mt">
+            <img src="https://img.youtube.com/vi/${esc(x.youtube_id)}/mqdefault.jpg" alt="" style="width:120px;border-radius:8px">
+            <div class="grow"><b>${esc(x.urutan)}. ${esc(x.judul)}</b> ${x.aktif ? '' : '<span class="badge b-none">disembunyikan</span>'}
+              <div class="small muted">${esc(x.url)}</div></div>
+            <div class="row"><button class="btn sm" onclick="dialogVideo(${i})">✏️ Ubah</button>
+              <button class="btn sm danger" onclick="hapusVideo(this, ${i})">Hapus</button></div>
+          </div>`).join('')}
+      </div>`);
+  } catch (e) { errBox(v, e); }
+}
+
+function simpanProgram(form) {
+  busy(form.querySelector('button'), async () => { await call('programSimpan', { nama: form.nama.value }); toast('Program ditambahkan.', 'ok'); tabPustaka(); });
+}
+function ubahProgram(btn, i) {
+  const p = C.programs[i];
+  const nama = prompt('Nama program:', p.nama);
+  if (!nama || nama === p.nama) return;
+  busy(btn, async () => { await call('programSimpan', { id_program: p.id_program, nama: nama, aktif: p.aktif }); toast('Program diubah.', 'ok'); tabPustaka(); });
+}
+function aktifProgram(btn, i) {
+  const p = C.programs[i];
+  busy(btn, async () => { await call('programSimpan', { id_program: p.id_program, nama: p.nama, aktif: !p.aktif }); tabPustaka(); });
+}
+
+function uploadPustaka(form) {
+  const file = form.file.files[0];
+  if (!file && !form.link.value.trim()) return toast('Pilih file atau isi link.', 'error');
+  if (file && file.size > 20 * 1024 * 1024) return toast('File lebih dari 20 MB. Simpan sebagai PDF atau gunakan link.', 'error');
+  const ada = C.pdok.some(d => d.id_program === form.id_program.value && d.skema === form.skema.value && d.jenis === form.jenis.value);
+  if (ada && !confirm('Sudah ada dokumen untuk program, skema & jenis ini. Upload sebagai REVISI?\n\nBatch yang mulai sejak hari ini memakai versi baru; batch yang sudah berjalan tetap memakai versi lama.')) return;
+  busy(form.querySelector('button.primary'), async () => {
+    const data = { id_program: form.id_program.value, skema: form.skema.value, jenis: form.jenis.value, judul: form.judul.value };
+    if (file) data.file = { nama: file.name, data: await bacaFile(file) };
+    else data.link = form.link.value.trim();
+    await call('pustakaDokUpload', data);
+    toast('Dokumen di-upload.', 'ok');
+    tabPustaka();
+  }, 'Mengupload…');
+}
+
+function hapusPustaka(btn, id) {
+  if (!confirm('Hapus versi dokumen ini? Persetujuan peserta untuk versi ini ikut terhapus.')) return;
+  busy(btn, async () => { await call('pustakaDokHapus', { id_dp: id }); toast('Dokumen dihapus.', 'ok'); tabPustaka(); });
+}
+
+function simpanVideo(form, id) {
+  busy(form.querySelector('button.primary'), async () => {
+    await call('videoSimpan', { id_video: id, judul: form.judul.value, url: form.url.value, urutan: form.urutan.value,
+      aktif: form.aktif ? form.aktif.checked : true });
+    closeModal(); toast('Video disimpan.', 'ok'); tabPustaka();
+  });
+}
+
+function dialogVideo(i) {
+  const x = C.video[i];
+  openModal(`
+    <h2>Ubah video</h2>
+    <form onsubmit="event.preventDefault(); simpanVideo(this, '${esc(x.id_video)}')">
+      <label>Judul</label><input name="judul" value="${esc(x.judul)}" required>
+      <label>Link YouTube</label><input name="url" value="${esc(x.url)}" required>
+      <label>Urutan tampil</label><input name="urutan" type="number" min="1" value="${esc(x.urutan)}">
+      <label class="check mt"><input type="checkbox" name="aktif" ${x.aktif ? 'checked' : ''}> Tampilkan ke peserta</label>
+      <div class="row mt"><button type="button" class="btn" onclick="closeModal()">Batal</button><button class="btn primary grow">Simpan</button></div>
+    </form>`);
+}
+
+function hapusVideo(btn, i) {
+  const x = C.video[i];
+  if (!confirm('Hapus video "' + x.judul + '"? Catatan peserta yang sudah menonton ikut terhapus.')) return;
+  busy(btn, async () => { await call('videoHapus', { id_video: x.id_video }); toast('Video dihapus.', 'ok'); tabPustaka(); });
+}
+
+// ----------------------------------------------------- Tab: Tata tertib & video (rekap per batch)
+async function tabKepatuhan() {
+  const v = C.view;
+  try {
+    const k = await call('kepatuhanBatch', { id_batch: C.batch.id_batch });
+    const sel = x => x ? `<span class="badge b-hadir" title="${esc(x)}">✓ ${esc(jamSaja(x)) || ''}</span>` : '<span class="badge b-belum">Belum</span>';
+    const nSetuju = k.peserta.filter(p => p.setuju.every(Boolean)).length;
+    const nTonton = k.peserta.filter(p => p.tonton.every(Boolean)).length;
+    setBody(v, `
+      <div class="card">
+        <h2>Yang tampil ke peserta batch ini</h2>
+        <p class="small">Program: <b>${k.program ? esc(k.program) : '<span class="badge b-belum">belum dipilih</span>'}</b> ·
+          Skema: <b>${k.skema ? esc(k.skema) : '<span class="badge b-belum">belum dipilih</span>'}</b></p>
+        ${!k.program ? `<div class="alert warn small">Tata tertib & guideline belum tampil ke peserta karena program batch belum dipilih.
+          ${S.user.role === 'admin' ? 'Pilih di menu <b>Batch → Ubah</b>.' : 'Minta Admin memilihkan program di menu Batch.'}</div>` : ''}
+        ${k.dokumen.map(d => `<div class="materi-item"><div class="materi-ikon">📄</div>
+          <div class="grow"><b>${esc(d.jenis_label)}</b> · ${esc(SKEMA_LABEL[d.skema] || d.skema)}<div class="small">${esc(d.judul)}</div>
+            <div class="small muted">Versi ${esc(d.diunggah_pada.slice(0, 10))}</div></div>
+          <a class="btn sm" href="${esc(d.buka)}" target="_blank" rel="noopener">Buka</a></div>`).join('')
+          || (k.program ? `<div class="small muted">Belum ada tata tertib/guideline untuk program & skema ini.${S.user.role === 'admin' ? ' Upload di menu <b>Pustaka Pelatihan</b>.' : ''}</div>` : '')}
+        <h3 class="mt">🎬 Video pengarahan</h3>
+        ${k.video.length ? k.video.map(x => `<div class="small">${esc(x.urutan)}. ${esc(x.judul)}</div>`).join('') : '<div class="small muted">Belum ada video.</div>'}
+      </div>
+      <div class="card">
+        <h2>Rekap peserta</h2>
+        <p class="small muted">${k.dokumen.length ? `${nSetuju}/${k.peserta.length} peserta sudah menyetujui semua dokumen. ` : ''}${k.video.length ? `${nTonton}/${k.peserta.length} peserta sudah menonton semua video.` : ''}</p>
+        ${k.peserta.length && (k.dokumen.length || k.video.length) ? `<div class="table-wrap"><table>
+          <thead><tr><th>No</th><th>Nama</th>${k.dokumen.map(d => `<th>${esc(d.jenis_label)}</th>`).join('')}${k.video.map(x => `<th>🎬 ${esc(x.judul)}</th>`).join('')}</tr></thead>
+          <tbody>${k.peserta.map(p => `<tr><td>${esc(p.no_absen)}</td><td>${esc(p.nama)}<div class="small muted">${esc(p.kode_login)}</div></td>
+            ${p.setuju.map(sel).join('')}${p.tonton.map(sel).join('')}</tr>`).join('')}</tbody></table></div>`
+          : '<div class="small muted">Belum ada data untuk direkap.</div>'}
+      </div>`);
+  } catch (e) { errBox(v, e); }
 }

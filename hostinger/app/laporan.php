@@ -54,6 +54,35 @@ function rentang_tgl(string $a, string $b): string {
   return tgl_id($a) . ' – ' . tgl_id($b);
 }
 
+/**
+ * Tanggal pelatihan batch untuk laporan/SKL. Rentang biasa: seperti rentang_tgl(). Tanggal pilihan (custom):
+ * '1, 3, 9 dan 14 Juni 2026' / '28, 30 Mei dan 2 Juni 2026'. $duaDigit: '01, 03 ...' (format SKL).
+ */
+function tanggal_batch_teks(array $batch, bool $duaDigit = false): string {
+  if ($batch['tanggal_custom'] === '') return $duaDigit ? periode_skl($batch['tgl_mulai'], $batch['tgl_selesai']) : rentang_tgl($batch['tgl_mulai'], $batch['tgl_selesai']);
+  $grup = [];
+  foreach (explode(',', $batch['tanggal_custom']) as $t) {
+    [$y, $m, $d] = array_map('intval', explode('-', $t));
+    $grup[$y][$m][] = $duaDigit ? sprintf('%02d', $d) : (string)$d;
+  }
+  $tahun = [];
+  foreach ($grup as $y => $bulan) {
+    $bagian = [];
+    foreach ($bulan as $m => $hari) $bagian[] = ['hari' => $hari, 'bulan' => BULAN_ID[$m - 1]];
+    $teks = [];
+    foreach ($bagian as $i => $b) {
+      $h = $b['hari'];
+      $akhir = $i === count($bagian) - 1;
+      // kata "dan" hanya sebelum tanggal paling akhir dalam tahun itu
+      $teks[] = ($akhir && count($h) > 1 ? implode(', ', array_slice($h, 0, -1)) . ' dan ' . end($h) : implode(', ', $h)) . ' ' . $b['bulan'];
+    }
+    $n = count($teks);
+    if ($n > 1 && count(end($bagian)['hari']) === 1) $teks = array_merge(array_slice($teks, 0, -2), [$teks[$n - 2] . ' dan ' . $teks[$n - 1]]);
+    $tahun[] = implode(', ', $teks) . ' ' . $y;
+  }
+  return implode(', ', $tahun);
+}
+
 /** 20 -> 'dua puluh' */
 function terbilang($n): string {
   $s = ['', 'satu', 'dua', 'tiga', 'empat', 'lima', 'enam', 'tujuh', 'delapan', 'sembilan', 'sepuluh', 'sebelas'];
@@ -442,7 +471,7 @@ function cover_resmi(array $batch, array $info, array $org): string {
   return '<div class="cover"><br><br><div style="font-size:18pt;font-weight:bold">PEMBINAAN</div><br>' .
     '<div style="font-size:30pt;font-weight:bold">' . h_($info['judul_cover']) . '</div><br>' .
     '<div style="font-size:11pt;font-weight:bold">' . h_($info['sub_cover']) . '</div><br>' .
-    '<div style="font-size:11pt;font-weight:bold">Tanggal ' . h_(rentang_tgl($batch['tgl_mulai'], $batch['tgl_selesai'])) . '</div>' .
+    '<div style="font-size:11pt;font-weight:bold">Tanggal ' . h_(tanggal_batch_teks($batch)) . '</div>' .
     '<br><br><br><img src="' . aset_laporan()['cover'] . '" width="300"><br><br><br><br>' .
     '<div style="font-size:10pt;font-weight:bold">Diselenggarakan oleh:</div><br>' .
     '<div style="font-size:16pt;font-weight:bold">' . h_(mb_strtoupper($org['nama'])) . '</div><br><br>' .
@@ -478,7 +507,7 @@ function penyelenggaraan(array $batch, array $hariList, array $info, array $org)
     "<div class=\"bag\">B.{$sp}PELAKSANAAN KEGIATAN</div>",
     isian([["a.{$sp}Nomor Permohonan Temank3", $info['nomor_permohonan'] ?: '-'], ["b.{$sp}Tempat Pelaksanaan", null],
       ["{$ind}Kelas", $info['tempat_kelas'] ?: '-'], ["{$ind}Observasi/PKL", $info['tempat_observasi'] ?: '-'],
-      ["c.{$sp}Metode", $info['metode'] ?: '-'], ["d.{$sp}Waktu Pelaksanaan", rentang_tgl($batch['tgl_mulai'], $batch['tgl_selesai'])],
+      ["c.{$sp}Metode", $info['metode'] ?: '-'], ["d.{$sp}Waktu Pelaksanaan", tanggal_batch_teks($batch)],
       ["e.{$sp}Bidang Pembinaan", $info['bidang_pembinaan'] ?: '-']]),
     "<div class=\"bag\">C.{$sp}PERSYARATAN ADMINISTRASI</div>",
     '<table class="garis" style="margin-left:28px;width:90%"><tr><th style="width:35px">No</th><th>Persyaratan Administrasi</th><th style="width:50px">Ada</th><th style="width:50px">Tidak</th></tr>' . $tabelSyarat . '</table>',

@@ -6,7 +6,7 @@
 const SCHEMA = [
   'batch' => ['id_batch', 'nama_pelatihan', 'kode_batch', 'lokasi_nama', 'tgl_mulai', 'tgl_selesai',
     'sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai', 'lat', 'lng', 'radius_meter',
-    'lewati_weekend', 'pic_ids', 'folder', 'status', 'dibuat_pada', 'info_laporan', 'jenis_pelatihan'],
+    'lewati_weekend', 'pic_ids', 'folder', 'status', 'dibuat_pada', 'info_laporan', 'jenis_pelatihan', 'id_program', 'tanggal_custom'],
   'pengguna' => ['id_user', 'id_batch', 'no_absen', 'nama', 'role', 'kode_login', 'pin_hash', 'instansi',
     'no_hp', 'device_id', 'setuju_privasi', 'ttd_id', 'aktif', 'dibuat_pada', 'tempat_lahir', 'tgl_lahir'],
   'token' => ['token', 'id_user', 'dibuat_pada'],
@@ -23,6 +23,11 @@ const SCHEMA = [
   'skl' => ['id_skl', 'id_batch', 'id_user', 'nomor', 'urut', 'tahun', 'status', 'tgl_terbit', 'diubah_oleh', 'diubah_pada'],
   'absen_narasumber' => ['id_an', 'id_batch', 'id_hari', 'id_rundown', 'nama', 'instansi', 'materi', 'jam_mulai', 'jam_selesai',
     'ttd_id', 'waktu_server', 'dibuat_oleh'],
+  'program' => ['id_program', 'nama', 'aktif', 'dibuat_pada'],
+  'dokumen_program' => ['id_dp', 'id_program', 'skema', 'jenis', 'judul', 'file_id', 'tipe_file', 'link', 'diunggah_pada', 'diunggah_oleh'],
+  'persetujuan' => ['id_setuju', 'id_user', 'id_dp', 'waktu'],
+  'video' => ['id_video', 'judul', 'url', 'youtube_id', 'urutan', 'aktif', 'dibuat_pada'],
+  'video_tonton' => ['id_tonton', 'id_user', 'id_video', 'waktu'],
   'log' => ['id_log', 'waktu', 'id_user', 'nama', 'aksi', 'detail'],
   'pengaturan' => ['kunci', 'nilai'],
   'geo_cache' => ['kunci', 'alamat'],
@@ -30,9 +35,9 @@ const SCHEMA = [
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '3';
+const SCHEMA_VERSI = '4';
 
-const SCHEMA_TEXT = ['info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
+const SCHEMA_TEXT = ['tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 
 /** Index tambahan agar pencarian cepat. */
 const SCHEMA_INDEX = [
@@ -46,12 +51,17 @@ const SCHEMA_INDEX = [
   'laporan' => [['id_batch']],
   'skl' => [['id_batch']],
   'absen_narasumber' => [['id_hari'], ['id_batch']],
+  'dokumen_program' => [['id_program']],
+  'persetujuan' => [['id_user']],
+  'video_tonton' => [['id_user']],
 ];
 
 /** Satu absen per peserta per sesi per hari (mencegah absen dobel di tingkat database). */
 const SCHEMA_UNIQUE = [
   'absensi' => ['id_hari', 'id_user', 'sesi'],
   'skl' => ['nomor'], // nomor SKL tidak boleh kembar
+  'persetujuan' => ['id_user', 'id_dp'],
+  'video_tonton' => ['id_user', 'id_video'],
 ];
 
 /** Perintah CREATE TABLE untuk MySQL (atau SQLite saat pengujian). */

@@ -65,9 +65,35 @@ function validasi_lokasi(array $d, bool $optional): void {
   if (!($r >= 20 && $r <= 5000)) throw new LmsError('Radius harus antara 20 dan 5000 meter.');
 }
 
+/**
+ * Tanggal pilihan (mode custom): array 'yyyy-mm-dd' -> 'yyyy-mm-dd,yyyy-mm-dd,...' terurut, unik.
+ * Mengisi juga tgl_mulai/tgl_selesai dengan tanggal pertama/terakhir. Array kosong = mode rentang biasa.
+ */
+function tanggal_custom_(array &$d): void {
+  if (!array_key_exists('tanggal_custom', $d)) return;
+  $list = is_array($d['tanggal_custom']) ? $d['tanggal_custom'] : array_filter(explode(',', (string)$d['tanggal_custom']));
+  $list = array_values(array_unique(array_map(fn($t) => trim((string)$t), $list)));
+  foreach ($list as $t) {
+    $x = is_date($t) ? array_map('intval', explode('-', $t)) : [0, 0, 0];
+    if (!checkdate($x[1], $x[2], $x[0])) throw new LmsError('Tanggal pilihan tidak valid: ' . $t);
+  }
+  sort($list);
+  if (count($list) > 90) throw new LmsError('Maksimal 90 tanggal pelatihan.');
+  $d['tanggal_custom'] = implode(',', $list);
+  if ($list) [$d['tgl_mulai'], $d['tgl_selesai']] = [$list[0], end($list)];
+}
+
+/** Program & skema batch (opsional). Program harus terdaftar; skema Offline/Online/Blended. */
+function validasi_program(array $d): void {
+  if (($d['id_program'] ?? '') !== '' && !row('SELECT id_program FROM program WHERE id_program = ?', [$d['id_program']])) throw new LmsError('Program pelatihan tidak ditemukan.');
+  if (($d['jenis_pelatihan'] ?? '') !== '' && !in_array($d['jenis_pelatihan'], JENIS_PELATIHAN, true)) throw new LmsError('Skema pelatihan tidak valid.');
+}
+
 function batchBuat(array $data, array $user): array {
   $d = array_merge(['sesi1_mulai' => '08:00', 'sesi1_selesai' => '12:00', 'sesi2_mulai' => '13:00', 'sesi2_selesai' => '17:00',
     'radius_meter' => DEFAULT_RADIUS], $data['batch'] ?? []);
+  tanggal_custom_($d);
+  validasi_program($d);
   validasi_batch($d);
   $kode = trim((string)($d['kode_batch'] ?? ''));
   if ($kode === '') throw new LmsError('Kode batch wajib diisi (mis. B07).');
@@ -79,6 +105,7 @@ function batchBuat(array $data, array $user): array {
     'lat' => $d['lat'] ?? '', 'lng' => $d['lng'] ?? '', 'radius_meter' => $d['radius_meter'],
     'lewati_weekend' => !empty($d['lewati_weekend']) ? 'ya' : '', 'pic_ids' => implode(',', $d['pic_ids'] ?? []),
     'folder' => folder_aman($kode . '-' . trim((string)$d['nama_pelatihan'])), 'status' => 'aktif', 'dibuat_pada' => now_()['stamp'],
+    'id_program' => $d['id_program'] ?? '', 'jenis_pelatihan' => $d['jenis_pelatihan'] ?? '', 'tanggal_custom' => $d['tanggal_custom'] ?? '',
   ]);
   sync_hari($b);
   log_($user, 'batch_buat', $kode);
@@ -89,8 +116,12 @@ function batchBuat(array $data, array $user): array {
 function batchUbah(array $data, array $user): array {
   $b = batch_for_pic($user, (string)($data['id_batch'] ?? ''));
   $d = $data['batch'] ?? [];
+  if ($user['role'] === 'admin') {
+    tanggal_custom_($d);
+    validasi_program($d);
+  }
   $editable = ['sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai', 'lokasi_nama', 'lat', 'lng', 'radius_meter'];
-  if ($user['role'] === 'admin') array_push($editable, 'nama_pelatihan', 'tgl_mulai', 'tgl_selesai', 'status');
+  if ($user['role'] === 'admin') array_push($editable, 'nama_pelatihan', 'tgl_mulai', 'tgl_selesai', 'status', 'id_program', 'jenis_pelatihan', 'tanggal_custom');
   $changes = [];
   foreach ($editable as $k) if (array_key_exists($k, $d)) $changes[$k] = str_val($d[$k]);
   if ($user['role'] === 'admin' && isset($d['pic_ids']) && is_array($d['pic_ids'])) $changes['pic_ids'] = implode(',', $d['pic_ids']);
@@ -98,7 +129,7 @@ function batchUbah(array $data, array $user): array {
   if (isset($changes['status']) && !in_array($changes['status'], ['aktif', 'selesai', 'arsip'], true)) throw new LmsError('Status tidak valid.');
   validasi_batch(array_merge($b, $changes));
   $hariBerubah = false;
-  foreach (['tgl_mulai', 'tgl_selesai', 'lewati_weekend'] as $k) if (isset($changes[$k]) && $changes[$k] !== $b[$k]) $hariBerubah = true;
+  foreach (['tgl_mulai', 'tgl_selesai', 'lewati_weekend', 'tanggal_custom'] as $k) if (isset($changes[$k]) && $changes[$k] !== $b[$k]) $hariBerubah = true;
   $b = update('batch', $b, $changes);
   if ($hariBerubah) sync_hari($b);
   log_($user, 'batch_ubah', $b['kode_batch'] . ': ' . implode(', ', array_keys($changes)));
@@ -144,9 +175,9 @@ function hapus_folder(string $dir): void {
 
 /** Menyamakan daftar hari dengan rentang tanggal batch. Hari yang sudah ada absensinya tidak dihapus. */
 function sync_hari(array $batch): void {
-  $want = [];
+  $want = $batch['tanggal_custom'] !== '' ? explode(',', $batch['tanggal_custom']) : []; // tanggal pilihan (tidak harus berurutan)
   $d = new DateTime($batch['tgl_mulai']);
-  $end = new DateTime($batch['tgl_selesai']);
+  $end = new DateTime($batch['tanggal_custom'] !== '' ? '1970-01-01' : $batch['tgl_selesai']);
   for (; $d <= $end; $d->modify('+1 day')) {
     $dow = (int)$d->format('w');
     if ($batch['lewati_weekend'] === 'ya' && ($dow === 0 || $dow === 6)) continue;

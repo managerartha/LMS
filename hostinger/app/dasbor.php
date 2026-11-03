@@ -59,6 +59,21 @@ function dasbor_batch(array $b, array $now, array $user): array {
     if ($fase === 'akan' && $peserta === 0 && (strtotime($b['tgl_mulai']) - strtotime($today)) <= 7 * 86400) {
       $p[] = pengingat_('warn', 'Belum ada peserta. Pelatihan mulai ' . tgl_id($b['tgl_mulai']) . '.', 'peserta');
     }
+    // Tata tertib, guideline & video pengarahan
+    $k = kepatuhan_ringkas($b);
+    if ($b['id_program'] === '') {
+      $p[] = pengingat_('info', 'Program pelatihan belum dipilih — tata tertib & guideline belum tampil ke peserta.', $user['role'] === 'admin' ? 'batch' : 'kepatuhan');
+    } else {
+      if (!$k['dokumen']) {
+        $p[] = pengingat_('warn', 'Tata tertib & guideline untuk program batch ini belum di-upload' . ($b['jenis_pelatihan'] === '' ? ' (skema batch juga belum dipilih)' : '') . '.',
+          $user['role'] === 'admin' ? 'pustaka' : 'kepatuhan');
+      } elseif ($fase === 'berjalan' && $k['belum_setuju']) {
+        $p[] = pengingat_('info', $k['belum_setuju'] . ' peserta belum menyetujui tata tertib & guideline.', 'kepatuhan');
+      }
+    }
+    if ($fase === 'berjalan' && $k['video'] && $k['belum_tonton']) {
+      $p[] = pengingat_('info', $k['belum_tonton'] . ' peserta belum menonton semua video pengarahan.', 'kepatuhan');
+    }
     // Hari ini & hari pelatihan berikutnya: lokasi, rundown, materi
     foreach ([[$hIni, true], [$besok, false]] as [$h, $isToday]) {
       if (!$h) continue;

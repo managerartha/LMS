@@ -1,9 +1,11 @@
 <?php
-/** Mengunduh file materi dengan nama aslinya: api/unduh.php?id=<id_materi> */
+/** Mengunduh file materi dengan nama aslinya: api/unduh.php?id=<id_materi>, atau tata tertib/guideline: ?dp=<id_dp> */
 require __DIR__ . '/../app/api.php';
 
 try {
-  $m = row('SELECT * FROM materi WHERE id_materi = ?', [(string)($_GET['id'] ?? '')]);
+  $m = isset($_GET['dp'])
+    ? row('SELECT judul, file_id, tipe_file FROM dokumen_program WHERE id_dp = ?', [(string)$_GET['dp']])
+    : row('SELECT * FROM materi WHERE id_materi = ?', [(string)($_GET['id'] ?? '')]);
   $f = $m && $m['file_id'] !== '' && !str_contains($m['file_id'], '..') ? ROOT . '/' . $m['file_id'] : '';
   if (!$f || !is_file($f)) throw new LmsError('File tidak ditemukan.');
   $nama = preg_replace('/[^A-Za-z0-9 ._()-]+/', '-', $m['judul']) . '.' . $m['tipe_file'];

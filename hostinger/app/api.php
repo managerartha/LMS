@@ -10,6 +10,7 @@ require_once __DIR__ . '/laporan.php';
 require_once __DIR__ . '/skl.php';
 require_once __DIR__ . '/dasbor.php';
 require_once __DIR__ . '/narasumber.php';
+require_once __DIR__ . '/pustaka.php';
 
 /** auth: '' = publik, 'user' = sudah login, 'pic' = PIC/Admin, 'admin' = Admin. */
 const ROUTES = [
@@ -25,7 +26,10 @@ const ROUTES = [
   'infoLaporanGet' => 'pic', 'infoLaporanSimpan' => 'pic',
   'sklSaya' => 'user', 'sklUnduh' => 'user', 'sklList' => 'pic', 'sklSimpanData' => 'pic', 'sklTerbitkan' => 'pic', 'sklTahan' => 'pic', 'sklUnduhSemua' => 'pic',
   'batchBuat' => 'admin', 'picList' => 'admin', 'picTambah' => 'admin', 'picResetPin' => 'admin', 'picUbah' => 'admin', 'batchHapus' => 'admin', 'dasborPic' => 'pic',
-  'narasumberList' => 'pic', 'narasumberAbsen' => 'pic', 'narasumberHapus' => 'pic', 'orgSimpan' => 'admin', 'orgTtdSimpan' => 'admin',
+  'narasumberList' => 'pic', 'narasumberAbsen' => 'pic', 'narasumberHapus' => 'pic',
+  'panduanPeserta' => 'user', 'setujuDokumen' => 'user', 'videoTonton' => 'user', 'programList' => 'pic', 'kepatuhanBatch' => 'pic',
+  'programSimpan' => 'admin', 'pustakaDokList' => 'admin', 'pustakaDokUpload' => 'admin', 'pustakaDokHapus' => 'admin',
+  'videoList' => 'admin', 'videoSimpan' => 'admin', 'videoHapus' => 'admin', 'orgSimpan' => 'admin', 'orgTtdSimpan' => 'admin',
 ];
 
 function waktu(): array { return ['now' => lms_ms()]; }

@@ -87,7 +87,8 @@ function me(array $data, array $user): array {
 
 /** Status absen hari ini + konten (rundown, materi, dokumentasi) dalam satu permintaan. */
 function beranda(array $data, array $user): array {
-  return ['status' => statusHariIni($data, $user), 'konten' => kontenPeserta($data, $user), 'skl' => skl_view(skl_of($user['id_user']))];
+  return ['status' => statusHariIni($data, $user), 'konten' => kontenPeserta($data, $user), 'skl' => skl_view(skl_of($user['id_user'])),
+    'panduan' => panduan_peserta($user)];
 }
 
 function logout(array $data, array $user): bool {
