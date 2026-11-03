@@ -106,6 +106,8 @@ function batchBuat(array $data, array $user): array {
     'lewati_weekend' => !empty($d['lewati_weekend']) ? 'ya' : '', 'pic_ids' => implode(',', $d['pic_ids'] ?? []),
     'folder' => folder_aman($kode . '-' . trim((string)$d['nama_pelatihan'])), 'status' => 'aktif', 'dibuat_pada' => now_()['stamp'],
     'id_program' => $d['id_program'] ?? '', 'jenis_pelatihan' => $d['jenis_pelatihan'] ?? '', 'tanggal_custom' => $d['tanggal_custom'] ?? '',
+    // Batch baru berskema Online otomatis bebas lokasi (bisa diubah di Jadwal & Lokasi).
+    'lokasi_bebas' => ($d['jenis_pelatihan'] ?? '') === 'Online' ? 'ya' : '',
   ]);
   sync_hari($b);
   log_($user, 'batch_buat', $kode);
@@ -120,7 +122,8 @@ function batchUbah(array $data, array $user): array {
     tanggal_custom_($d);
     validasi_program($d);
   }
-  $editable = ['sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai', 'lokasi_nama', 'lat', 'lng', 'radius_meter'];
+  $editable = ['sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai', 'lokasi_nama', 'lat', 'lng', 'radius_meter', 'lokasi_bebas'];
+  if (array_key_exists('lokasi_bebas', $d)) $d['lokasi_bebas'] = $d['lokasi_bebas'] === 'ya' || $d['lokasi_bebas'] === true ? 'ya' : '';
   if ($user['role'] === 'admin') array_push($editable, 'nama_pelatihan', 'tgl_mulai', 'tgl_selesai', 'status', 'id_program', 'jenis_pelatihan', 'tanggal_custom');
   $changes = [];
   foreach ($editable as $k) if (array_key_exists($k, $d)) $changes[$k] = str_val($d[$k]);
@@ -205,10 +208,20 @@ function get_hari(string $idHari): array {
 }
 
 /** Lokasi yang berlaku untuk suatu hari: lokasi khusus hari itu, atau lokasi default batch. */
+/**
+ * Aturan lokasi absen: batch.lokasi_bebas 'ya' = bebas dari mana saja (online), selain itu wajib di lokasi.
+ * hari.lokasi_bebas: '' = ikut batch, 'ya' = hari itu bebas (mis. hari online pada batch blended), 'tidak' = wajib di lokasi.
+ */
+function lokasi_bebas(array $batch, ?array $hari): bool {
+  $aturan = $hari['lokasi_bebas'] ?? '';
+  return $aturan === 'ya' || ($aturan !== 'tidak' && ($batch['lokasi_bebas'] ?? '') === 'ya');
+}
+
 function lokasi_hari(array $batch, ?array $hari): array {
   $khusus = $hari && $hari['lat'] !== '';
   $src = $khusus ? $hari : $batch;
   return [
+    'bebas' => lokasi_bebas($batch, $hari), 'aturan_hari' => $hari['lokasi_bebas'] ?? '',
     'khusus' => $khusus,
     'nama' => $src['lokasi_nama'] !== '' ? $src['lokasi_nama'] : ($khusus ? 'Lokasi khusus' : 'Lokasi pelatihan'),
     'lat' => $src['lat'] === '' ? null : (float)$src['lat'],
@@ -230,6 +243,17 @@ function hariSetLokasi(array $data, array $user): array {
   $h = update('hari', $h, ['lokasi_nama' => trim((string)($data['lokasi_nama'] ?? '')), 'lat' => (float)$data['lat'], 'lng' => (float)$data['lng'],
     'radius_meter' => (float)(($data['radius_meter'] ?? '') !== '' ? $data['radius_meter'] : DEFAULT_RADIUS), 'diubah_oleh' => $user['nama']]);
   log_($user, 'lokasi_hari', "{$b['kode_batch']} hari {$h['hari_ke']} → {$h['lokasi_nama']} ({$h['lat']}, {$h['lng']}, r={$h['radius_meter']})");
+  return lokasi_hari($b, $h);
+}
+
+/** Aturan lokasi satu hari: '' ikut batch, 'ya' bebas (online), 'tidak' wajib di lokasi. */
+function hariSetAturan(array $data, array $user): array {
+  $h = get_hari((string)($data['id_hari'] ?? ''));
+  $b = batch_for_pic($user, $h['id_batch']);
+  $aturan = (string)($data['aturan'] ?? '');
+  if (!in_array($aturan, ['', 'ya', 'tidak'], true)) throw new LmsError('Aturan lokasi tidak valid.');
+  $h = update('hari', $h, ['lokasi_bebas' => $aturan, 'diubah_oleh' => $user['nama']]);
+  log_($user, 'aturan_lokasi_hari', "{$b['kode_batch']} hari {$h['hari_ke']} → " . ($aturan === '' ? 'ikut batch' : $aturan));
   return lokasi_hari($b, $h);
 }
 

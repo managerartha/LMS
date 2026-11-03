@@ -297,7 +297,7 @@ function bagian_hari(array $batch, array $r, array $peserta): string {
     $out[] = '<div class="pb"></div>' . $judul;
     $cells = array_map(fn($x) => '<td style="width:' . intdiv(100, LAPORAN_KOLOM_ABSEN) . '%">' . img_(file_data_url($x['rec']['foto_id']), 'width="150"') .
       '<br><b>' . h_($x['u']['nama']) . '</b><br>' . h_($x['u']['kode_login']) . ' · ' . h_(substr($x['rec']['waktu_server'], 11, 8)) . ' WIB' .
-      '<br><span class="muted">± ' . h_($x['rec']['jarak_meter']) . ' m dari lokasi</span><br>' . img_(file_data_url($x['rec']['ttd_id']), 'height="45"') . '</td>', $hadir);
+      '<br><span class="muted">' . ($x['rec']['jarak_meter'] === '' ? 'Online · lokasi bebas' : '± ' . h_($x['rec']['jarak_meter']) . ' m dari lokasi') . '</span><br>' . img_(file_data_url($x['rec']['ttd_id']), 'height="45"') . '</td>', $hadir);
     $out[] = grid_table($cells, LAPORAN_KOLOM_ABSEN);
   }
   $dok = array_values(array_filter(dok_hari($h['id_hari']), fn($d) => $d['masuk_laporan'] === 'ya'));
@@ -593,6 +593,7 @@ function alamat_absen(array $rec): string {
     update('absensi', $rec, ['alamat' => $a]);
     return $a;
   }
+  if ($rec['lat'] === '' && $rec['jarak_meter'] === '' && $rec['foto_id'] !== '') return 'Online (lokasi bebas)'; // absen online tanpa GPS
   return $rec['lat'] !== '' ? $rec['lat'] . ', ' . $rec['lng'] : '-';
 }
 

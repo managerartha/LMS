@@ -18,7 +18,7 @@ const ROUTES = [
   'me' => 'user', 'beranda' => 'user', 'logout' => 'user', 'setuju' => 'user',
   'statusHariIni' => 'user', 'absen' => 'user', 'riwayat' => 'user', 'kontenPeserta' => 'user',
   'gantiPin' => 'pic', 'batchList' => 'pic', 'batchUbah' => 'pic', 'hariList' => 'pic', 'hariSetLokasi' => 'pic',
-  'hariResetLokasi' => 'pic', 'lokasiDariTeks' => 'pic', 'pesertaList' => 'pic', 'pesertaTambah' => 'pic', 'pesertaUbah' => 'pic',
+  'hariResetLokasi' => 'pic', 'hariSetAturan' => 'pic', 'lokasiDariTeks' => 'pic', 'pesertaList' => 'pic', 'pesertaTambah' => 'pic', 'pesertaUbah' => 'pic',
   'pesertaResetDevice' => 'pic', 'pesertaAktif' => 'pic', 'monitor' => 'pic', 'absenSetStatus' => 'pic', 'absenFoto' => 'pic',
   'rundownGet' => 'pic', 'rundownSimpan' => 'pic', 'rundownSalin' => 'pic', 'materiList' => 'pic', 'materiTambah' => 'pic',
   'materiHapus' => 'pic', 'dokList' => 'pic', 'dokTambah' => 'pic', 'dokUbah' => 'pic', 'dokHapus' => 'pic',

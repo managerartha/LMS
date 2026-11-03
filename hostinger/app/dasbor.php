@@ -79,7 +79,7 @@ function dasbor_batch(array $b, array $now, array $user): array {
       if (!$h) continue;
       if (!$isToday && (strtotime($h['tanggal']) - strtotime($today)) > 3 * 86400) continue; // hanya H-3
       $kapan = $isToday ? 'hari ini' : label_hari($h);
-      if (lokasi_hari($b, $h)['lat'] === null) {
+      if (lokasi_hari($b, $h)['lat'] === null && !lokasi_bebas($b, $h)) {
         $p[] = pengingat_($isToday ? 'bad' : 'warn', 'Lokasi absen ' . $kapan . ' belum diatur — peserta tidak bisa absen.', 'lokasi', $h['id_hari']);
       }
       if (!row("SELECT id_rundown FROM rundown WHERE id_hari = ? AND status = 'terbit' LIMIT 1", [$h['id_hari']])) {

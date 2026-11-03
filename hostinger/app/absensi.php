@@ -103,17 +103,22 @@ function absen(array $data, array $user): array {
     throw new LmsError("Absen Sesi $sesi hanya bisa dilakukan pukul {$j['mulai']}–{$j['selesai']} WIB.");
   }
 
-  // 2. Cek lokasi.
+  // 2. Cek lokasi. Hari/batch online (lokasi bebas): tanpa cek radius; GPS dicatat jika tersedia.
   $lok = lokasi_hari($batch, $hari);
-  if ($lok['lat'] === null) throw new LmsError('Lokasi pelatihan hari ini belum diatur PIC. Hubungi PIC.');
-  if (!isset($data['lat']) || !is_numeric($data['lat']) || !is_numeric($data['lng'] ?? null)) {
-    throw new LmsError('Lokasi GPS tidak terbaca. Aktifkan GPS/lokasi lalu coba lagi.');
-  }
-  $lat = (float)$data['lat'];
-  $lng = (float)$data['lng'];
-  $jarak = distance_m($lat, $lng, $lok['lat'], $lok['lng']);
-  if ($jarak > $lok['radius']) {
-    throw new LmsError("Anda berada ± $jarak m dari {$lok['nama']}. Absen hanya bisa dalam radius " . (int)$lok['radius'] . ' m.');
+  $adaGps = isset($data['lat']) && is_numeric($data['lat']) && is_numeric($data['lng'] ?? null);
+  if ($lok['bebas']) {
+    $lat = $adaGps ? (float)$data['lat'] : '';
+    $lng = $adaGps ? (float)$data['lng'] : '';
+    $jarak = '';
+  } else {
+    if ($lok['lat'] === null) throw new LmsError('Lokasi pelatihan hari ini belum diatur PIC. Hubungi PIC.');
+    if (!$adaGps) throw new LmsError('Lokasi GPS tidak terbaca. Aktifkan GPS/lokasi lalu coba lagi.');
+    $lat = (float)$data['lat'];
+    $lng = (float)$data['lng'];
+    $jarak = distance_m($lat, $lng, $lok['lat'], $lok['lng']);
+    if ($jarak > $lok['radius']) {
+      throw new LmsError("Anda berada ± $jarak m dari {$lok['nama']}. Absen hanya bisa dalam radius " . (int)$lok['radius'] . ' m.');
+    }
   }
   $ada = absen_of($hari['id_hari'], $user['id_user'], $sesi);
   if ($ada && $ada['status'] === 'hadir') throw new LmsError("Anda sudah absen Sesi $sesi hari ini.");
@@ -123,12 +128,12 @@ function absen(array $data, array $user): array {
   $base = 'H' . $hari['hari_ke'] . '_S' . $sesi . '_' . $user['kode_login'];
   $foto = simpan_data_url($dir, (string)($data['foto'] ?? ''), $base . '_foto.jpg');
   $ttd = simpan_data_url($dir, (string)($data['ttd'] ?? ''), $base . '_ttd.png');
-  $alamat = alamat_($lat, $lng);
+  $alamat = $lat === '' ? '' : alamat_($lat, $lng);
 
   // 4. Catat. Kunci unik (hari, peserta, sesi) di database mencegah absen dobel.
   $waktu = now_()['stamp'];
   $rec = ['waktu_server' => $waktu, 'foto_id' => $foto, 'ttd_id' => $ttd, 'lat' => $lat, 'lng' => $lng,
-    'akurasi_meter' => (int)round((float)($data['akurasi'] ?? 0)), 'jarak_meter' => $jarak, 'status' => 'hadir',
+    'akurasi_meter' => $lat === '' ? '' : (int)round((float)($data['akurasi'] ?? 0)), 'jarak_meter' => $jarak, 'status' => 'hadir',
     'keterangan' => '', 'diubah_oleh' => '', 'diubah_pada' => '', 'alamat' => $alamat];
   try {
     if ($ada) {

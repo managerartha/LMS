@@ -6,11 +6,11 @@
 const SCHEMA = [
   'batch' => ['id_batch', 'nama_pelatihan', 'kode_batch', 'lokasi_nama', 'tgl_mulai', 'tgl_selesai',
     'sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai', 'lat', 'lng', 'radius_meter',
-    'lewati_weekend', 'pic_ids', 'folder', 'status', 'dibuat_pada', 'info_laporan', 'jenis_pelatihan', 'id_program', 'tanggal_custom'],
+    'lewati_weekend', 'pic_ids', 'folder', 'status', 'dibuat_pada', 'info_laporan', 'jenis_pelatihan', 'id_program', 'tanggal_custom', 'lokasi_bebas'],
   'pengguna' => ['id_user', 'id_batch', 'no_absen', 'nama', 'role', 'kode_login', 'pin_hash', 'instansi',
     'no_hp', 'device_id', 'setuju_privasi', 'ttd_id', 'aktif', 'dibuat_pada', 'tempat_lahir', 'tgl_lahir'],
   'token' => ['token', 'id_user', 'dibuat_pada'],
-  'hari' => ['id_hari', 'id_batch', 'tanggal', 'hari_ke', 'lokasi_nama', 'lat', 'lng', 'radius_meter', 'diubah_oleh'],
+  'hari' => ['id_hari', 'id_batch', 'tanggal', 'hari_ke', 'lokasi_nama', 'lat', 'lng', 'radius_meter', 'diubah_oleh', 'lokasi_bebas'],
   'absensi' => ['id_absen', 'id_batch', 'id_hari', 'id_user', 'sesi', 'waktu_server', 'foto_id', 'ttd_id',
     'lat', 'lng', 'akurasi_meter', 'jarak_meter', 'status', 'keterangan', 'diubah_oleh', 'diubah_pada', 'alamat'],
   'rundown' => ['id_rundown', 'id_batch', 'id_hari', 'urutan', 'jam_mulai', 'jam_selesai', 'kegiatan',
@@ -35,7 +35,7 @@ const SCHEMA = [
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '4';
+const SCHEMA_VERSI = '5';
 
 const SCHEMA_TEXT = ['tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 

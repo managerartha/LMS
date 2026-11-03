@@ -435,3 +435,10 @@ Semua perubahan bersifat **tambahan** (skema versi 4: tabel `program`, `dokumen_
 - **Video pengarahan** (YouTube, semua batch): kartu *Video Wajib Ditonton* paling atas di Dashboard peserta dan di menu *Panduan Pelatihan*. Tercatat ditonton otomatis saat diputar ±90% (YouTube IFrame API); jika API tidak bisa dimuat, muncul tombol cadangan *Saya sudah menonton*. Hanya pengingat, tidak menghalangi absen.
 - **Rekap PIC** (menu *Tata Tertib & Video*): dokumen & video yang berlaku untuk batch, serta siapa yang sudah menyetujui / menonton. Dashboard memberi pengingat (program belum dipilih, dokumen belum di-upload, peserta belum setuju/menonton).
 - **Tanggal pilihan**: form batch punya mode *Rentang tanggal* atau *Pilih tanggal sendiri* (mis. 1, 3, 9, 14). `tgl_mulai/tgl_selesai` = tanggal pertama/terakhir; hari pelatihan dibuat dari daftar itu. Laporan resmi & SKL menulis *"1, 3, 9 dan 14 Juni 2026"* (`tanggal_batch_teks`). Tanggal yang sudah berisi absensi tidak dihapus.
+
+## 18. Aturan lokasi absen: wajib di lokasi (offline) atau bebas (online)
+
+- **Batch** (`batch.lokasi_bebas`): kosong = **wajib di lokasi** (perilaku lama, berlaku untuk semua batch yang sudah ada), `ya` = **bebas dari mana saja** (online). Batch baru dengan skema *Online* otomatis bebas. Diatur PIC/Admin di *Jadwal & Lokasi → Aturan lokasi absen*.
+- **Per hari** (`hari.lokasi_bebas`): kosong = ikut batch, `ya` = online (mis. hari online pada batch blended), `tidak` = wajib di lokasi.
+- Absen saat bebas: tanpa cek radius dan tanpa wajib GPS; jika GPS tersedia tetap dicatat (lat/lng/akurasi/alamat), `jarak_meter` kosong. Laporan menulis *Online · lokasi bebas*. Absensi yang sudah masuk tidak berubah.
+- Dashboard tidak lagi mengingatkan "lokasi belum diatur" untuk hari yang bebas lokasi. Skema database versi 5.

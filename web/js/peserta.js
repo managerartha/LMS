@@ -111,7 +111,7 @@ function heroHtml(st, k) {
     chip = buka ? `<span class="chip chip-live">● Absen Sesi ${buka.sesi} dibuka</span>`
       : `<span class="chip chip-glass">Hari ke-${esc(h.hari_ke)} dari ${esc(h.total_hari)}</span>`;
     judul = `${esc(b.nama_pelatihan)} – Hari Ke-${esc(h.hari_ke)}`;
-    sub = `${esc(fmtTanggal(st.tanggal))} · ${esc(h.sesi[0].mulai)}–${esc(h.sesi[h.sesi.length - 1].selesai)} WIB · 📍 ${esc(h.lokasi.nama)}`;
+    sub = `${esc(fmtTanggal(st.tanggal))} · ${esc(h.sesi[0].mulai)}–${esc(h.sesi[h.sesi.length - 1].selesai)} WIB · ${h.lokasi.bebas ? '🌐 Online' : '📍 ' + esc(h.lokasi.nama)}`;
     if (buka) aksi = `<button class="btn white big" onclick="mulaiAbsen(${buka.sesi})">📸 Absen Sesi ${buka.sesi} Sekarang</button>`;
     const hk = k.hari.find(x => x.tanggal === k.tanggal);
     const jalan = hk && hk.rundown.find(r => k.jam >= r.jam_mulai && k.jam < r.jam_selesai);
@@ -316,6 +316,7 @@ function mulaiAbsen(sesi) {
 
 async function stepLokasi() {
   const lok = P.status.hari.lokasi;
+  if (lok.bebas) return stepLokasiBebas();
   openModal(`${stepsHtml(1)}
     <h2>1. Cek lokasi</h2>
     <p class="muted small">Lokasi pelatihan: <b>${esc(lok.nama)}</b> (radius ${esc(lok.radius)} m)</p>
@@ -344,6 +345,27 @@ async function stepLokasi() {
   } catch (e) {
     $('#lok-status').className = 'alert bad';
     $('#lok-status').textContent = e.message;
+  }
+}
+
+/** Pelatihan online: absen dari mana saja. GPS dicoba (dicatat jika ada), tapi tidak menghalangi absen. */
+async function stepLokasiBebas() {
+  openModal(`${stepsHtml(1)}
+    <h2>1. Lokasi</h2>
+    <div class="alert ok">🌐 Pelatihan online — absen bisa dari mana saja.</div>
+    <p class="small muted" id="lok-status">📡 Membaca lokasi (opsional)…</p>
+    <div class="row mt">
+      <button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn primary grow" onclick="stepFoto()">Lanjut</button>
+    </div>`);
+  try {
+    A.pos = await getPosition();
+    const el = $('#lok-status');
+    if (el) el.textContent = '📍 Lokasi tercatat (akurasi ± ' + Math.round(A.pos.akurasi) + ' m).';
+  } catch (e) {
+    A.pos = null;
+    const el = $('#lok-status');
+    if (el) el.textContent = 'Lokasi tidak terbaca — tidak apa-apa, absen tetap bisa dilanjutkan.';
   }
 }
 
@@ -410,7 +432,8 @@ function prosesFoto(src, w, h, mirror) {
   const lines = [
     S.user.nama + ' (' + S.user.kode_login + ') | Sesi ' + A.sesi,
     wib(serverNow()).teks,
-    lok.nama + ' | ' + A.pos.lat.toFixed(5) + ', ' + A.pos.lng.toFixed(5) + ' (' + A.jarak + ' m)',
+    lok.bebas ? 'Online' + (A.pos ? ' | ' + A.pos.lat.toFixed(5) + ', ' + A.pos.lng.toFixed(5) : '')
+      : lok.nama + ' | ' + A.pos.lat.toFixed(5) + ', ' + A.pos.lng.toFixed(5) + ' (' + A.jarak + ' m)',
   ];
   const fs = Math.max(12, Math.round(cw / 34));
   const pad = Math.round(fs * 0.6);
@@ -446,7 +469,7 @@ async function kirimAbsen(btn) {
   if (A.pad.isEmpty()) return toast('Tanda tangan masih kosong.', 'error');
   A.ttd = A.pad.toDataURL();
   await busy(btn, async () => {
-    const res = await call('absen', { sesi: A.sesi, lat: A.pos.lat, lng: A.pos.lng, akurasi: A.pos.akurasi, foto: A.foto, ttd: A.ttd });
+    const res = await call('absen', { sesi: A.sesi, lat: A.pos ? A.pos.lat : '', lng: A.pos ? A.pos.lng : '', akurasi: A.pos ? A.pos.akurasi : '', foto: A.foto, ttd: A.ttd });
     openModal(`
       <div class="center pad">
         <div style="font-size:48px">✅</div>

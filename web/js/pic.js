@@ -137,7 +137,7 @@ function tampilMonitor(v, m) {
         </select>
         <button class="btn" onclick="muatMonitor().catch(e => toast(e.message, 'error'))">↻</button>
       </div>
-      <div class="small muted mt">📍 ${esc(m.hari.lokasi.nama)} ${m.hari.lokasi.lat === null ? '<span class="badge b-alpa">Lokasi belum diatur</span>' : '(radius ' + esc(m.hari.lokasi.radius) + ' m)'}</div>
+      <div class="small muted mt">${m.hari.lokasi.bebas ? '🌐 Online — absen bisa dari mana saja' : `📍 ${esc(m.hari.lokasi.nama)} ${m.hari.lokasi.lat === null ? '<span class="badge b-alpa">Lokasi belum diatur</span>' : '(radius ' + esc(m.hari.lokasi.radius) + ' m)'}`}</div>
       <div class="grid2 mt">
         ${m.sesi.map(s => `
           <div>
@@ -193,8 +193,8 @@ async function detailAbsen(i, j) {
       const f = await call('absenFoto', { id_absen: s.id_absen });
       $('#detail-foto').innerHTML = `
         <img class="thumb" src="${f.foto}" alt="Foto absen">
-        <div class="small muted mt">Waktu server: <b>${esc(f.waktu)} WIB</b> · Jarak ${esc(f.jarak_meter)} m (akurasi ± ${esc(f.akurasi_meter)} m)
-          · <a href="https://www.google.com/maps?q=${esc(f.lat)},${esc(f.lng)}" target="_blank">lihat di peta</a></div>
+        <div class="small muted mt">Waktu server: <b>${esc(f.waktu)} WIB</b> · ${f.jarak_meter === '' ? 'Online · lokasi bebas' + (f.lat !== '' ? ' (akurasi ± ' + esc(f.akurasi_meter) + ' m)' : ' (GPS tidak tercatat)') : 'Jarak ' + esc(f.jarak_meter) + ' m (akurasi ± ' + esc(f.akurasi_meter) + ' m)'}
+          ${f.lat !== '' ? `· <a href="https://www.google.com/maps?q=${esc(f.lat)},${esc(f.lng)}" target="_blank">lihat di peta</a>` : ''}</div>
         <div class="small muted mt">Tanda tangan:</div>
         <img class="thumb" src="${f.ttd}" alt="Tanda tangan" style="max-height:140px">`;
     } catch (e) { $('#detail-foto').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>'; }
@@ -323,6 +323,15 @@ async function tabLokasi() {
         <button class="btn primary mt" onclick="simpanJam(this)">Simpan jam sesi</button>
       </div>
       <div class="card">
+        <h2>Aturan lokasi absen</h2>
+        <p class="small muted">Pelatihan <b>offline</b> wajib absen di lokasi pelatihan (dalam radius). Pelatihan <b>online</b> boleh absen dari mana saja.
+          Untuk batch <b>blended</b>, pilih "Wajib di lokasi" lalu tandai hari-hari online di tabel <i>Lokasi per hari</i>.</p>
+        <div class="seg">
+          <button type="button" class="${b.lokasi_bebas === 'ya' ? '' : 'active'}" onclick="simpanAturanBatch(this, '')">📍 Wajib di lokasi (offline)</button>
+          <button type="button" class="${b.lokasi_bebas === 'ya' ? 'active' : ''}" onclick="simpanAturanBatch(this, 'ya')">🌐 Bebas dari mana saja (online)</button>
+        </div>
+      </div>
+      <div class="card">
         <h2>Lokasi default batch</h2>
         <p class="small muted">Dipakai untuk semua hari, kecuali hari yang diberi lokasi khusus di bawah.</p>
         ${lokasiForm('def', b.lokasi_nama, b.lat, b.lng, b.radius_meter)}
@@ -331,12 +340,18 @@ async function tabLokasi() {
       <div class="card table-wrap">
         <h2>Lokasi per hari</h2>
         <table>
-          <thead><tr><th>Hari</th><th>Lokasi</th><th></th></tr></thead>
+          <thead><tr><th>Hari</th><th>Aturan</th><th>Lokasi</th><th></th></tr></thead>
           <tbody>${C.hari.map((h, i) => `
             <tr>
               <td><b>Hari ke-${esc(h.hari_ke)}</b><div class="small muted">${esc(fmtTanggal(h.tanggal))}</div></td>
-              <td>${h.lokasi.khusus ? '📍 <b>' + esc(h.lokasi.nama) + '</b>' : '<span class="muted">(default) ' + esc(h.lokasi.nama) + '</span>'}
-                <div class="small muted">${h.lokasi.lat === null ? 'belum diatur' : 'radius ' + esc(h.lokasi.radius) + ' m'}</div></td>
+              <td><select onchange="simpanAturanHari(this, '${esc(h.id_hari)}')">
+                  <option value="" ${h.lokasi.aturan_hari === '' ? 'selected' : ''}>Ikut batch (${b.lokasi_bebas === 'ya' ? 'online' : 'wajib lokasi'})</option>
+                  <option value="tidak" ${h.lokasi.aturan_hari === 'tidak' ? 'selected' : ''}>📍 Wajib di lokasi</option>
+                  <option value="ya" ${h.lokasi.aturan_hari === 'ya' ? 'selected' : ''}>🌐 Online (bebas)</option>
+                </select></td>
+              <td>${h.lokasi.bebas ? '<span class="badge b-izin">🌐 Online — tanpa cek lokasi</span>'
+                : `${h.lokasi.khusus ? '📍 <b>' + esc(h.lokasi.nama) + '</b>' : '<span class="muted">(default) ' + esc(h.lokasi.nama) + '</span>'}
+                <div class="small muted">${h.lokasi.lat === null ? 'belum diatur' : 'radius ' + esc(h.lokasi.radius) + ' m'}</div>`}</td>
               <td class="row" style="justify-content:flex-end">
                 <button class="btn sm" onclick="dialogLokasiHari(${i})">Ubah</button>
                 ${h.lokasi.khusus ? `<button class="btn sm" title="Kembalikan ke default" onclick="resetLokasiHari(this, '${esc(h.id_hari)}')">↺</button>` : ''}
@@ -409,6 +424,19 @@ function simpanLokasiDefault(btn) {
   const v = lokasiValue('def');
   if (!v.lat || !v.lng) return toast('Isi koordinat lokasi terlebih dahulu.', 'error');
   perbaruiBatch(btn, v, 'Lokasi default disimpan.');
+}
+
+function simpanAturanBatch(btn, nilai) {
+  if (nilai === 'ya' && !confirm('Jadikan batch ini BEBAS LOKASI (online)?\n\nPeserta bisa absen dari mana saja, kecuali hari yang ditandai "Wajib di lokasi". Absensi yang sudah masuk tidak berubah.')) return;
+  perbaruiBatch(btn, { lokasi_bebas: nilai }, nilai === 'ya' ? 'Batch: absen bebas dari mana saja.' : 'Batch: absen wajib di lokasi.');
+}
+
+function simpanAturanHari(sel, idHari) {
+  busy(null, async () => {
+    await call('hariSetAturan', { id_hari: idHari, aturan: sel.value });
+    toast('Aturan lokasi hari disimpan.', 'ok');
+    tabLokasi();
+  });
 }
 
 function dialogLokasiHari(i) {
