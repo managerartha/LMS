@@ -564,7 +564,7 @@ async function dialogBatch(i) {
       ${formTanggalHtml('ub', b)}
       <label>Status</label>
       <select name="status"><option value="aktif" ${b.status === 'aktif' ? 'selected' : ''}>Aktif</option>
-        <option value="selesai" ${b.status === 'selesai' ? 'selected' : ''}>Selesai (peserta tidak bisa login)</option>
+        <option value="selesai" ${b.status === 'selesai' ? 'selected' : ''}>Selesai (peserta hanya bisa melihat, tidak bisa absen)</option>
         <option value="arsip" ${b.status === 'arsip' ? 'selected' : ''}>Diarsipkan (disembunyikan dari daftar)</option></select>
       <label>PIC batch</label>
       ${picCheckboxes(b.pic_ids ? b.pic_ids.split(',') : [])}
@@ -590,11 +590,12 @@ function simpanBatch(form, id) {
   });
 }
 
-/** Arsipkan (arsip = true) atau pulihkan batch. Peserta dengan SKL terbit tetap bisa mengunduh SKL. */
+/** Arsipkan (arsip = true) atau pulihkan batch. Peserta tetap bisa login untuk melihat materi, dokumentasi, riwayat & SKL. */
 function arsipBatch(btn, i, arsip) {
   const b = C.batches[i];
-  if (arsip && !confirm('Arsipkan batch ' + b.kode_batch + '?\n\nBatch disembunyikan dari pilihan batch dan Dashboard, peserta tidak bisa login ' +
-    '(kecuali untuk mengunduh SKL yang sudah terbit). Data tetap tersimpan dan bisa dipulihkan.')) return;
+  if (arsip && !confirm('Arsipkan batch ' + b.kode_batch + '?\n\nBatch disembunyikan dari pilihan batch dan Dashboard PIC/Admin. Peserta tetap bisa login ' +
+    'untuk melihat materi, dokumentasi, riwayat absen, dan SKL, tetapi tidak bisa absen. Data tetap tersimpan dan bisa dipulihkan ' +
+    '(menu Batch → Arsip pelatihan → Pulihkan).')) return;
   busy(btn, async () => {
     await call('batchUbah', { id_batch: b.id_batch, batch: { status: arsip ? 'arsip' : 'selesai' } });
     toast(arsip ? 'Batch ' + b.kode_batch + ' diarsipkan.' : 'Batch ' + b.kode_batch + ' dipulihkan (status Selesai).', 'ok');

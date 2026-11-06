@@ -452,3 +452,8 @@ Semua perubahan bersifat **tambahan** (skema versi 4: tabel `program`, `dokumen_
 
 - Tab **SKL** punya pilihan **Lembaga penerbit sertifikat**: *KEMNAKER RI* (bawaan, sama seperti sebelumnya), *BNSP*, atau *PT. Artha Safety Indonesia*. Disimpan per batch di `info_laporan.lembaga_skl` (tanpa perubahan database; ikut tersalin saat duplikat batch).
 - Teks SKL "Sertifikasi **…**" dan "sedang dalam proses penerbitan oleh **…**" mengikuti pilihan ini; "… *Training*" mengikuti skema batch (Offline/Online/Blended). SKL batch yang tidak diubah tercetak persis sama seperti sebelum update (diuji).
+
+## 21. Login peserta batch selesai/arsip
+
+- Peserta batch berstatus **Selesai** atau **Diarsipkan** tetap bisa login seperti biasa (semua batch tampil di halaman login, batch aktif di atas, batch lain bertanda *(selesai)*) untuk melihat materi, dokumentasi, riwayat absen, panduan, dan SKL. **Absen** tetap hanya untuk batch aktif. SKL tetap hanya bisa diunduh jika sudah terbit.
+- Memulihkan arsip (Admin): menu **Batch → Arsip pelatihan → ↩ Pulihkan** (status kembali *Selesai*), lalu bila perlu **Ubah → Status: Aktif**.
