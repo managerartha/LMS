@@ -45,6 +45,14 @@ function skl_view(?array $s): array {
 }
 
 /** Kode batch pada nomor SKL (mis. A06B087KEM); default kode batch LMS. */
+/** Lembaga penerbit sertifikat yang disebut di SKL (diatur per batch di tab SKL; bawaan KEMNAKER RI seperti sebelumnya). */
+const LEMBAGA_SKL = ['KEMNAKER RI', 'BNSP', 'PT. Artha Safety Indonesia'];
+
+function lembaga_skl(array $batch): string {
+  $l = (string)(info_batch($batch)['lembaga_skl'] ?? '');
+  return in_array($l, LEMBAGA_SKL, true) ? $l : LEMBAGA_SKL[0];
+}
+
 function kode_skl(array $batch): string {
   return trim((string)(info_batch($batch)['kode_skl'] ?? '')) ?: $batch['kode_batch'];
 }
@@ -95,7 +103,7 @@ function sklList(array $data, array $user): array {
   foreach (rows('SELECT * FROM skl WHERE id_batch = ?', [$b['id_batch']]) as $s) $skl[$s['id_user']] = $s;
   return [
     'jenis_pelatihan' => jenis_pelatihan($b),
-    'kode_skl' => kode_skl($b), 'contoh_nomor' => skl_nomor_baru($b, now_()['date'])[2],
+    'kode_skl' => kode_skl($b), 'lembaga_skl' => lembaga_skl($b), 'lembaga_pilihan' => LEMBAGA_SKL, 'contoh_nomor' => skl_nomor_baru($b, now_()['date'])[2],
     'periode' => tanggal_batch_teks($b),
     'peserta' => array_map(fn($u) => ['id_user' => $u['id_user'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'],
       'kode_login' => $u['kode_login'], 'tempat_lahir' => $u['tempat_lahir'], 'tgl_lahir' => $u['tgl_lahir'],
@@ -109,6 +117,10 @@ function sklSimpanData(array $data, array $user): bool {
   if (isset($data['jenis_pelatihan'])) {
     if (!in_array($data['jenis_pelatihan'], JENIS_PELATIHAN, true)) throw new LmsError('Jenis pelatihan tidak valid.');
     $b = update('batch', $b, ['jenis_pelatihan' => $data['jenis_pelatihan']]);
+  }
+  if (isset($data['lembaga_skl'])) {
+    if (!in_array($data['lembaga_skl'], LEMBAGA_SKL, true)) throw new LmsError('Lembaga penerbit tidak valid.');
+    $b = update('batch', $b, ['info_laporan' => json_encode(array_merge(info_batch($b), ['lembaga_skl' => $data['lembaga_skl']]), JSON_UNESCAPED_UNICODE)]);
   }
   if (isset($data['kode_skl'])) {
     $kode = mb_substr(trim((string)$data['kode_skl']), 0, 60);
@@ -232,6 +244,7 @@ function skl_html(array $batch, array $list): string {
   $judulHtml = $sertifikat !== $judul ? h_(mb_substr($judul, 0, mb_strlen($judul) - mb_strlen($sertifikat))) . '<b>' . h_($sertifikat) . '</b>' : '<b>' . h_($judul) . '</b>';
   $periode = tanggal_batch_teks($batch, true);
   $jenis = jenis_pelatihan($batch) . ' Training';
+  $lembaga = lembaga_skl($batch);
   $W = SKL_KERTAS[2];
   $H = SKL_KERTAS[3];
   $css = '@page { margin: 0; } body { margin: 0; font-family: "Times New Roman", Times, serif; font-size: 12pt; color: #000; }
@@ -250,10 +263,10 @@ function skl_html(array $batch, array $list): string {
       skl_teks(99, 481.9, 'Nama') . skl_teks(238, 481.9, ':') . skl_teks(244.3, 481.9, '<b>' . h_($u['nama']) . '</b>', 'width:318pt;') .
       skl_teks(99, 461.2, 'Tempat, tanggal lahir') . skl_teks(238, 461.2, ':') . skl_teks(244.3, 461.2, '<b>' . h_($ttl ?: '-') . '</b>', 'width:318pt;') .
       '<div class="isi" style="top:' . round($isiTop, 1) . 'pt">' .
-      '<p style="margin-left:-5pt;margin-right:-1pt">Telah mengikuti Kegiatan ' . $judulHtml . ' Sertifikasi <b>KEMNAKER RI</b> yang diselenggarakan pada tanggal ' .
+      '<p style="margin-left:-5pt;margin-right:-1pt">Telah mengikuti Kegiatan ' . $judulHtml . ' Sertifikasi <b>' . h_($lembaga) . '</b> yang diselenggarakan pada tanggal ' .
       h_($periode) . ' secara <i>' . h_($jenis) . '</i>.</p>' .
       '<p>Surat keterangan ini kami terbitkan dan menjadi bukti bahwa peserta sudah menyelesaikan pelatihan dengan <b>Predikat BAIK</b> dan dinyatakan <b>LULUS</b>. ' .
-      'Adapun surat ini untuk menerangkan bahwa Sertifikat <b>' . h_($sertifikat) . '</b> sedang dalam proses penerbitan oleh <b>KEMNAKER RI</b>.</p>' .
+      'Adapun surat ini untuk menerangkan bahwa Sertifikat <b>' . h_($sertifikat) . '</b> sedang dalam proses penerbitan oleh <b>' . h_($lembaga) . '</b>.</p>' .
       '<p style="word-spacing:-0.6pt">Demikian surat keterangan ini kami sampaikan untuk dapat dipergunakan sebagaimana mestinya. Atas perhatiannya kami ucapkan terimakasih.</p></div>' .
       skl_tengah(453.8, 221.5, 220, h_($org['kota']) . ', ' . h_(tgl_skl($s['tgl_terbit']))) .
       skl_tengah(457.2, 200.8, 220, 'PT. Artha Safety Indonesia') .

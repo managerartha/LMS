@@ -1344,6 +1344,8 @@ async function tabSkl() {
           <div><label>Jenis pelatihan</label>
             <select id="skl-jenis">${['Offline', 'Online', 'Blended'].map(j => `<option ${j === d.jenis_pelatihan ? 'selected' : ''}>${j}</option>`).join('')}</select></div>
           <div><label>Kode batch pada nomor SKL</label><input id="skl-kode" value="${esc(d.kode_skl)}" placeholder="mis. A06B087KEM"></div>
+          <div><label>Lembaga penerbit sertifikat</label>
+            <select id="skl-lembaga">${d.lembaga_pilihan.map(l => `<option ${l === d.lembaga_skl ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>
         </div>
         <p class="small muted">Contoh nomor SKL berikutnya: <b>${esc(d.contoh_nomor)}</b></p>
         <p class="small muted">Nama, judul, dan periode mengikuti data peserta & batch. Nomor SKL dibuat otomatis (unik per peserta);
@@ -1394,7 +1396,7 @@ function sklTerpilih() { return $$('.skl-cb:checked').map(cb => cb.value); }
 
 function sklDataForm() {
   return {
-    id_batch: C.batch.id_batch, jenis_pelatihan: $('#skl-jenis').value, kode_skl: $('#skl-kode').value,
+    id_batch: C.batch.id_batch, jenis_pelatihan: $('#skl-jenis').value, kode_skl: $('#skl-kode').value, lembaga_skl: $('#skl-lembaga').value,
     peserta: $$('.skl-tempat').map(el => ({ id_user: el.dataset.id, tempat_lahir: el.value,
       tgl_lahir: $$('.skl-tgl').find(t => t.dataset.id === el.dataset.id).value })),
   };

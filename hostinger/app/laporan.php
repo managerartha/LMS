@@ -360,7 +360,7 @@ const INFO_DEFAULT = [
   'nomor_permohonan' => '', 'judul_cover' => 'AHLI K3 UMUM', 'sub_cover' => 'Sertifikasi Kementrian Ketenagakerjaan Republik Indonesia',
   'bidang_pembinaan' => 'Calon Ahli K3 Umum', 'bidang_jasa' => 'Keahlian K3 Umum', 'jenis_personil' => 'Ahli K3', 'klasifikasi' => 'Ahli K3 Umum',
   'kelas' => 'Non Kelas', 'tempat_kelas' => 'PT Artha Safety Indonesia', 'tempat_observasi' => '', 'metode' => 'Offline Training',
-  'jumlah_pendaftar' => '', 'jumlah_lulus' => '', 'kode_skl' => '', 'surat_permohonan' => true, 'bap' => true, 'daftar_hadir_pemateri' => true,
+  'jumlah_pendaftar' => '', 'jumlah_lulus' => '', 'kode_skl' => '', 'lembaga_skl' => 'KEMNAKER RI', 'surat_permohonan' => true, 'bap' => true, 'daftar_hadir_pemateri' => true,
 ];
 
 function org_(): array {
