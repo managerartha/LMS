@@ -502,6 +502,7 @@ async function tabBatch() {
                 ${b.status === 'selesai' || b.tgl_selesai < wib(serverNow()).tanggal
                   ? `<button class="btn sm" onclick="arsipBatch(this, ${i}, true)">🗄 Arsipkan</button>` : ''}
                 ${b.folder_url ? `<a class="btn sm" href="${esc(b.folder_url)}" target="_blank">Drive</a>` : ''}
+                <button class="btn sm" onclick="dialogDuplikat(${i})">⧉ Duplikat</button>
                 <button class="btn sm danger" onclick="dialogHapusBatch(${i})">🗑 Hapus</button></td>
             </tr>`).join('')}
           </tbody></table>` : '<div class="muted">Belum ada batch.</div>'}
@@ -519,6 +520,7 @@ async function tabBatch() {
               <td>${esc(b.jumlah_peserta)}</td>
               <td class="row"><button class="btn sm" onclick="bukaArsip('${esc(b.id_batch)}')">Lihat data</button>
                 <button class="btn sm" onclick="arsipBatch(this, ${i}, false)">↩ Pulihkan</button>
+                <button class="btn sm" onclick="dialogDuplikat(${i})">⧉ Duplikat</button>
                 <button class="btn sm danger" onclick="dialogHapusBatch(${i})">🗑 Hapus</button></td>
             </tr>`).join('')}
           </tbody></table>
@@ -600,6 +602,58 @@ function arsipBatch(btn, i, arsip) {
     if (arsip && C.batch && C.batch.id_batch === b.id_batch) C.batch = C.batches.find(x => x.status !== 'arsip') || null;
     picTab('batch');
   });
+}
+
+/** Duplikat batch: rundown & materi ikut, peserta/absensi/lokasi tidak. */
+async function dialogDuplikat(i) {
+  const b = C.batches[i];
+  let info;
+  try {
+    [info, C.programs] = await Promise.all([call('duplikatInfo', { id_batch: b.id_batch }), C.programs ? C.programs : call('programList')]);
+  } catch (e) { return toast(e.message, 'error'); }
+  if (!C.pics || !C.pics.length) C.pics = await call('picList').catch(() => []);
+  C.tc = Object.assign(C.tc || {}, { db: [] });
+  openModal(`
+    <h2>Duplikat batch ${esc(b.kode_batch)}</h2>
+    <div class="alert info small">Batch sumber: <b>${info.hari} hari</b>, ${info.rundown} kegiatan rundown, ${info.materi} materi${info.materi_mb ? ' (file ' + info.materi_mb + ' MB)' : ''}. Disalin per <b>Hari ke-N</b>: rundown & materi Hari ke-1 sumber → Hari ke-1 batch baru, dst.</div>
+    <form onsubmit="event.preventDefault(); duplikatBatch(this, ${i})">
+      <div class="grid2">
+        <div><label>Nama pelatihan</label><input name="nama_pelatihan" value="${esc(b.nama_pelatihan)}" required></div>
+        <div><label>Kode batch baru</label><input name="kode_batch" required placeholder="mis. ${esc(b.kode_batch)}-2"></div>
+      </div>
+      ${programSkemaHtml(b)}
+      ${formTanggalHtml('db', {})}
+      <p class="small muted">Pilih <b>${info.hari} hari</b> pelatihan agar semua rundown & materi tersalin.</p>
+      <label>PIC batch</label>
+      ${picCheckboxes([])}
+      <label>Yang disalin</label>
+      <label class="check"><input type="checkbox" name="rundown" checked> Rundown (disimpan sebagai <i>draft</i>, terbitkan setelah diperiksa)</label>
+      <label class="check" style="margin-left:24px"><input type="checkbox" name="kosongkan_pemateri" checked> Kosongkan nama narasumber & instansi (diisi ulang untuk batch baru)</label>
+      <label class="check"><input type="checkbox" name="materi" checked> Materi (file ikut disalin)</label>
+      <p class="small muted">Tidak disalin: peserta, absensi, dokumentasi, laporan, SKL, absensi narasumber, dan lokasi. Jam sesi & data laporan resmi ikut disalin
+        (kecuali nomor permohonan, jumlah pendaftar/lulus, dan kode SKL).</p>
+      <div class="row mt"><button type="button" class="btn" onclick="closeModal()">Batal</button>
+        <button class="btn primary grow">⧉ Duplikat batch</button></div>
+    </form>`);
+}
+
+function duplikatBatch(form, i) {
+  const src = C.batches[i];
+  const tgl = tanggalForm(form, 'db');
+  if (!tgl) return;
+  busy(form.querySelector('button.primary'), async () => {
+    const res = await call('batchDuplikat', { id_batch: src.id_batch,
+      batch: Object.assign({ nama_pelatihan: form.nama_pelatihan.value, kode_batch: form.kode_batch.value, pic_ids: formPicIds(form),
+        id_program: form.id_program.value, jenis_pelatihan: form.jenis_pelatihan.value }, tgl),
+      opsi: { rundown: form.rundown.checked, kosongkan_pemateri: form.kosongkan_pemateri.checked, materi: form.materi.checked } });
+    closeModal();
+    const h = res.hasil;
+    toast('Batch ' + res.batch.kode_batch + ' dibuat: ' + h.rundown + ' kegiatan rundown & ' + h.materi + ' materi disalin.' +
+      (h.hari_dilewati ? ' ' + h.hari_dilewati + ' hari terakhir sumber tidak tersalin karena batch baru lebih sedikit harinya.' : ''), h.hari_dilewati ? 'error' : 'ok');
+    C.batches = await call('batchList');
+    C.tab = 'lokasi';
+    pilihBatch(res.batch.id_batch);
+  }, 'Menduplikat…');
 }
 
 /** Hapus permanen batch (mis. batch percobaan): wajib mengetik ulang kode batch. */
@@ -1528,20 +1582,109 @@ function dialogNarasumber(i) {
     <label>Nama narasumber</label><input id="ns-nama" value="${esc(x ? x.nama : '')}">
     <label>Instansi</label><input id="ns-instansi" value="${esc(x ? x.instansi : '')}" placeholder="mis. Disnakertrans Prov. DIY / Praktisi K3">
     <label class="mt">Tanda tangan narasumber</label>
-    <canvas id="sigpad" class="sigpad"></canvas>
-    <p class="small muted">Serahkan HP/laptop kepada narasumber untuk tanda tangan. Waktu tercatat otomatis dari server.</p>
+    <div class="seg">
+      <button type="button" id="ns-m-pad" class="active" onclick="modeTtdNs(false)">✍️ Tanda tangan langsung</button>
+      <button type="button" id="ns-m-file" onclick="modeTtdNs(true)">📁 Upload file</button>
+    </div>
+    <div id="ns-pad">
+      <canvas id="sigpad" class="sigpad"></canvas>
+      <p class="small muted">Serahkan HP/laptop kepada narasumber untuk tanda tangan. Waktu tercatat otomatis dari server.</p>
+    </div>
+    <div id="ns-file" class="hidden">
+      <input type="file" id="ns-ttd-file" accept="image/png,image/jpeg,image/webp" onchange="pilihTtdNs(this)">
+      <p class="small muted">Foto/scan tanda tangan di kertas putih (JPG/PNG). Latar otomatis dibuang menjadi transparan (PNG) agar rapi di laporan.</p>
+      <div id="ns-ttd-preview"></div>
+    </div>
     <div class="row mt">
-      <button class="btn" onclick="C.pad.clear()">Hapus</button>
+      <button class="btn" id="ns-hapus" onclick="C.pad.clear()">Hapus</button>
       <button class="btn" onclick="closeModal()">Batal</button>
       <button class="btn primary grow" onclick="simpanNarasumber(this, ${i})">Simpan</button>
     </div>`);
   C.pad = signaturePad($('#sigpad'));
+  C.nsFile = null;
+  C.nsModeFile = false;
+}
+
+function modeTtdNs(file) {
+  C.nsModeFile = file;
+  $('#ns-m-pad').classList.toggle('active', !file);
+  $('#ns-m-file').classList.toggle('active', file);
+  $('#ns-pad').classList.toggle('hidden', file);
+  $('#ns-file').classList.toggle('hidden', !file);
+  $('#ns-hapus').classList.toggle('hidden', file);
+}
+
+async function pilihTtdNs(input) {
+  const file = input.files[0];
+  C.nsFile = null;
+  $('#ns-ttd-preview').innerHTML = '';
+  if (!file) return;
+  try {
+    C.nsFile = await ttdTransparan(file);
+    $('#ns-ttd-preview').innerHTML = `<div class="small muted mt">Hasil (latar transparan):</div>
+      <div class="ttd-preview"><img src="${C.nsFile}" alt="Tanda tangan"></div>`;
+  } catch (e) { toast(e.message, 'error'); input.value = ''; }
+}
+
+/**
+ * Gambar tanda tangan (foto/scan) → PNG berlatar transparan: piksel terang (kertas) dibuang dengan tepi halus,
+ * goresan dipertahankan, lalu dipotong rapat dan diperkecil (maks. 600×240 px).
+ */
+function ttdTransparan(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src);
+      const sc = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * sc)), h = Math.max(1, Math.round(img.naturalHeight * sc));
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      const data = ctx.getImageData(0, 0, w, h), d = data.data;
+      // Kecerahan tiap piksel (dianggap di atas kertas putih jika sudah transparan sebagian).
+      const lum = new Float32Array(w * h);
+      const sampel = [];
+      for (let i = 0, p = 0; i < d.length; i += 4, p++) {
+        const a = d[i + 3] / 255;
+        lum[p] = (0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]) * a + 255 * (1 - a);
+        if (p % 7 === 0) sampel.push(lum[p]);
+      }
+      sampel.sort((x, y) => x - y);
+      const kertas = sampel[Math.floor(sampel.length * 0.9)] || 255; // perkiraan warna kertas
+      const batas = kertas - 30, lebar = 70;
+      let x0 = w, y0 = h, x1 = -1, y1 = -1;
+      for (let p = 0; p < w * h; p++) {
+        const alpha = Math.max(0, Math.min(1, (batas - lum[p]) / lebar));
+        const i = p * 4;
+        d[i + 3] = Math.round(alpha * 255);
+        if (alpha > 0.15) {
+          const x = p % w, y = (p - x) / w;
+          if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y;
+          // goresan sedikit dipertegas agar tidak pucat di PDF
+          d[i] = Math.round(d[i] * 0.6); d[i + 1] = Math.round(d[i + 1] * 0.6); d[i + 2] = Math.round(d[i + 2] * 0.6);
+        }
+      }
+      if (x1 < 0 || (x1 - x0) < 10 || (y1 - y0) < 5) return reject(new Error('Tanda tangan tidak terdeteksi. Gunakan foto tanda tangan bertinta gelap di kertas putih.'));
+      ctx.putImageData(data, 0, 0);
+      const pad = 8;
+      x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w - 1, x1 + pad); y1 = Math.min(h - 1, y1 + pad);
+      const cw = x1 - x0 + 1, ch = y1 - y0 + 1;
+      const k = Math.min(1, 600 / cw, 240 / ch);
+      const out = document.createElement('canvas');
+      out.width = Math.round(cw * k); out.height = Math.round(ch * k);
+      out.getContext('2d').drawImage(c, x0, y0, cw, ch, 0, 0, out.width, out.height);
+      resolve(out.toDataURL('image/png'));
+    };
+    img.onerror = () => reject(new Error('File bukan gambar yang valid (gunakan JPG atau PNG).'));
+    img.src = URL.createObjectURL(file);
+  });
 }
 
 function simpanNarasumber(btn, i) {
-  if (C.pad.isEmpty()) return toast('Tanda tangan masih kosong.', 'error');
+  if (C.nsModeFile ? !C.nsFile : C.pad.isEmpty()) return toast(C.nsModeFile ? 'Pilih file gambar tanda tangan.' : 'Tanda tangan masih kosong.', 'error');
   const x = i >= 0 ? C.ns[i] : null;
-  const data = { id_hari: C.idHari, nama: $('#ns-nama').value, instansi: $('#ns-instansi').value, ttd: C.pad.toDataURL() };
+  const data = { id_hari: C.idHari, nama: $('#ns-nama').value, instansi: $('#ns-instansi').value, ttd: C.nsModeFile ? C.nsFile : C.pad.toDataURL() };
   if (x) data.id_rundown = x.id_rundown;
   else Object.assign(data, { materi: $('#ns-materi').value, jam_mulai: $('#ns-mulai').value, jam_selesai: $('#ns-selesai').value });
   busy(btn, async () => {

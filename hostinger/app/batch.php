@@ -168,6 +168,74 @@ function batchHapus(array $data, array $user): bool {
   return true;
 }
 
+/** Ringkasan isi batch sumber untuk dialog duplikat. */
+function duplikatInfo(array $data, array $user): array {
+  $b = get_batch((string)($data['id_batch'] ?? ''));
+  $file = rows("SELECT file_id FROM materi WHERE id_batch = ? AND file_id <> ''", [$b['id_batch']]);
+  $byte = array_sum(array_map(fn($m) => is_file(ROOT . '/' . $m['file_id']) ? filesize(ROOT . '/' . $m['file_id']) : 0, $file));
+  return ['hari' => count(hari_batch($b['id_batch'])),
+    'rundown' => (int)row('SELECT COUNT(*) AS n FROM rundown WHERE id_batch = ?', [$b['id_batch']])['n'],
+    'pemateri' => (int)row("SELECT COUNT(*) AS n FROM rundown WHERE id_batch = ? AND pemateri <> ''", [$b['id_batch']])['n'],
+    'materi' => (int)row('SELECT COUNT(*) AS n FROM materi WHERE id_batch = ?', [$b['id_batch']])['n'],
+    'materi_mb' => round($byte / 1048576, 1)];
+}
+
+/**
+ * Duplikat batch: membuat batch baru (kode, tanggal, skema, program, PIC baru) lalu menyalin jam sesi,
+ * data laporan resmi (tanpa nomor permohonan, jumlah pendaftar/lulus & kode SKL), rundown (sebagai draft,
+ * nama narasumber bisa dikosongkan) dan materi (file ikut disalin ke folder batch baru) per Hari ke-N.
+ * TIDAK disalin: peserta, absensi, dokumentasi, laporan, SKL, absensi narasumber, lokasi.
+ */
+function batchDuplikat(array $data, array $user): array {
+  $src = get_batch((string)($data['id_batch'] ?? ''));
+  $opsi = $data['opsi'] ?? [];
+  $d = $data['batch'] ?? [];
+  foreach (['sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai'] as $k) $d[$k] = $src[$k];
+  $baru = batchBuat(['batch' => $d], $user);
+  try {
+    $b = get_batch($baru['id_batch']);
+    $info = info_batch($src);
+    foreach (['nomor_permohonan', 'jumlah_pendaftar', 'jumlah_lulus', 'kode_skl'] as $k) $info[$k] = '';
+    $b = update('batch', $b, ['info_laporan' => json_encode($info, JSON_UNESCAPED_UNICODE)]);
+    $hariSrc = hari_batch($src['id_batch']);
+    $hariBaru = hari_batch($b['id_batch']);
+    $n = ['rundown' => 0, 'materi' => 0, 'hari_dilewati' => max(0, count($hariSrc) - count($hariBaru))];
+    foreach ($hariSrc as $i => $hs) {
+      $hb = $hariBaru[$i] ?? null;
+      if (!$hb) break; // batch baru lebih sedikit harinya
+      if (!empty($opsi['rundown'])) {
+        foreach (rundown_hari($hs['id_hari']) as $r) {
+          $kosong = !empty($opsi['kosongkan_pemateri']);
+          insert('rundown', ['id_rundown' => new_id('r'), 'id_batch' => $b['id_batch'], 'id_hari' => $hb['id_hari'], 'urutan' => $r['urutan'],
+            'jam_mulai' => $r['jam_mulai'], 'jam_selesai' => $r['jam_selesai'], 'kegiatan' => $r['kegiatan'],
+            'pemateri' => $kosong ? '' : $r['pemateri'], 'instansi' => $kosong ? '' : $r['instansi'], 'keterangan' => $r['keterangan'], 'status' => 'draft']);
+          $n['rundown']++;
+        }
+      }
+      if (!empty($opsi['materi'])) {
+        foreach (materi_hari($hs['id_hari']) as $m) {
+          $fileId = '';
+          if ($m['file_id'] !== '') {
+            $f = ROOT . '/' . $m['file_id'];
+            if (str_contains($m['file_id'], '..') || !is_file($f)) continue; // file sumber sudah tidak ada
+            $fileId = simpan_bytes(folder_konten($b, 'materi', $hb), (string)file_get_contents($f), $m['judul'] . '.' . $m['tipe_file']);
+          }
+          insert('materi', ['id_materi' => new_id('m'), 'id_batch' => $b['id_batch'], 'id_hari' => $hb['id_hari'], 'judul' => $m['judul'],
+            'kategori' => $m['kategori'], 'file_id' => $fileId, 'tipe_file' => $m['tipe_file'], 'link' => $m['link'],
+            'tampil_mulai' => $m['tampil_mulai'], 'diupload_oleh' => $user['nama'], 'diupload_pada' => now_()['stamp']]);
+          $n['materi']++;
+        }
+      }
+    }
+  } catch (Throwable $e) {
+    // Gagal di tengah jalan: batch baru dihapus lagi supaya tidak setengah jadi.
+    batchHapus(['id_batch' => $baru['id_batch'], 'konfirmasi' => $baru['kode_batch']], $user);
+    throw $e;
+  }
+  log_($user, 'batch_duplikat', $src['kode_batch'] . ' → ' . $b['kode_batch'] . " ({$n['rundown']} rundown, {$n['materi']} materi)");
+  return ['batch' => batch_view(get_batch($b['id_batch'])), 'hasil' => $n];
+}
+
 function hapus_folder(string $dir): void {
   if (!is_dir($dir) || is_link($dir)) return;
   foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST) as $f) {
