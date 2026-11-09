@@ -2454,7 +2454,8 @@ async function muatPustakaBerkas(v) {
             <div class="grow"><b>${esc(it.nama)}</b> <span class="badge ${it.wajib === 'ya' ? 'b-belum' : 'b-none'}">${it.wajib === 'ya' ? 'wajib' : 'opsional'}</span>
               ${it.aktif === 'tidak' ? '<span class="badge b-none">nonaktif</span>' : ''}
               <div class="small muted">${KATEGORI_BERKAS[it.kategori]} · ${esc(it.format)} · maks. ${esc(it.maks_mb)} MB${it.keterangan ? ' · ' + esc(it.keterangan) : ''}</div></div>
-            <button class="btn sm" onclick="dialogItemBerkas(${i})">✏️ Ubah</button></div>`).join('')}`).join('')}
+            <button class="btn sm" onclick="dialogItemBerkas(${i})">✏️ Ubah</button>
+            <button class="btn sm danger" onclick="hapusItemBerkas(${i}, this)" title="Hapus">🗑</button></div>`).join('')}`).join('')}
       </div>`;
   } catch (e) { const el = $('#pustaka-berkas'); if (el) el.innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>'; }
 }
@@ -2484,13 +2485,22 @@ function simpanItemBerkas(form, id) {
   });
 }
 
+function hapusItemBerkas(i, btn) {
+  const it = C.bItem[i];
+  if (!confirm('Hapus berkas "' + it.nama + '" dari daftar?')) return;
+  busy(btn, async () => {
+    await call('berkasItemHapus', { id_item: it.id_item });
+    toast('Berkas dihapus dari daftar.', 'ok'); muatPustakaBerkas(C.view);
+  });
+}
+
 function dialogItemBerkas(i) {
   const it = C.bItem[i];
   openModal(`
     <h2>Ubah berkas</h2>
     <form onsubmit="event.preventDefault(); simpanItemBerkas(this, '${esc(it.id_item)}')">
-      <input type="hidden" name="id_program" value="${esc(it.id_program)}">
       <div class="grid2">
+        <div><label>Program</label><select name="id_program">${(C.programs || []).filter(p => p.aktif || p.id_program === it.id_program).map(p => `<option value="${esc(p.id_program)}" ${p.id_program === it.id_program ? 'selected' : ''}>${esc(p.nama)}</option>`).join('')}</select></div>
         <div><label>Kategori</label><select name="kategori">${Object.keys(KATEGORI_BERKAS).map(k => `<option value="${k}" ${k === it.kategori ? 'selected' : ''}>${KATEGORI_BERKAS[k]}</option>`).join('')}</select></div>
         <div><label>Nama berkas</label><input name="nama" value="${esc(it.nama)}" required></div>
         <div><label>Format</label><input name="format" value="${esc(it.format)}"></div>

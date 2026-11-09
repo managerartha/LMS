@@ -28,7 +28,7 @@ const ROUTES = [
   'berkasSaya' => 'user', 'berkasUpload' => 'user', 'berkasUnduh' => 'user',
   'berkasBatch' => 'pic', 'berkasDriveSimpan' => 'pic', 'berkasDriveCek' => 'pic', 'berkasBuatFolder' => 'pic', 'berkasVerifikasi' => 'pic',
   'berkasKirimUlang' => 'pic', 'berkasRekap' => 'pic',
-  'berkasItemList' => 'admin', 'berkasItemSimpan' => 'admin', 'jembatanSimpan' => 'admin', 'jembatanCek' => 'admin', 'lokasiDariTeks' => 'pic', 'pesertaList' => 'pic', 'pesertaTambah' => 'pic', 'pesertaUbah' => 'pic',
+  'berkasItemList' => 'admin', 'berkasItemSimpan' => 'admin', 'berkasItemHapus' => 'admin', 'jembatanSimpan' => 'admin', 'jembatanCek' => 'admin', 'lokasiDariTeks' => 'pic', 'pesertaList' => 'pic', 'pesertaTambah' => 'pic', 'pesertaUbah' => 'pic',
   'pesertaResetDevice' => 'pic', 'pesertaAktif' => 'pic', 'monitor' => 'pic', 'absenSetStatus' => 'pic', 'absenFoto' => 'pic',
   'rundownGet' => 'pic', 'rundownSimpan' => 'pic', 'rundownSalin' => 'pic', 'materiList' => 'pic', 'materiTambah' => 'pic',
   'materiHapus' => 'pic', 'dokList' => 'pic', 'dokTambah' => 'pic', 'dokUbah' => 'pic', 'dokHapus' => 'pic',

@@ -121,6 +121,17 @@ function berkasItemSimpan(array $data, array $user): array {
   return berkasItemList([], $user);
 }
 
+/** Hapus item berkas. Item yang sudah ada upload peserta tidak dihapus (data peserta dijaga) — cukup dinonaktifkan. */
+function berkasItemHapus(array $data, array $user): array {
+  $it = row('SELECT * FROM berkas_item WHERE id_item = ?', [(string)($data['id_item'] ?? '')]);
+  if (!$it) throw new LmsError('Item tidak ditemukan.');
+  $n = (int)(row('SELECT COUNT(*) AS n FROM berkas WHERE id_item = ?', [$it['id_item']])['n'] ?? 0);
+  if ($n > 0) throw new LmsError("Berkas \"{$it['nama']}\" sudah diupload $n peserta, jadi tidak bisa dihapus. Klik Ubah lalu hilangkan centang Aktif agar tidak diminta lagi.");
+  hapus('berkas_item', $it);
+  log_($user, 'berkas_item_hapus', $it['nama']);
+  return berkasItemList([], $user);
+}
+
 // ---------------------------------------------------------------- Peserta
 
 function berkas_view(?array $b): ?array {
