@@ -32,9 +32,9 @@ function batchAktif(): array {
     rows("SELECT * FROM batch ORDER BY CASE WHEN status = 'aktif' THEN 0 ELSE 1 END, tgl_mulai DESC"));
 }
 
-function buat_token(array $u, int $simpan): string {
+function buat_token(array $u, int $simpan, string $deviceId = ''): string {
   $token = new_token();
-  insert('token', ['token' => $token, 'id_user' => $u['id_user'], 'dibuat_pada' => now_()['stamp']]);
+  insert('token', ['token' => $token, 'id_user' => $u['id_user'], 'dibuat_pada' => now_()['stamp'], 'device_id' => $deviceId]);
   // Sisakan token terbaru saja.
   $lama = rows('SELECT token FROM token WHERE id_user = ? ORDER BY dibuat_pada DESC, token', [$u['id_user']]);
   $buang = array_filter($lama, fn($r) => $r['token'] !== $token);
@@ -50,11 +50,8 @@ function loginPeserta(array $data): array {
   $batch = get_batch((string)($data['id_batch'] ?? ''));
   $u = row("SELECT * FROM pengguna WHERE role = 'peserta' AND id_batch = ? AND LOWER(kode_login) = ?", [$batch['id_batch'], $kode]);
   if (!$u || $u['aktif'] === 'tidak') throw new LmsError('Kode tidak ditemukan di batch ini. Periksa kembali kode Anda.');
-  if ($u['device_id'] !== '' && $u['device_id'] !== $deviceId) {
-    throw new LmsError('Akun ini sudah terhubung ke HP lain. Jika Anda ganti HP, minta PIC menekan "Reset HP".');
-  }
-  $u = update('pengguna', $u, ['device_id' => $deviceId]);
-  $token = buat_token($u, 1);
+  $u = daftarkan_perangkat($u, $deviceId); // maksimal 2 perangkat (mis. HP + laptop)
+  $token = buat_token($u, MAKS_PERANGKAT, $deviceId);
   log_($u, 'login', 'peserta');
   return ['token' => $token, 'user' => public_user($u), 'me' => me([], $u)];
 }

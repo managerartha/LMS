@@ -469,7 +469,8 @@ async function kirimAbsen(btn) {
   if (A.pad.isEmpty()) return toast('Tanda tangan masih kosong.', 'error');
   A.ttd = A.pad.toDataURL();
   await busy(btn, async () => {
-    const res = await call('absen', { sesi: A.sesi, lat: A.pos ? A.pos.lat : '', lng: A.pos ? A.pos.lng : '', akurasi: A.pos ? A.pos.akurasi : '', foto: A.foto, ttd: A.ttd });
+    const res = await call('absen', { sesi: A.sesi, lat: A.pos ? A.pos.lat : '', lng: A.pos ? A.pos.lng : '', akurasi: A.pos ? A.pos.akurasi : '', foto: A.foto, ttd: A.ttd,
+      device_id: deviceId() });
     openModal(`
       <div class="center pad">
         <div style="font-size:48px">✅</div>

@@ -361,7 +361,8 @@ function peserta_batch(string $idBatch, bool $termasukNonaktif): array {
 function pesertaList(array $data, array $user): array {
   $b = batch_for_pic($user, (string)($data['id_batch'] ?? ''));
   return array_map(fn($u) => ['id_user' => $u['id_user'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'], 'kode_login' => $u['kode_login'],
-    'instansi' => $u['instansi'], 'no_hp' => $u['no_hp'], 'tempat_lahir' => $u['tempat_lahir'], 'tgl_lahir' => $u['tgl_lahir'], 'hp_terhubung' => $u['device_id'] !== '', 'aktif' => $u['aktif'] !== 'tidak'],
+    'instansi' => $u['instansi'], 'no_hp' => $u['no_hp'], 'tempat_lahir' => $u['tempat_lahir'], 'tgl_lahir' => $u['tgl_lahir'], 'hp_terhubung' => $u['device_id'] !== '',
+    'perangkat' => array_map('perangkat_view', perangkat_user($u)), 'aktif' => $u['aktif'] !== 'tidak'],
     peserta_batch($b['id_batch'], true));
 }
 
@@ -430,6 +431,7 @@ function pesertaUbah(array $data, array $user): bool {
 function pesertaResetDevice(array $data, array $user): bool {
   $u = peserta_for_pic($user, (string)($data['id_user'] ?? ''));
   update('pengguna', $u, ['device_id' => '']);
+  q('DELETE FROM perangkat WHERE id_user = ?', [$u['id_user']]);
   q('DELETE FROM token WHERE id_user = ?', [$u['id_user']]);
   log_($user, 'peserta_reset_hp', $u['kode_login'] . ' ' . $u['nama']);
   return true;

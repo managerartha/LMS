@@ -161,7 +161,7 @@ function tampilMonitor(v, m) {
             ${p.sesi.map((s, j) => `
               <td class="clickable" onclick="detailAbsen(${i}, ${j})">
                 ${badge(s.status)} ${s.ada_foto ? '📷' : ''}
-                <div class="small muted">${esc(jamSaja(s.waktu))}</div>
+                <div class="small muted">${esc(jamSaja(s.waktu))}${s.perangkat ? ' · ' + (s.perangkat.startsWith('HP') ? '📱' : s.perangkat.startsWith('Tablet') ? '📲' : '💻') : ''}</div>
               </td>`).join('')}
           </tr>`).join('')}
         </tbody>
@@ -194,7 +194,8 @@ async function detailAbsen(i, j) {
       $('#detail-foto').innerHTML = `
         <img class="thumb" src="${f.foto}" alt="Foto absen">
         <div class="small muted mt">Waktu server: <b>${esc(f.waktu)} WIB</b> · ${f.jarak_meter === '' ? 'Online · lokasi bebas' + (f.lat !== '' ? ' (akurasi ± ' + esc(f.akurasi_meter) + ' m)' : ' (GPS tidak tercatat)') : 'Jarak ' + esc(f.jarak_meter) + ' m (akurasi ± ' + esc(f.akurasi_meter) + ' m)'}
-          ${f.lat !== '' ? `· <a href="https://www.google.com/maps?q=${esc(f.lat)},${esc(f.lng)}" target="_blank">lihat di peta</a>` : ''}</div>
+          ${f.lat !== '' ? `· <a href="https://www.google.com/maps?q=${esc(f.lat)},${esc(f.lng)}" target="_blank">lihat di peta</a>` : ''}
+          ${f.perangkat ? '<br>Perangkat: <b>' + esc(f.perangkat) + '</b>' : ''}</div>
         <div class="small muted mt">Tanda tangan:</div>
         <img class="thumb" src="${f.ttd}" alt="Tanda tangan" style="max-height:140px">`;
     } catch (e) { $('#detail-foto').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>'; }
@@ -232,13 +233,14 @@ async function tabPeserta() {
         <div class="table-wrap">
           ${C.peserta.length ? `
           <table>
-            <thead><tr><th>No</th><th>Nama</th><th>Kode login</th><th>HP</th><th></th></tr></thead>
+            <thead><tr><th>No</th><th>Nama</th><th>Kode login</th><th>Perangkat</th><th></th></tr></thead>
             <tbody>${C.peserta.map((p, i) => `
               <tr style="${p.aktif ? '' : 'opacity:.5'}">
                 <td>${esc(p.no_absen)}</td>
                 <td>${esc(p.nama)}<div class="small muted">${esc(p.instansi)}</div></td>
                 <td class="kode">${esc(p.kode_login)}</td>
-                <td>${p.hp_terhubung ? '<span class="badge b-hadir">Terhubung</span>' : '<span class="badge b-none">Belum</span>'}</td>
+                <td>${(p.perangkat || []).length ? p.perangkat.map(d => `<span class="badge b-hadir" title="${esc(d.label)}">${ikonPerangkat(d.jenis)}</span>`).join(' ')
+                  : '<span class="badge b-none">Belum</span>'}</td>
                 <td><button class="btn sm" onclick="dialogPeserta(${i})">Kelola</button></td>
               </tr>`).join('')}
             </tbody>
@@ -270,11 +272,18 @@ function dialogPeserta(i) {
     </div>
     <p class="small muted">Kode login tidak berubah walaupun nama diubah.</p>
     <button class="btn primary block" onclick="ubahPeserta(this, '${esc(p.id_user)}')">Simpan</button>
+    <h3 class="mt">Perangkat terhubung (maks. 2)</h3>
+    ${(p.perangkat || []).length ? p.perangkat.map(d => `
+      <div class="row mb"><span class="grow">${ikonPerangkat(d.jenis).split(' ')[0]} <b>${esc(d.label)}</b>
+          <div class="small muted">${d.pertama ? 'Pertama login ' + esc(d.pertama.slice(0, 16)) : ''}${d.terakhir ? ' · terakhir aktif ' + esc(d.terakhir.slice(0, 16)) : ''}</div></span>
+        <button class="btn sm" onclick="lepasPerangkat(this, '${esc(p.id_user)}', '${esc(d.id_perangkat)}')">Lepas</button></div>`).join('')
+      : '<div class="small muted mb">Belum ada perangkat terhubung.</div>'}
     <div class="row mt">
-      <button class="btn grow" ${p.hp_terhubung ? '' : 'disabled'} onclick="resetHp(this, '${esc(p.id_user)}')">🔓 Reset HP</button>
+      <button class="btn grow" ${p.hp_terhubung || (p.perangkat || []).length ? '' : 'disabled'} onclick="resetHp(this, '${esc(p.id_user)}')">🔓 Reset semua perangkat</button>
       <button class="btn grow danger" onclick="aktifPeserta(this, '${esc(p.id_user)}', ${!p.aktif})">${p.aktif ? 'Nonaktifkan' : 'Aktifkan lagi'}</button>
     </div>
-    <p class="small muted">Reset HP dipakai jika peserta ganti HP / browser. Peserta bisa login lagi di perangkat baru.</p>
+    <p class="small muted">Peserta bisa login di 2 perangkat (mis. HP + laptop). Jika ganti perangkat, <b>Lepas</b> perangkat lama
+      (atau reset semua), lalu peserta login lagi di perangkat baru.</p>
     <button class="btn block mt" onclick="closeModal()">Tutup</button>`);
 }
 
@@ -286,7 +295,19 @@ function ubahPeserta(btn, id) {
   });
 }
 function resetHp(btn, id) {
-  busy(btn, async () => { await call('pesertaResetDevice', { id_user: id }); closeModal(); toast('HP peserta di-reset.', 'ok'); tabPeserta(); });
+  busy(btn, async () => { await call('pesertaResetDevice', { id_user: id }); closeModal(); toast('Semua perangkat peserta di-reset.', 'ok'); tabPeserta(); });
+}
+
+function ikonPerangkat(jenis) {
+  return { 'HP': '📱 HP', 'Laptop/PC': '💻 Laptop', 'Tablet': '📲 Tablet' }[jenis] || '📱 Perangkat';
+}
+
+function lepasPerangkat(btn, idUser, idPerangkat) {
+  if (!confirm('Lepas perangkat ini? Peserta keluar dari perangkat tersebut dan bisa login di perangkat lain.')) return;
+  busy(btn, async () => {
+    await call('perangkatLepas', { id_user: idUser, id_perangkat: idPerangkat });
+    closeModal(); toast('Perangkat dilepas.', 'ok'); tabPeserta();
+  });
 }
 function aktifPeserta(btn, id, aktif) {
   if (!aktif && !confirm('Nonaktifkan peserta ini? Peserta tidak bisa login dan tidak muncul di absensi.')) return;

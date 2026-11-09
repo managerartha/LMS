@@ -457,3 +457,11 @@ Semua perubahan bersifat **tambahan** (skema versi 4: tabel `program`, `dokumen_
 
 - Peserta batch berstatus **Selesai** atau **Diarsipkan** tetap bisa login seperti biasa (semua batch tampil di halaman login, batch aktif di atas, batch lain bertanda *(selesai)*) untuk melihat materi, dokumentasi, riwayat absen, panduan, dan SKL. **Absen** tetap hanya untuk batch aktif. SKL tetap hanya bisa diunduh jika sudah terbit.
 - Memulihkan arsip (Admin): menu **Batch → Arsip pelatihan → ↩ Pulihkan** (status kembali *Selesai*), lalu bila perlu **Ubah → Status: Aktif**.
+
+## 22. Dua perangkat per peserta & catatan jenis perangkat
+
+- Peserta boleh login dan absen dari **maksimal 2 perangkat** (mis. HP + laptop); perangkat ke-3 ditolak dengan pesan berisi perangkat yang sudah terhubung. Sesi login di kedua perangkat aktif bersamaan (token per perangkat).
+- Tabel `perangkat` (skema versi 6): jenis (HP / Laptop/PC / Tablet), sistem, browser — dibaca dari User-Agent saat login — serta waktu pertama login & terakhir aktif. Perangkat lama (`pengguna.device_id` dari sebelum fitur ini) tetap dihitung sebagai perangkat pertama; jenisnya tercatat saat peserta login berikutnya.
+- PIC/Admin: menu **Peserta** menampilkan perangkat terhubung (📱/💻/📲); di **Kelola** bisa **Lepas** satu perangkat (sesi di perangkat itu berakhir) atau **Reset semua perangkat**.
+- Setiap absen mencatat perangkat yang dipakai (`absensi.perangkat`), tampil di menu **Absensi** (ikon + detail) dan **laporan harian**. Laporan resmi tidak diubah.
+- Absen offline (wajib lokasi) tetap memakai GPS & radius; laptop tidak punya GPS akurat, jadi untuk kelas offline PIC menyampaikan agar absen memakai HP.

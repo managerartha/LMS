@@ -31,7 +31,8 @@ function status_sesi(?array $rec, string $state): string {
 
 function absen_view(?array $rec): ?array {
   return $rec ? ['id_absen' => $rec['id_absen'], 'waktu' => $rec['waktu_server'], 'status' => $rec['status'],
-    'keterangan' => $rec['keterangan'], 'jarak_meter' => $rec['jarak_meter'], 'ada_foto' => $rec['foto_id'] !== ''] : null;
+    'keterangan' => $rec['keterangan'], 'jarak_meter' => $rec['jarak_meter'], 'ada_foto' => $rec['foto_id'] !== '',
+    'perangkat' => $rec['perangkat'] ?? ''] : null;
 }
 
 function hari_ini(array $batch, array $now): ?array {
@@ -134,7 +135,11 @@ function absen(array $data, array $user): array {
   $waktu = now_()['stamp'];
   $rec = ['waktu_server' => $waktu, 'foto_id' => $foto, 'ttd_id' => $ttd, 'lat' => $lat, 'lng' => $lng,
     'akurasi_meter' => $lat === '' ? '' : (int)round((float)($data['akurasi'] ?? 0)), 'jarak_meter' => $jarak, 'status' => 'hadir',
-    'keterangan' => '', 'diubah_oleh' => '', 'diubah_pada' => '', 'alamat' => $alamat];
+    'keterangan' => '', 'diubah_oleh' => '', 'diubah_pada' => '', 'alamat' => $alamat, 'perangkat' => label_perangkat(info_perangkat(ua_()))];
+  if (($data['device_id'] ?? '') !== '') {
+    $p = row('SELECT * FROM perangkat WHERE id_user = ? AND device_id = ?', [$user['id_user'], (string)$data['device_id']]);
+    if ($p) update('perangkat', $p, ['terakhir' => $waktu]);
+  }
   try {
     if ($ada) {
       update('absensi', $ada, $rec); // sebelumnya ditandai izin/sakit/alpa oleh PIC, peserta ternyata hadir
@@ -235,5 +240,6 @@ function absenFoto(array $data, array $user): array {
   if (!$rec) throw new LmsError('Data absen tidak ditemukan.');
   batch_for_pic($user, $rec['id_batch']);
   return ['foto' => file_data_url($rec['foto_id']), 'ttd' => file_data_url($rec['ttd_id']), 'waktu' => $rec['waktu_server'],
-    'lat' => $rec['lat'], 'lng' => $rec['lng'], 'jarak_meter' => $rec['jarak_meter'], 'akurasi_meter' => $rec['akurasi_meter']];
+    'lat' => $rec['lat'], 'lng' => $rec['lng'], 'jarak_meter' => $rec['jarak_meter'], 'akurasi_meter' => $rec['akurasi_meter'],
+    'perangkat' => $rec['perangkat'] ?? ''];
 }
