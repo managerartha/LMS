@@ -3,6 +3,7 @@ const P = { batch: null, status: null, konten: null, tab: 'beranda' };
 
 function showPeserta(meRes) {
   P.batch = meRes.batch;
+  P.berkasAktif = !!meRes.berkas_aktif;
   if (meRes.beranda) {
     cacheSet('beranda', meRes.beranda);
     P.segar = meRes.beranda; // data baru dari server, tidak perlu dimuat ulang
@@ -38,6 +39,7 @@ function doSetuju(btn) {
 const NAV_PESERTA = [
   ['beranda', '🏠', 'Dashboard'], ['panduan', '📘', 'Panduan Pelatihan'], ['rundown', '🗓️', 'Jadwal & Rundown'], ['materi', '📚', 'Materi'],
   ['dok', '📷', 'Dokumentasi'], ['riwayat', '✅', 'Riwayat Absen'], ['skl', '🎓', 'Surat Keterangan Lulus'],
+  ['berkas', '📂', 'Berkas Saya'], // hanya tampil untuk program yang punya daftar berkas (mis. BNSP)
 ];
 
 function pesertaTab(tab) {
@@ -46,7 +48,7 @@ function pesertaTab(tab) {
   render(`
     <div class="shell">
       <nav class="sidenav">
-        ${NAV_PESERTA.map(n => `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="pesertaTab('${n[0]}')">
+        ${NAV_PESERTA.filter(n => n[0] !== 'berkas' || P.berkasAktif).map(n => `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="pesertaTab('${n[0]}')">
           <span class="nav-ic">${n[1]}</span><span>${n[2]}</span></button>`).join('')}
       </nav>
       <section class="shell-main">
@@ -63,6 +65,7 @@ function pesertaTab(tab) {
   else if (tab === 'panduan') loadPanduan();
   else if (tab === 'riwayat') loadRiwayat();
   else if (tab === 'skl') loadSkl();
+  else if (tab === 'berkas') loadBerkas();
   else loadKonten(tab);
 }
 
@@ -70,7 +73,7 @@ function tampilBeranda(b) {
   P.status = b.status;
   P.konten = b.konten;
   if (b.panduan) { P.panduan = b.panduan; tampilVideoArea(b.panduan); }
-  $('#tab-body').innerHTML = sklBannerHtml(b.skl) + panduanBannerHtml(b.panduan) + berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
+  $('#tab-body').innerHTML = sklBannerHtml(b.skl) + panduanBannerHtml(b.panduan) + berkasBannerHtml(b.berkas) + berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
 }
 
 /** Tampilkan data tersimpan dulu (instan), lalu ganti dengan data terbaru dari server. */
@@ -742,4 +745,71 @@ function putarVideo(pre, id) {
   wrap.classList.remove('hidden');
   const v = P.panduan.video.find(x => x.id_video === id);
   if (v && document.getElementById(pre + '-v-' + id)) pasangVideo(pre, v);
+}
+
+// ----------------------------------------------------- Berkas Saya (persyaratan & asesmen → Google Drive lembaga)
+const STATUS_BERKAS_PS = { menunggu: ['b-izin', '⏳ Menunggu pemeriksaan PIC'], diterima: ['b-hadir', '✅ Diterima'], revisi: ['b-alpa', '🔁 Perlu revisi'] };
+
+function berkasBannerHtml(bk) {
+  if (!bk || !bk.aktif || (!bk.kurang && !bk.revisi)) return '';
+  return `<div class="alert warn row">
+    <div class="grow">📂 <b>${bk.revisi ? bk.revisi + ' berkas perlu direvisi' : ''}${bk.revisi && bk.kurang ? ' · ' : ''}${bk.kurang ? bk.kurang + ' berkas wajib belum diupload' : ''}</b>
+      <div class="small">Upload persyaratan/asesmen Anda di menu Berkas Saya.</div></div>
+    <button class="btn primary sm" onclick="pesertaTab('berkas')">Buka →</button></div>`;
+}
+
+async function loadBerkas() {
+  try {
+    const d = await call('berkasSaya');
+    if (P.tab !== 'berkas') return;
+    P.berkas = d.item;
+    const grup = k => d.item.map((x, i) => [x, i]).filter(([x]) => x.kategori === k);
+    const kartu = (judul, list) => list.length ? `<div class="card"><h2>${judul}</h2>${list.map(([x, i]) => {
+      const b = x.berkas;
+      return `<div class="dok-item">
+        <div class="row"><div class="grow"><b>${esc(x.nama)}</b> ${x.wajib ? '<span class="badge b-belum">wajib</span>' : '<span class="badge b-none">opsional</span>'}
+          <div class="small muted">${esc(x.format.join(', ').toUpperCase())} · maks. ${x.maks_mb} MB${x.batas ? ' · batas ' + esc(fmtTanggal(x.batas)) : ''}${x.keterangan ? ' · ' + esc(x.keterangan) : ''}</div></div>
+          ${b ? `<span class="badge ${STATUS_BERKAS_PS[b.status][0]}">${STATUS_BERKAS_PS[b.status][1]}</span>` : '<span class="badge b-none">Belum diupload</span>'}</div>
+        ${b ? `<div class="small mt">📎 ${esc(b.nama_file)} · ${esc(b.diupload_pada.slice(0, 16))}
+          <button class="btn sm" onclick="unduhBerkasSaya(this, '${esc(b.id_berkas)}')">Lihat</button></div>` : ''}
+        ${b && b.status === 'revisi' && b.catatan ? `<div class="alert bad small mt">Catatan PIC: ${esc(b.catatan)}</div>` : ''}
+        ${x.boleh_upload ? `<label class="btn ${b ? '' : 'primary'} mt" style="display:inline-block">${b ? '🔁 Ganti berkas' : '⬆ Upload'}
+            <input type="file" class="hidden" accept="${x.format.map(f => '.' + f).join(',')}" onchange="uploadBerkas(this, ${i})"></label>`
+          : x.lewat && !b ? '<div class="small merah mt">Batas waktu sudah lewat. Hubungi PIC.</div>' : ''}
+      </div>`;
+    }).join('')}</div>` : '';
+    $('#tab-body').innerHTML = (d.item.length ? '' : '<div class="card center muted">Belum ada berkas yang diminta.</div>') +
+      kartu('🪪 Persyaratan', grup('persyaratan')) + kartu('📝 Asesmen', grup('asesmen')) +
+      '<p class="small muted">Berkas Anda dikirim otomatis ke Google Drive lembaga dan diperiksa oleh PIC. Pastikan foto/scan terbaca jelas.</p>';
+  } catch (e) {
+    $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+  }
+}
+
+/** Foto dari kamera HP (biasanya besar) diperkecil tanpa membuat tulisan sulit dibaca. */
+async function siapkanBerkas(file, item) {
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (['jpg', 'jpeg', 'png'].indexOf(ext) >= 0 && file.size > 1.5 * 1024 * 1024 && item.format.indexOf('jpg') >= 0) {
+    return { nama: file.name.replace(/\.[^.]+$/, '') + '.jpg', data: await kompresGambar(file, 2000, 0.85) };
+  }
+  return { nama: file.name, data: await bacaFile(file) };
+}
+
+function uploadBerkas(input, i) {
+  const x = P.berkas[i], file = input.files[0];
+  if (!file) return;
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (x.format.indexOf(ext) < 0) { input.value = ''; return toast('Format harus: ' + x.format.join(', ').toUpperCase(), 'error'); }
+  const label = input.closest('label');
+  busy(label, async () => {
+    const f = await siapkanBerkas(file, x);
+    if (f.data.length * 0.75 > x.maks_mb * 1024 * 1024) throw new Error('Ukuran file lebih dari ' + x.maks_mb + ' MB.');
+    await call('berkasUpload', { id_item: x.id_item, file: f });
+    toast('✅ ' + x.nama + ' terupload.', 'ok');
+    loadBerkas();
+  }, 'Mengupload…');
+}
+
+function unduhBerkasSaya(btn, id) {
+  busy(btn, async () => { const f = await call('berkasUnduh', { id_berkas: id }); simpanFile(f.nama, f.data, f.mime); }, '…');
 }

@@ -37,6 +37,11 @@ const SCHEMA = [
   'inv_peserta' => ['id_ip', 'id_batch', 'id_ib', 'id_user', 'ukuran', 'status', 'kondisi', 'waktu_ambil', 'waktu_kembali', 'oleh', 'catatan'],
   'inv_transaksi' => ['id_tr', 'id_batch', 'id_ib', 'jenis', 'jumlah', 'baik', 'rusak', 'hilang', 'catatan', 'oleh', 'waktu'],
   'inv_ba' => ['id_batch', 'ditutup', 'ditutup_oleh', 'ditutup_waktu', 'ttd_pic', 'ttd_pic_waktu', 'ttd_gudang', 'ttd_gudang_waktu'],
+  // Berkas peserta (persyaratan & asesmen) → Google Drive lembaga lewat jembatan Apps Script.
+  'berkas_item' => ['id_item', 'id_program', 'kategori', 'nama', 'keterangan', 'wajib', 'format', 'maks_mb', 'urutan', 'aktif'],
+  'berkas_batch' => ['id_batch', 'drive_link', 'drive_root', 'batas', 'riwayat_link', 'diubah_oleh', 'diubah_pada'],
+  'berkas' => ['id_berkas', 'id_batch', 'id_user', 'id_item', 'file_id', 'nama_file', 'tipe', 'ukuran', 'diupload_pada',
+    'status', 'catatan_pic', 'diverifikasi_oleh', 'diverifikasi_pada', 'drive_status', 'drive_file', 'drive_url', 'drive_root', 'drive_error', 'drive_waktu'],
   'log' => ['id_log', 'waktu', 'id_user', 'nama', 'aksi', 'detail'],
   'pengaturan' => ['kunci', 'nilai'],
   'geo_cache' => ['kunci', 'alamat'],
@@ -44,9 +49,9 @@ const SCHEMA = [
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '7';
+const SCHEMA_VERSI = '8';
 
-const SCHEMA_TEXT = ['rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
+const SCHEMA_TEXT = ['batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 
 /** Index tambahan agar pencarian cepat. */
 const SCHEMA_INDEX = [
@@ -68,6 +73,8 @@ const SCHEMA_INDEX = [
   'inv_batch' => [['id_batch']],
   'inv_peserta' => [['id_ib'], ['id_batch']],
   'inv_transaksi' => [['id_ib']],
+  'berkas_item' => [['id_program']],
+  'berkas' => [['id_batch'], ['id_user']],
 ];
 
 /** Satu absen per peserta per sesi per hari (mencegah absen dobel di tingkat database). */
@@ -77,6 +84,7 @@ const SCHEMA_UNIQUE = [
   'persetujuan' => ['id_user', 'id_dp'],
   'video_tonton' => ['id_user', 'id_video'],
   'inv_peserta' => ['id_ib', 'id_user'],
+  'berkas' => ['id_user', 'id_item'],
 ];
 
 /** Perintah CREATE TABLE untuk MySQL (atau SQLite saat pengujian). */

@@ -11,4 +11,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 $req = json_decode((string)file_get_contents('php://input'), true);
 $req = is_array($req) ? $req : [];
-echo json_encode(api($req['action'] ?? null, $req['data'] ?? []), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+$out = json_encode(api($req['action'] ?? null, $req['data'] ?? []), JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+$tugas = setelah_respon();
+if (!$tugas) { echo $out; exit; }
+// Ada tugas latar belakang: kirim jawaban dulu dan tutup koneksi, baru kerjakan tugasnya.
+ignore_user_abort(true);
+@set_time_limit(300);
+header('Content-Length: ' . strlen($out));
+header('Connection: close');
+echo $out;
+if (function_exists('fastcgi_finish_request')) fastcgi_finish_request();
+elseif (function_exists('litespeed_finish_request')) litespeed_finish_request();
+else { while (ob_get_level()) ob_end_flush(); flush(); }
+foreach ($tugas as $t) { try { $t(); } catch (Throwable $e) { error_log('LMS tugas latar: ' . $e); } }

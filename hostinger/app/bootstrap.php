@@ -221,6 +221,31 @@ function alamat_($lat, $lng): string {
   return $memo[$key] = $a;
 }
 
+/** HTTP POST JSON (dipakai untuk jembatan Google Drive). Redirect Apps Script diikuti otomatis. */
+function http_post_json(string $url, array $data, int $timeout = 60): array {
+  $ch = curl_init($url);
+  curl_setopt_array($ch, [
+    CURLOPT_RETURNTRANSFER => true, CURLOPT_FOLLOWLOCATION => true, CURLOPT_POST => true,
+    CURLOPT_POSTFIELDS => json_encode($data), CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+    CURLOPT_TIMEOUT => $timeout, CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_USERAGENT => 'LMS-Artha-Safety-Indonesia/1.0',
+  ]);
+  $body = curl_exec($ch);
+  $err = curl_error($ch);
+  $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+  curl_close($ch);
+  return ['body' => $body === false ? '' : (string)$body, 'status' => $status, 'error' => $err];
+}
+
+/**
+ * Tugas yang dijalankan SETELAH jawaban dikirim ke pengguna (mis. mengirim berkas ke Google Drive),
+ * supaya peserta/PIC tidak menunggu proses yang lambat.
+ */
+function setelah_respon(?callable $tugas = null): array {
+  static $antre = [];
+  if ($tugas) $antre[] = $tugas;
+  return $antre;
+}
+
 // ---------------------------------------------------------------- File
 
 function folder_aman(string $s): string {

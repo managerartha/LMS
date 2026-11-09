@@ -34,11 +34,12 @@ const NAV_PIC = [
   ['materi', '📚', 'Materi', 'Kegiatan harian'], ['dok', '📷', 'Dokumentasi', 'Kegiatan harian'],
   ['peserta', '👥', 'Peserta', 'Persiapan'], ['lokasi', '📍', 'Jadwal & Lokasi', 'Persiapan'],
   ['kepatuhan', '📘', 'Tata Tertib & Video', 'Persiapan'], ['inventaris', '📦', 'Inventaris', 'Persiapan'],
+  ['berkas', '📂', 'Berkas Peserta', 'Persiapan'],
   ['laporan', '📄', 'Laporan', 'Akhir pelatihan'], ['skl', '🎓', 'SKL', 'Akhir pelatihan'],
   ['gudang', '🏬', 'Gudang Inventaris', 'Gudang'],
   ['batch', '🗂️', 'Batch', 'Admin'], ['pustaka', '📚', 'Pustaka Pelatihan', 'Admin'], ['pic', '🔑', 'Akun PIC', 'Admin'],
 ];
-const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'inventaris', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
+const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'inventaris', 'berkas', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
 
 function picTab(tab) {
   C.tab = tab;
@@ -80,7 +81,7 @@ function picTab(tab) {
     return;
   }
   ({ dashboard: tabDashboard, monitor: tabMonitor, narasumber: tabNarasumber, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl,
-    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka, inventaris: tabInventaris, gudang: tabGudang })[aktif[0]]();
+    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka, inventaris: tabInventaris, gudang: tabGudang, berkas: tabBerkas })[aktif[0]]();
 }
 
 /** Mengisi isi tab, hanya jika pengguna belum berpindah tab sejak data mulai dimuat. */
@@ -1474,7 +1475,7 @@ function sklUnduhSemua(btn) {
 const LEVEL_PENGINGAT = { bad: ['b-alpa', 'Segera'], warn: ['b-belum', 'Perlu'], info: ['b-izin', 'Info'] };
 const FASE_BATCH = { berjalan: ['b-hadir', 'Berjalan'], akan: ['b-izin', 'Akan datang'], selesai: ['b-none', 'Selesai'] };
 const TAB_LABEL = { peserta: 'Peserta', lokasi: 'Jadwal & Lokasi', rundown: 'Rundown', materi: 'Materi', dok: 'Dokumentasi',
-  monitor: 'Absensi', narasumber: 'Absensi Narasumber', kepatuhan: 'Tata Tertib & Video', pustaka: 'Pustaka', inventaris: 'Inventaris', gudang: 'Gudang', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
+  monitor: 'Absensi', narasumber: 'Absensi Narasumber', kepatuhan: 'Tata Tertib & Video', pustaka: 'Pustaka', inventaris: 'Inventaris', gudang: 'Gudang', berkas: 'Berkas', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
 
 async function tabDashboard() {
   const v = C.view;
@@ -1899,7 +1900,9 @@ async function tabPustaka() {
             <div class="row"><button class="btn sm" onclick="dialogVideo(${i})">✏️ Ubah</button>
               <button class="btn sm danger" onclick="hapusVideo(this, ${i})">Hapus</button></div>
           </div>`).join('')}
-      </div>`);
+      </div>
+      <div id="pustaka-berkas"><div class="card muted small">Memuat daftar berkas…</div></div>`);
+    muatPustakaBerkas(v);
   } catch (e) { errBox(v, e); }
 }
 
@@ -2401,4 +2404,229 @@ function ttdPicInv(btn) {
 function bukaInv(btn) {
   if (!confirm('Buka kembali inventaris batch ini? Pengembalian ke gudang dibatalkan dan tanda tangan dikosongkan, lalu bisa ditutup lagi.')) return;
   busy(btn, async () => { C.inv = await call('invBuka', { id_batch: C.batch.id_batch }); toast('Inventaris dibuka kembali.', 'ok'); renderInventaris(C.view); });
+}
+
+// ----------------------------------------------------- Pustaka (Admin): jembatan Google Drive & daftar berkas per program
+const KATEGORI_BERKAS = { persyaratan: 'Persyaratan', asesmen: 'Asesmen' };
+
+async function muatPustakaBerkas(v) {
+  try {
+    const d = await call('berkasItemList');
+    if (v !== C.view) return;
+    C.bItem = d.item;
+    const prog = (C.programs || []).filter(p => p.aktif);
+    const nmProg = id => (C.programs.find(p => p.id_program === id) || {}).nama || '(program dihapus)';
+    const grup = {};
+    d.item.forEach((it, i) => (grup[it.id_program] = grup[it.id_program] || []).push([it, i]));
+    $('#pustaka-berkas').innerHTML = `
+      <div class="card">
+        <h2>🔗 Jembatan Google Drive (berkas peserta)</h2>
+        <p class="small muted">Dipakai <b>hanya</b> untuk mengirim berkas peserta ke folder Google Drive lembaga/LSP. Dipasang sekali di Apps Script
+          akun Google Artha (info.arthasafetyindonesia@gmail.com). Panduan pemasangan ada di file <b>KirimBerkas.gs</b>.</p>
+        <label>Kode rahasia (tempel ke Apps Script, baris <code>const RAHASIA</code>)</label>
+        <div class="row"><input readonly value="${esc(d.jembatan.rahasia || '— klik Simpan untuk membuat —')}" class="grow kode" onclick="this.select()">
+          <button class="btn sm" onclick="simpanJembatan(this, true)" title="Buat kode baru (Apps Script juga harus diganti)">↻ Kode baru</button></div>
+        <label>URL Web App Apps Script</label>
+        <input id="jembatan-url" value="${esc(d.jembatan.url)}" placeholder="https://script.google.com/macros/s/…/exec">
+        <div class="row mt"><button class="btn primary" onclick="simpanJembatan(this, false)">Simpan</button>
+          <button class="btn" onclick="cekJembatan(this)">Cek jembatan</button></div>
+      </div>
+      <div class="card">
+        <h2>📂 Daftar berkas peserta per program</h2>
+        <p class="small muted">Menu <b>Berkas Saya</b> hanya muncul untuk peserta batch yang programnya punya daftar berkas (mis. program BNSP).
+          <b>Persyaratan</b> = dokumen identitas (KTP, ijazah, pas foto…); <b>Asesmen</b> = portofolio, tugas DIT, dll.</p>
+        ${prog.length ? `<form onsubmit="event.preventDefault(); simpanItemBerkas(this, '')">
+          <div class="grid2">
+            <div><label>Program</label><select name="id_program">${prog.map(p => `<option value="${esc(p.id_program)}">${esc(p.nama)}</option>`).join('')}</select></div>
+            <div><label>Kategori</label><select name="kategori"><option value="persyaratan">Persyaratan</option><option value="asesmen">Asesmen</option></select></div>
+            <div><label>Nama berkas</label><input name="nama" required placeholder="mis. KTP / Ijazah terakhir / Portofolio"></div>
+            <div><label>Format (pisahkan koma)</label><input name="format" value="pdf, jpg, png"></div>
+            <div><label>Ukuran maks. (MB, ≤ 25)</label><input name="maks_mb" type="number" min="1" max="25" value="10"></div>
+            <div><label>Urutan</label><input name="urutan" type="number" min="1" value="1"></div>
+          </div>
+          <label>Keterangan untuk peserta (opsional)</label><input name="keterangan" placeholder="mis. Scan berwarna, terbaca jelas">
+          <label class="check mt"><input type="checkbox" name="wajib" checked> Wajib</label>
+          <button class="btn primary mt">＋ Tambah berkas</button>
+        </form>` : '<div class="alert warn small">Tambahkan program pelatihan terlebih dahulu.</div>'}
+        ${Object.keys(grup).map(idp => `<h3 class="mt">${esc(nmProg(idp))}</h3>
+          ${grup[idp].map(([it, i]) => `<div class="materi-item" style="${it.aktif === 'tidak' ? 'opacity:.5' : ''}">
+            <div class="materi-ikon">${it.kategori === 'asesmen' ? '📝' : '🪪'}</div>
+            <div class="grow"><b>${esc(it.nama)}</b> <span class="badge ${it.wajib === 'ya' ? 'b-belum' : 'b-none'}">${it.wajib === 'ya' ? 'wajib' : 'opsional'}</span>
+              ${it.aktif === 'tidak' ? '<span class="badge b-none">nonaktif</span>' : ''}
+              <div class="small muted">${KATEGORI_BERKAS[it.kategori]} · ${esc(it.format)} · maks. ${esc(it.maks_mb)} MB${it.keterangan ? ' · ' + esc(it.keterangan) : ''}</div></div>
+            <button class="btn sm" onclick="dialogItemBerkas(${i})">✏️ Ubah</button></div>`).join('')}`).join('')}
+      </div>`;
+  } catch (e) { const el = $('#pustaka-berkas'); if (el) el.innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>'; }
+}
+
+function simpanJembatan(btn, baru) {
+  if (baru && !confirm('Buat kode rahasia baru? Kode di Apps Script juga harus diganti, kalau tidak pengiriman berkas akan gagal.')) return;
+  busy(btn, async () => {
+    await call('jembatanSimpan', { url: $('#jembatan-url').value, rahasia_baru: baru });
+    toast('Pengaturan jembatan disimpan.', 'ok');
+    muatPustakaBerkas(C.view);
+  });
+}
+
+function cekJembatan(btn) {
+  busy(btn, async () => {
+    const r = await call('jembatanCek');
+    toast('✅ Jembatan aktif' + (r.akun ? ' (akun ' + r.akun + ')' : '') + '.', 'ok');
+  }, 'Mengecek…');
+}
+
+function simpanItemBerkas(form, id) {
+  busy(form.querySelector('button.primary'), async () => {
+    await call('berkasItemSimpan', { id_item: id, id_program: form.id_program.value, kategori: form.kategori.value, nama: form.nama.value,
+      format: form.format.value, maks_mb: form.maks_mb.value, urutan: form.urutan.value, keterangan: form.keterangan.value,
+      wajib: form.wajib.checked, aktif: form.aktif ? form.aktif.checked : true });
+    closeModal(); toast('Daftar berkas disimpan.', 'ok'); muatPustakaBerkas(C.view);
+  });
+}
+
+function dialogItemBerkas(i) {
+  const it = C.bItem[i];
+  openModal(`
+    <h2>Ubah berkas</h2>
+    <form onsubmit="event.preventDefault(); simpanItemBerkas(this, '${esc(it.id_item)}')">
+      <input type="hidden" name="id_program" value="${esc(it.id_program)}">
+      <div class="grid2">
+        <div><label>Kategori</label><select name="kategori">${Object.keys(KATEGORI_BERKAS).map(k => `<option value="${k}" ${k === it.kategori ? 'selected' : ''}>${KATEGORI_BERKAS[k]}</option>`).join('')}</select></div>
+        <div><label>Nama berkas</label><input name="nama" value="${esc(it.nama)}" required></div>
+        <div><label>Format</label><input name="format" value="${esc(it.format)}"></div>
+        <div><label>Ukuran maks. (MB)</label><input name="maks_mb" type="number" min="1" max="25" value="${esc(it.maks_mb)}"></div>
+        <div><label>Urutan</label><input name="urutan" type="number" min="1" value="${esc(it.urutan)}"></div>
+      </div>
+      <label>Keterangan</label><input name="keterangan" value="${esc(it.keterangan)}">
+      <label class="check mt"><input type="checkbox" name="wajib" ${it.wajib === 'ya' ? 'checked' : ''}> Wajib</label>
+      <label class="check"><input type="checkbox" name="aktif" ${it.aktif !== 'tidak' ? 'checked' : ''}> Aktif (diminta ke peserta)</label>
+      <div class="row mt"><button type="button" class="btn" onclick="closeModal()">Batal</button><button class="btn primary grow">Simpan</button></div>
+    </form>`);
+}
+
+// ----------------------------------------------------- Berkas peserta per batch (PIC & Admin)
+const IKON_STATUS_BERKAS = { menunggu: ['b-izin', '⏳ Menunggu'], diterima: ['b-hadir', '✅ Diterima'], revisi: ['b-alpa', '🔁 Revisi'] };
+const IKON_DRIVE = { terkirim: '☁️✓', antri: '☁️…', gagal: '☁️✗' };
+
+async function tabBerkas() {
+  const v = C.view;
+  try {
+    const d = await call('berkasBatch', { id_batch: C.batch.id_batch });
+    if (v !== C.view) return;
+    C.bk = d;
+    renderBerkas(v);
+  } catch (e) { errBox(v, e); }
+}
+
+function renderBerkas(v) {
+  const d = C.bk;
+  if (!d.aktif) {
+    return setBody(v, `<div class="card"><h2>Berkas peserta belum aktif untuk batch ini</h2>
+      <p class="small muted">Fitur ini muncul untuk batch yang programnya punya daftar berkas (mis. program BNSP).
+        Program batch ini: <b>${esc(d.program || 'belum dipilih')}</b>. ${S.user.role === 'admin' ? 'Atur daftar berkas di menu <b>Pustaka Pelatihan</b>, dan program batch di menu <b>Batch → Ubah</b>.'
+        : 'Hubungi Admin untuk mengatur daftar berkas program ini.'}</p></div>`);
+  }
+  const h = d.hitung;
+  setBody(v, `
+    ${!d.jembatan ? '<div class="alert warn small">Jembatan Google Drive belum dipasang Admin — berkas tetap tersimpan aman di LMS dan akan dikirim setelah jembatan aktif.</div>' : ''}
+    <div class="card">
+      <h2>☁️ Google Drive lembaga</h2>
+      <p class="small muted">Tempel link folder Google Drive dari lembaga/LSP (akses: siapa saja yang memiliki link → Editor). Berkas peserta dikirim ke
+        <b>&lt;Nama Peserta&gt;/Persyaratan</b> atau <b>/Asesmen</b>. Link boleh diganti kapan saja; berkas berikutnya dikirim ke link baru.</p>
+      <div class="row"><input id="bk-link" class="grow" value="${esc(d.drive_link)}" placeholder="https://drive.google.com/drive/folders/…">
+        <button class="btn primary" onclick="simpanLinkBerkas(this)">Simpan link</button></div>
+      <div class="row mt">
+        <button class="btn" ${d.drive_link ? '' : 'disabled'} onclick="cekDriveBerkas(this)">Cek koneksi</button>
+        <button class="btn" ${d.drive_link ? '' : 'disabled'} onclick="buatFolderBerkas(this)">📁 Buatkan folder semua peserta</button>
+        ${h.antri || h.gagal ? `<button class="btn" onclick="kirimUlangBerkas(this)">☁️ Kirim yang tertunda (${h.antri + h.gagal})</button>` : ''}
+      </div>
+      <p class="small muted mt">Terkirim ke Drive: <b>${h.terkirim}</b> · antre: <b>${h.antri}</b> · gagal: <b class="${h.gagal ? 'merah' : ''}">${h.gagal}</b>
+        · menunggu verifikasi: <b>${h.menunggu}</b>${d.riwayat_link.length ? ` · <span title="${esc(d.riwayat_link.map(r => r.link).join('\n'))}">${d.riwayat_link.length} link sebelumnya</span>` : ''}</p>
+    </div>
+    <div class="card">
+      <h2>Batas waktu upload</h2>
+      <div class="grid2">${d.item.map(it => `<div><label>${esc(it.nama)} <span class="small muted">(${KATEGORI_BERKAS[it.kategori]}${it.wajib ? ', wajib' : ''})</span></label>
+        <input type="date" class="bk-batas" data-id="${esc(it.id_item)}" value="${esc(it.batas)}"></div>`).join('')}</div>
+      <button class="btn mt" onclick="simpanBatasBerkas(this)">Simpan batas waktu</button>
+    </div>
+    <div class="card table-wrap">
+      <div class="row mb"><h2 class="grow">Kelengkapan berkas</h2><button class="btn sm" onclick="rekapBerkas(this)">⬇ Rekap (Excel)</button></div>
+      <table><thead><tr><th>No</th><th>Nama</th>${d.item.map(it => `<th>${esc(it.nama)}${it.wajib ? ' *' : ''}</th>`).join('')}</tr></thead>
+        <tbody>${d.peserta.map((p, i) => `<tr><td>${esc(p.no_absen)}</td><td>${esc(p.nama)}</td>
+          ${p.berkas.map((b, j) => `<td class="clickable" ${b ? `onclick="dialogBerkasPic(${i}, ${j})"` : ''}>${b
+            ? `<span class="badge ${IKON_STATUS_BERKAS[b.status][0]}">${IKON_STATUS_BERKAS[b.status][1]}</span><div class="small muted" title="${esc(b.drive_error || '')}">${IKON_DRIVE[b.drive_status] || ''}</div>`
+            : '<span class="badge b-none">Belum</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      <p class="small muted">Klik sel untuk melihat berkas dan menandai <b>Diterima</b> / <b>Perlu revisi</b>. ☁️✓ terkirim ke Drive · ☁️… antre · ☁️✗ gagal (arahkan kursor untuk alasannya).</p>
+    </div>`);
+}
+
+function simpanLinkBerkas(btn) {
+  busy(btn, async () => { C.bk = await call('berkasDriveSimpan', { id_batch: C.batch.id_batch, link: $('#bk-link').value }); toast('Link Google Drive disimpan.', 'ok'); renderBerkas(C.view); });
+}
+
+function simpanBatasBerkas(btn) {
+  const batas = {};
+  $$('.bk-batas').forEach(el => { batas[el.dataset.id] = el.value; });
+  busy(btn, async () => { C.bk = await call('berkasDriveSimpan', { id_batch: C.batch.id_batch, batas: batas }); toast('Batas waktu disimpan.', 'ok'); renderBerkas(C.view); });
+}
+
+function cekDriveBerkas(btn) {
+  busy(btn, async () => {
+    const r = await call('berkasDriveCek', { id_batch: C.batch.id_batch });
+    if (r.bisa_tulis) toast('✅ Terhubung ke folder "' + r.nama + '" (' + r.jumlah_folder + ' folder di dalamnya).', 'ok');
+    else toast('Folder "' + r.nama + '" terbaca, tetapi akun Artha TIDAK bisa menulis. Minta lembaga mengubah akses link menjadi Editor.', 'error');
+  }, 'Mengecek…');
+}
+
+function buatFolderBerkas(btn) {
+  if (!confirm('Buatkan folder untuk semua peserta di Google Drive lembaga?\n\nStruktur: <Nama Peserta>/Persyaratan dan /Asesmen. Folder yang sudah ada dipakai (tidak dibuat dobel).')) return;
+  busy(btn, async () => {
+    const r = await call('berkasBuatFolder', { id_batch: C.batch.id_batch });
+    toast('Folder dibuat: ' + r.dibuat + ', sudah ada: ' + r.sudah_ada + '.', 'ok');
+  }, 'Membuat folder…');
+}
+
+function kirimUlangBerkas(btn) {
+  busy(btn, async () => {
+    const r = await call('berkasKirimUlang', { id_batch: C.batch.id_batch });
+    C.bk = r.data;
+    toast('Terkirim ' + r.hasil.terkirim + ', gagal ' + r.hasil.gagal + '.', r.hasil.gagal ? 'error' : 'ok');
+    renderBerkas(C.view);
+  }, 'Mengirim…');
+}
+
+function rekapBerkas(btn) {
+  busy(btn, async () => { const r = await call('berkasRekap', { id_batch: C.batch.id_batch }); simpanFile(r.nama, r.data, 'text/csv'); });
+}
+
+async function dialogBerkasPic(i, j) {
+  const p = C.bk.peserta[i], it = C.bk.item[j], b = p.berkas[j];
+  openModal(`
+    <h2>${esc(it.nama)} — ${esc(p.nama)}</h2>
+    <div class="small muted">${esc(b.nama_file)} · ${(b.ukuran / 1048576).toFixed(2)} MB · diupload ${esc(b.diupload_pada.slice(0, 16))}</div>
+    <div class="small mt">Google Drive: ${b.drive_status === 'terkirim' ? `☁️✓ terkirim${b.drive_url ? ' · <a href="' + esc(b.drive_url) + '" target="_blank" rel="noopener">buka di Drive</a>' : ''}`
+      : b.drive_status === 'gagal' ? '<span class="merah">☁️✗ gagal: ' + esc(b.drive_error) + '</span>' : '☁️… antre' + (b.drive_error ? ' (' + esc(b.drive_error) + ')' : '')}</div>
+    <div id="bk-preview" class="mt"><div class="muted small">Memuat berkas…</div></div>
+    <label>Catatan untuk peserta</label><input id="bk-catatan" value="${esc(b.catatan)}" placeholder="wajib diisi jika perlu revisi, mis. Foto KTP buram">
+    <div class="row mt">
+      <button class="btn danger grow" onclick="verifikasiBerkas(this, '${esc(b.id_berkas)}', 'revisi')">🔁 Perlu revisi</button>
+      <button class="btn primary grow" onclick="verifikasiBerkas(this, '${esc(b.id_berkas)}', 'diterima')">✅ Diterima</button>
+    </div>
+    <button class="btn block mt" onclick="closeModal()">Tutup</button>`);
+  try {
+    const f = await call('berkasUnduh', { id_berkas: b.id_berkas });
+    const el = $('#bk-preview');
+    if (!el) return;
+    const url = 'data:' + f.mime + ';base64,' + f.data;
+    el.innerHTML = (f.mime.startsWith('image/') ? `<img class="thumb" src="${url}" alt="" style="max-height:320px">` : '') +
+      `<div class="mt"><button class="btn sm" onclick="simpanFile('${esc(f.nama)}', C.bkFile, '${esc(f.mime)}')">⬇ Unduh / buka berkas</button></div>`;
+    C.bkFile = f.data;
+  } catch (e) { const el = $('#bk-preview'); if (el) el.innerHTML = '<div class="alert bad small">' + esc(e.message) + '</div>'; }
+}
+
+function verifikasiBerkas(btn, id, status) {
+  busy(btn, async () => {
+    C.bk = await call('berkasVerifikasi', { id_berkas: id, status: status, catatan: $('#bk-catatan').value });
+    closeModal(); toast(status === 'diterima' ? 'Berkas diterima.' : 'Peserta diminta merevisi berkas.', 'ok'); renderBerkas(C.view);
+  });
 }

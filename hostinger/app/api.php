@@ -13,6 +13,7 @@ require_once __DIR__ . '/narasumber.php';
 require_once __DIR__ . '/pustaka.php';
 require_once __DIR__ . '/perangkat.php';
 require_once __DIR__ . '/inventaris.php';
+require_once __DIR__ . '/berkas.php';
 
 /** auth: '' = publik, 'user' = sudah login, 'pic' = PIC/Admin, 'admin' = Admin. */
 const ROUTES = [
@@ -23,7 +24,11 @@ const ROUTES = [
   'hariResetLokasi' => 'pic', 'hariSetAturan' => 'pic', 'perangkatLepas' => 'pic',
   'invGudang' => 'pic', 'invBarangSimpan' => 'gudang', 'invStokTambah' => 'gudang', 'invMutasiList' => 'gudang', 'invVerifikasi' => 'gudang',
   'invBatch' => 'pic', 'invBatchSimpan' => 'pic', 'invBatchHapus' => 'pic', 'invPesertaSet' => 'pic', 'invPesertaMassal' => 'pic',
-  'invTransaksi' => 'pic', 'invTransaksiHapus' => 'pic', 'invTutup' => 'pic', 'invBuka' => 'pic', 'invTtdPic' => 'pic', 'invPdf' => 'pic', 'lokasiDariTeks' => 'pic', 'pesertaList' => 'pic', 'pesertaTambah' => 'pic', 'pesertaUbah' => 'pic',
+  'invTransaksi' => 'pic', 'invTransaksiHapus' => 'pic', 'invTutup' => 'pic', 'invBuka' => 'pic', 'invTtdPic' => 'pic', 'invPdf' => 'pic',
+  'berkasSaya' => 'user', 'berkasUpload' => 'user', 'berkasUnduh' => 'user',
+  'berkasBatch' => 'pic', 'berkasDriveSimpan' => 'pic', 'berkasDriveCek' => 'pic', 'berkasBuatFolder' => 'pic', 'berkasVerifikasi' => 'pic',
+  'berkasKirimUlang' => 'pic', 'berkasRekap' => 'pic',
+  'berkasItemList' => 'admin', 'berkasItemSimpan' => 'admin', 'jembatanSimpan' => 'admin', 'jembatanCek' => 'admin', 'lokasiDariTeks' => 'pic', 'pesertaList' => 'pic', 'pesertaTambah' => 'pic', 'pesertaUbah' => 'pic',
   'pesertaResetDevice' => 'pic', 'pesertaAktif' => 'pic', 'monitor' => 'pic', 'absenSetStatus' => 'pic', 'absenFoto' => 'pic',
   'rundownGet' => 'pic', 'rundownSimpan' => 'pic', 'rundownSalin' => 'pic', 'materiList' => 'pic', 'materiTambah' => 'pic',
   'materiHapus' => 'pic', 'dokList' => 'pic', 'dokTambah' => 'pic', 'dokUbah' => 'pic', 'dokHapus' => 'pic',

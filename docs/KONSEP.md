@@ -479,3 +479,16 @@ Semua tambahan (skema versi 7); akses dan tampilan peserta tidak berubah (`peser
   - **Berita acara PDF** (disimpan juga di riwayat laporan): ringkasan per barang & ukuran, rincian per peserta, riwayat alat bersama, daftar perlu tindak lanjut, tanda tangan digital **PIC Batch** dan **Bagian Inventaris** (verifikasi dari menu Gudang).
 - **Dashboard PIC/Admin**: pinjaman belum kembali (hari terakhir), inventaris belum ditutup, berita acara belum ditandatangani; untuk petugas inventaris: stok menipis dan berita acara menunggu verifikasi.
 - **Duplikat batch**: daftar barang ikut tersalin dengan jumlah 0 dan saran jumlah dari batch sumber (stok baru terpotong saat jumlah diisi). **Hapus batch**: alokasi barang batch ikut terhapus sehingga stok kembali.
+
+## 24. Berkas peserta → Google Drive lembaga
+
+Semua tambahan (skema versi 8). Menu **Berkas Saya** hanya muncul untuk peserta batch yang programnya punya daftar berkas (mis. program BNSP); peserta program lain tidak melihat perubahan apa pun.
+
+- **Jembatan Apps Script** (`apps-script-jembatan/KirimBerkas.gs`): dipasang sekali di akun Google Artha (info.arthasafetyindonesia@gmail.com) sebagai *Aplikasi web* (jalankan sebagai: Saya, akses: Siapa saja). Hanya dipakai untuk **mengirim berkas** ke Drive; proses LMS lain tetap di Hostinger. Dilindungi **kode rahasia** yang dibuat LMS (Admin → Pustaka Pelatihan → Jembatan Google Drive: tempel URL `/exec`, Simpan, Cek jembatan).
+- **Daftar berkas per program** (`berkas_item`, Admin di Pustaka): kategori *Persyaratan* / *Asesmen*, nama, format (pdf, jpg, png, docx, …), ukuran maks (≤ 25 MB), wajib/opsional, keterangan, urutan.
+- **Per batch** (`berkas_batch`, PIC → menu **Berkas Peserta**): link folder Google Drive lembaga (akses siapa saja dengan link = Editor; boleh diganti kapan saja, riwayat link disimpan), **Cek koneksi**, **Buatkan folder semua peserta**, batas waktu upload per berkas.
+- **Struktur di Drive**: `<folder lembaga>/<Nama Peserta>/Persyaratan` dan `/Asesmen`. Folder yang sudah dibuat PIC dipakai (nama dicocokkan tanpa membedakan huruf besar/kecil); yang belum ada dibuat otomatis. Nama file: `<Nama berkas> - <Nama Peserta>.<ext>`.
+- **Upload peserta** (`berkas`): file disimpan dulu di LMS (salinan cadangan di `storage/…/berkas/`), peserta langsung mendapat jawaban, lalu pengiriman ke Drive berjalan **di belakang layar** setelah respons terkirim (`setelah_respon`). Foto besar dikompres di HP sebelum upload. Status Drive: antre / terkirim / gagal (+ alasan). Yang gagal dicoba lagi otomatis saat PIC membuka menu Berkas Peserta, atau lewat tombol **Kirim ulang**.
+- **Verifikasi PIC**: Menunggu → **Diterima** atau **Perlu revisi** (wajib catatan; peserta melihat catatannya dan bisa upload ulang — file lama di Drive dipindah ke sampah bila masih di folder lembaga yang sama). Berkas yang sudah diterima atau lewat batas waktu tidak bisa diganti peserta (kecuali status revisi).
+- **Rekap (Excel/CSV)** kelengkapan per peserta; **Dashboard** PIC/Admin: pengingat berkas wajib belum lengkap, menunggu verifikasi, gagal terkirim ke Drive, link Drive belum diisi. Beranda peserta: banner berkas kurang/perlu revisi.
+- Hak akses: peserta hanya bisa melihat berkasnya sendiri; PIC/Admin semua berkas batch. **Hapus batch** ikut menghapus data berkas batch tersebut.
