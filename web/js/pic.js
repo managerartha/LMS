@@ -33,18 +33,19 @@ const NAV_PIC = [
   ['rundown', '🗓️', 'Rundown', 'Kegiatan harian'],
   ['materi', '📚', 'Materi', 'Kegiatan harian'], ['dok', '📷', 'Dokumentasi', 'Kegiatan harian'],
   ['peserta', '👥', 'Peserta', 'Persiapan'], ['lokasi', '📍', 'Jadwal & Lokasi', 'Persiapan'],
-  ['kepatuhan', '📘', 'Tata Tertib & Video', 'Persiapan'],
+  ['kepatuhan', '📘', 'Tata Tertib & Video', 'Persiapan'], ['inventaris', '📦', 'Inventaris', 'Persiapan'],
   ['laporan', '📄', 'Laporan', 'Akhir pelatihan'], ['skl', '🎓', 'SKL', 'Akhir pelatihan'],
+  ['gudang', '🏬', 'Gudang Inventaris', 'Gudang'],
   ['batch', '🗂️', 'Batch', 'Admin'], ['pustaka', '📚', 'Pustaka Pelatihan', 'Admin'], ['pic', '🔑', 'Akun PIC', 'Admin'],
 ];
-const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
+const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'inventaris', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
 
 function picTab(tab) {
   C.tab = tab;
   C.view++; // hasil muat dari tab sebelumnya yang datang terlambat akan diabaikan
   clearInterval(C.timer);
   const admin = S.user.role === 'admin';
-  const nav = NAV_PIC.filter(n => admin || n[3] !== 'Admin');
+  const nav = NAV_PIC.filter(n => (admin || n[3] !== 'Admin') && (n[3] !== 'Gudang' || admin || S.user.inventaris));
   const aktif = nav.find(n => n[0] === tab) || nav[0];
   const butuhBatch = TAB_BATCH.indexOf(tab) >= 0;
   // Batch arsip disembunyikan dari pilihan, kecuali sedang dibuka dari tab Batch.
@@ -79,7 +80,7 @@ function picTab(tab) {
     return;
   }
   ({ dashboard: tabDashboard, monitor: tabMonitor, narasumber: tabNarasumber, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl,
-    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka })[aktif[0]]();
+    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka, inventaris: tabInventaris, gudang: tabGudang })[aktif[0]]();
 }
 
 /** Mengisi isi tab, hanya jika pengguna belum berpindah tab sejak data mulai dimuat. */
@@ -739,7 +740,7 @@ async function tabPicAkun() {
         <h2>Akun PIC & Admin</h2>
         <table><thead><tr><th>Nama</th><th>Kode</th><th>Peran</th><th></th></tr></thead>
           <tbody>${C.pics.map((p, i) => `
-            <tr><td>${esc(p.nama)} ${p.aktif === 'tidak' ? '<span class="badge b-alpa">nonaktif</span>' : ''}
+            <tr><td>${esc(p.nama)} ${p.aktif === 'tidak' ? '<span class="badge b-alpa">nonaktif</span>' : ''}${p.hak_inventaris ? ' <span class="badge b-izin">🏬 inventaris</span>' : ''}
                 <div class="small muted">${p.no_hp && p.no_hp !== '0' ? esc(p.no_hp) : ''}</div></td>
               <td class="kode">${esc(p.kode_login)}</td><td>${p.role === 'admin' ? 'Admin' : 'PIC'}</td>
               <td class="row"><button class="btn sm" onclick="dialogPic(${i})">✏️ Edit</button>
@@ -768,6 +769,8 @@ function dialogPic(i) {
       </select>
       <label class="check mt"><input type="checkbox" name="aktif" ${p.aktif !== 'tidak' ? 'checked' : ''} ${saya ? 'disabled' : ''}>
         Akun aktif (bisa login)</label>
+      <label class="check"><input type="checkbox" name="hak_inventaris" ${p.hak_inventaris ? 'checked' : ''}>
+        Petugas inventaris (kelola katalog & stok gudang, tanda tangan bagian inventaris)</label>
       <label>Batch yang ditangani</label>
       ${batches.length ? batches.map(b => `<label class="check"><input type="checkbox" name="batch" value="${esc(b.id_batch)}"
           ${(b.pic_ids || '').split(',').indexOf(p.id_user) >= 0 ? 'checked' : ''}>
@@ -785,6 +788,7 @@ function simpanPic(form, id) {
     const p = C.pics.find(x => x.id_user === id);
     await call('picUbah', { id_user: id, nama: form.nama.value, kode: form.kode.value, no_hp: form.no_hp.value,
       role: form.role.disabled ? p.role : form.role.value, aktif: form.aktif.disabled ? true : form.aktif.checked,
+      hak_inventaris: form.hak_inventaris.checked,
       batch_ids: $$('input[name=batch]:checked', form).map(x => x.value) });
     closeModal(); toast('Akun ' + form.nama.value + ' disimpan.', 'ok');
     if (id === S.user.id_user) { S.user.nama = form.nama.value; }
@@ -1470,7 +1474,7 @@ function sklUnduhSemua(btn) {
 const LEVEL_PENGINGAT = { bad: ['b-alpa', 'Segera'], warn: ['b-belum', 'Perlu'], info: ['b-izin', 'Info'] };
 const FASE_BATCH = { berjalan: ['b-hadir', 'Berjalan'], akan: ['b-izin', 'Akan datang'], selesai: ['b-none', 'Selesai'] };
 const TAB_LABEL = { peserta: 'Peserta', lokasi: 'Jadwal & Lokasi', rundown: 'Rundown', materi: 'Materi', dok: 'Dokumentasi',
-  monitor: 'Absensi', narasumber: 'Absensi Narasumber', kepatuhan: 'Tata Tertib & Video', pustaka: 'Pustaka', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
+  monitor: 'Absensi', narasumber: 'Absensi Narasumber', kepatuhan: 'Tata Tertib & Video', pustaka: 'Pustaka', inventaris: 'Inventaris', gudang: 'Gudang', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
 
 async function tabDashboard() {
   const v = C.view;
@@ -1480,6 +1484,7 @@ async function tabDashboard() {
     const bs = d.batches;
     const semua = [];
     bs.forEach((b, i) => b.pengingat.forEach((p, j) => semua.push({ b: b, i: i, j: j, p: p })));
+    (d.gudang || []).forEach((p, j) => semua.push({ b: { kode_batch: '🏬 Gudang' }, i: -1, j: j, p: p }));
     const urut = { bad: 0, warn: 1, info: 2 };
     semua.sort((x, y) => urut[x.p.level] - urut[y.p.level]);
     const berjalan = bs.filter(b => b.fase === 'berjalan');
@@ -1536,6 +1541,7 @@ async function tabDashboard() {
 
 /** Pindah ke batch & tab tujuan pengingat (dan hari terkait, jika ada). */
 function bukaPengingat(i, j) {
+  if (i < 0) return picTab(C.dasbor.gudang[j].tab);
   const b = C.dasbor.batches[i], p = b.pengingat[j];
   bukaBatchDasbor(i, p.tab, p.id_hari);
 }
@@ -1992,4 +1998,407 @@ async function tabKepatuhan() {
           : '<div class="small muted">Belum ada data untuk direkap.</div>'}
       </div>`);
   } catch (e) { errBox(v, e); }
+}
+
+// ----------------------------------------------------- Gudang inventaris (Admin & petugas inventaris)
+const JENIS_INV = { diberikan: '🎁 Diberikan', dipinjamkan: '🔁 Dipinjamkan' };
+const MUTASI_LABEL = { masuk: 'Tambah stok', koreksi: 'Koreksi', keluar_batch: 'Disiapkan untuk batch', batal_batch: 'Batal dari batch',
+  kembali_batch: 'Kembali dari batch' };
+
+function stokChips(stok) {
+  return stok.map(s => `<span class="badge ${s.jumlah < 0 ? 'b-alpa' : s.menipis ? 'b-belum' : 'b-hadir'}" title="${s.menipis ? 'Stok menipis' : ''}">
+    ${s.ukuran ? esc(s.ukuran) + ': ' : ''}${s.jumlah}${s.menipis ? ' ⚠' : ''}</span>`).join(' ');
+}
+
+async function tabGudang() {
+  const v = C.view;
+  try {
+    const g = await call('invGudang');
+    C.gudang = g;
+    const kelola = g.boleh_kelola;
+    const tipis = g.barang.filter(b => b.aktif && b.stok.some(s => s.menipis));
+    setBody(v, `
+      ${tipis.length ? `<div class="alert warn small">⚠ <b>Stok menipis:</b> ${tipis.map(b => esc(b.nama) + ' (' +
+        b.stok.filter(s => s.menipis).map(s => (s.ukuran ? s.ukuran + ' ' : '') + s.jumlah).join(', ') + ')').join(' · ')}</div>` : ''}
+      <div class="card table-wrap">
+        <div class="row mb"><h2 class="grow">Stok gudang</h2>
+          ${kelola ? '<button class="btn sm" onclick="dialogBarang(-1)">＋ Barang baru</button>' : ''}</div>
+        ${g.barang.length ? `<table>
+          <thead><tr><th>Barang</th><th>Jenis</th><th>Stok${g.barang.some(b => b.ukuran.length) ? ' (per ukuran)' : ''}</th><th>Total</th><th></th></tr></thead>
+          <tbody>${g.barang.map((b, i) => `
+            <tr style="${b.aktif ? '' : 'opacity:.5'}">
+              <td><b>${esc(b.nama)}</b>${b.aktif ? '' : ' <span class="badge b-none">nonaktif</span>'}
+                <div class="small muted">${esc(b.satuan)}${b.stok_min ? ' · batas menipis ≤ ' + b.stok_min : ''}${b.keterangan ? ' · ' + esc(b.keterangan) : ''}</div></td>
+              <td class="small">${JENIS_INV[b.jenis] || esc(b.jenis)}</td>
+              <td>${stokChips(b.stok)}</td>
+              <td><b>${b.stok_total}</b></td>
+              <td class="row">${kelola ? `<button class="btn sm primary" onclick="dialogStok(${i}, 'masuk')">＋ Stok</button>
+                <button class="btn sm" onclick="dialogStok(${i}, 'koreksi')">Koreksi</button>
+                <button class="btn sm" onclick="dialogBarang(${i})">✏️</button>
+                <button class="btn sm" onclick="lihatMutasi('${esc(b.id_barang)}')">Riwayat</button>` : ''}</td>
+            </tr>`).join('')}</tbody></table>`
+          : `<div class="muted small">Katalog masih kosong.${kelola ? ' Klik <b>＋ Barang baru</b>, mis. Training kit, Helm safety, Kaos (S, M, L, XL, XXL).' : ''}</div>`}
+        <p class="small muted">Stok berkurang saat PIC mengisi jumlah barang di menu <b>Inventaris</b> batch, dan bertambah lagi saat inventaris batch
+          ditutup (sisa barang & pinjaman yang kembali baik). ⚠ = stok menipis (≤ batas), merah = minus.</p>
+      </div>
+      ${g.berita_acara ? `<div class="card table-wrap">
+        <h2>Berita acara inventaris batch</h2>
+        ${g.berita_acara.length ? `<table><thead><tr><th>Batch</th><th>Ditutup</th><th>PIC</th><th>Bagian inventaris</th><th></th></tr></thead>
+          <tbody>${g.berita_acara.map(a => `<tr>
+            <td><b>${esc(a.kode_batch)}</b><div class="small">${esc(a.nama_pelatihan)}</div></td>
+            <td class="small">${esc(a.ditutup_waktu.slice(0, 16))}</td>
+            <td>${a.ttd_pic ? '<span class="badge b-hadir">✓ ' + esc(a.ttd_pic) + '</span>' : '<span class="badge b-belum">Belum</span>'}</td>
+            <td>${a.ttd_gudang ? '<span class="badge b-hadir">✓ ' + esc(a.ttd_gudang) + '</span>' : '<span class="badge b-belum">Belum</span>'}</td>
+            <td class="row">${a.ttd_pic && !a.ttd_gudang ? `<button class="btn sm primary" onclick="verifikasiBa(this, '${esc(a.id_batch)}')">✍️ Verifikasi & tanda tangani</button>` : ''}
+              <button class="btn sm" onclick="unduhBaInv(this, '${esc(a.id_batch)}')">📄 PDF</button></td></tr>`).join('')}</tbody></table>`
+          : '<div class="small muted">Belum ada inventaris batch yang ditutup.</div>'}
+      </div>` : ''}
+      <div class="card" id="mutasi-card">
+        <div class="row mb"><h2 class="grow">Riwayat keluar-masuk</h2>${kelola ? '<button class="btn sm" onclick="lihatMutasi(\'\')">Tampilkan semua</button>' : ''}</div>
+        <div id="mutasi-isi" class="small muted">Klik <b>Riwayat</b> pada barang atau <b>Tampilkan semua</b>.</div>
+      </div>`);
+  } catch (e) { errBox(v, e); }
+}
+
+function dialogBarang(i) {
+  const b = i >= 0 ? C.gudang.barang[i] : { nama: '', jenis: 'diberikan', satuan: 'pcs', ukuran: [], stok_min: 0, keterangan: '', aktif: true };
+  openModal(`
+    <h2>${i >= 0 ? 'Ubah barang' : 'Barang baru'}</h2>
+    <form onsubmit="event.preventDefault(); simpanBarang(this, '${i >= 0 ? esc(b.id_barang) : ''}')">
+      <label>Nama barang</label><input name="nama" value="${esc(b.nama)}" required placeholder="mis. Kaos pelatihan">
+      <div class="grid2">
+        <div><label>Jenis</label><select name="jenis">
+          <option value="diberikan" ${b.jenis === 'diberikan' ? 'selected' : ''}>🎁 Diberikan (jadi milik peserta)</option>
+          <option value="dipinjamkan" ${b.jenis === 'dipinjamkan' ? 'selected' : ''}>🔁 Dipinjamkan (wajib kembali)</option></select></div>
+        <div><label>Satuan</label><input name="satuan" value="${esc(b.satuan)}" placeholder="pcs / set / unit"></div>
+        <div><label>Ukuran (opsional, pisahkan koma)</label><input name="ukuran" value="${esc(b.ukuran.join(', '))}" placeholder="mis. S, M, L, XL, XXL"></div>
+        <div><label>Batas stok menipis</label><input name="stok_min" type="number" min="0" value="${esc(b.stok_min)}"></div>
+      </div>
+      <label>Keterangan</label><input name="keterangan" value="${esc(b.keterangan)}">
+      ${i >= 0 ? `<label class="check mt"><input type="checkbox" name="aktif" ${b.aktif ? 'checked' : ''}> Aktif (bisa dipilih untuk batch)</label>` : ''}
+      <p class="small muted">Barang berukuran (kemeja, kaos, sepatu) dicatat per peserta lengkap dengan ukurannya; batas menipis berlaku untuk tiap ukuran.</p>
+      <div class="row mt"><button type="button" class="btn" onclick="closeModal()">Batal</button><button class="btn primary grow">Simpan</button></div>
+    </form>`);
+}
+
+function simpanBarang(form, id) {
+  busy(form.querySelector('button.primary'), async () => {
+    await call('invBarangSimpan', { id_barang: id, nama: form.nama.value, jenis: form.jenis.value, satuan: form.satuan.value, ukuran: form.ukuran.value,
+      stok_min: form.stok_min.value, keterangan: form.keterangan.value, aktif: form.aktif ? form.aktif.checked : true });
+    closeModal(); toast('Barang disimpan.', 'ok'); tabGudang();
+  });
+}
+
+function dialogStok(i, jenis) {
+  const b = C.gudang.barang[i];
+  const koreksi = jenis === 'koreksi';
+  const baris = b.ukuran.length ? b.ukuran : [''];
+  openModal(`
+    <h2>${koreksi ? 'Koreksi stok' : 'Tambah stok'}: ${esc(b.nama)}</h2>
+    <p class="small muted">${koreksi ? 'Isi selisih: angka plus untuk menambah, minus untuk mengurangi (mis. hasil stock opname, barang rusak di gudang).'
+      : 'Jumlah barang yang masuk ke gudang. Stok otomatis bertambah.'}</p>
+    <form onsubmit="event.preventDefault(); simpanStok(this, '${esc(b.id_barang)}', '${jenis}')">
+      <div class="grid2">${baris.map(u => {
+        const s = b.stok.find(x => x.ukuran === u);
+        return `<div><label>${u ? 'Ukuran ' + esc(u) : 'Jumlah'} <span class="muted small">(stok ${s ? s.jumlah : 0})</span></label>
+          <input type="number" class="stok-in" data-u="${esc(u)}" ${koreksi ? '' : 'min="0"'} placeholder="0"></div>`;
+      }).join('')}</div>
+      <label>Catatan</label><input name="catatan" placeholder="${koreksi ? 'mis. stock opname 10 Nov' : 'mis. pembelian dari vendor X'}">
+      <div class="row mt"><button type="button" class="btn" onclick="closeModal()">Batal</button><button class="btn primary grow">Simpan</button></div>
+    </form>`);
+}
+
+function simpanStok(form, id, jenis) {
+  const jumlah = {};
+  $$('.stok-in', form).forEach(el => { if (el.value !== '') jumlah[el.dataset.u] = Number(el.value); });
+  if (!Object.keys(jumlah).length) return toast('Isi jumlahnya.', 'error');
+  busy(form.querySelector('button.primary'), async () => {
+    await call('invStokTambah', { id_barang: id, jenis: jenis, jumlah: jumlah, catatan: form.catatan.value });
+    closeModal(); toast('Stok diperbarui.', 'ok'); tabGudang();
+  });
+}
+
+async function lihatMutasi(id) {
+  const el = $('#mutasi-isi');
+  if (!el) return;
+  el.innerHTML = 'Memuat…';
+  try {
+    const list = await call('invMutasiList', { id_barang: id });
+    el.className = 'table-wrap';
+    el.innerHTML = list.length ? `<table><thead><tr><th>Waktu</th><th>Barang</th><th>Mutasi</th><th>Jumlah</th><th>Batch</th><th>Catatan</th><th>Oleh</th></tr></thead>
+      <tbody>${list.map(m => `<tr><td class="small">${esc(m.waktu.slice(0, 16))}</td><td>${esc(m.barang)}${m.ukuran ? ' ' + esc(m.ukuran) : ''}</td>
+        <td class="small">${esc(MUTASI_LABEL[m.jenis] || m.jenis)}</td><td><b class="${m.jumlah < 0 ? 'merah' : ''}">${m.jumlah > 0 ? '+' : ''}${m.jumlah}</b></td>
+        <td class="small">${esc(m.batch)}</td><td class="small">${esc(m.catatan)}</td><td class="small">${esc(m.oleh)}</td></tr>`).join('')}</tbody></table>`
+      : '<div class="small muted">Belum ada riwayat.</div>';
+    $('#mutasi-card').scrollIntoView({ behavior: 'smooth' });
+  } catch (e) { el.innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>'; }
+}
+
+function verifikasiBa(btn, idBatch) {
+  if (!confirm('Verifikasi dan tanda tangani berita acara inventaris batch ini sebagai bagian inventaris?')) return;
+  busy(btn, async () => {
+    await call('invVerifikasi', { id_batch: idBatch });
+    toast('Berita acara diverifikasi.', 'ok');
+    C.tab === 'inventaris' ? tabInventaris() : tabGudang();
+  });
+}
+
+function unduhBaInv(btn, idBatch) {
+  busy(btn, async () => { const res = await call('invPdf', { id_batch: idBatch }); simpanFile(res.nama, res.data, 'application/pdf'); }, 'Menyusun PDF…');
+}
+
+// ----------------------------------------------------- Inventaris per batch (PIC & Admin)
+async function tabInventaris() {
+  const v = C.view;
+  try {
+    const [d, g] = await Promise.all([call('invBatch', { id_batch: C.batch.id_batch }), call('invGudang')]);
+    if (v !== C.view) return;
+    C.inv = d; C.gudang = g;
+    if (!d.items.some(x => x.id_ib === C.invSel)) C.invSel = d.items.length ? d.items[0].id_ib : null;
+    renderInventaris(v);
+  } catch (e) { errBox(v, e); }
+}
+
+async function muatUlangInv() {
+  C.inv = await call('invBatch', { id_batch: C.batch.id_batch });
+  renderInventaris(C.view);
+}
+
+function renderInventaris(v) {
+  const d = C.inv, g = C.gudang, tutup = d.ba.ditutup;
+  const ada = d.items.map(x => x.id_barang);
+  const pilihan = g.barang.filter(b => b.aktif && ada.indexOf(b.id_barang) < 0);
+  const it = d.items.find(x => x.id_ib === C.invSel);
+  setBody(v, `
+    ${tutup ? `<div class="alert info small">🔒 Inventaris batch ini <b>sudah ditutup</b> (${esc(d.ba.ditutup_waktu.slice(0, 16))}, ${esc(d.ba.ditutup_oleh)}).
+      Sisa barang & pinjaman yang kembali baik sudah masuk ke gudang. Klik <b>Buka kembali</b> di bawah untuk memperbaiki data.</div>` : ''}
+    <div class="card table-wrap">
+      <h2>Barang batch ini</h2>
+      ${d.items.length ? `<table><thead><tr><th>Barang</th><th>Disiapkan</th><th>Diambil / dipinjam</th><th>Kembali baik</th><th>Rusak / hilang</th><th>Belum kembali</th><th>Sisa</th><th></th></tr></thead>
+        <tbody>${d.items.map(x => {
+          const t = x.total, pinjam = x.jenis === 'dipinjamkan';
+          return `<tr class="${x.id_ib === C.invSel ? 'aktif-baris' : ''}">
+            <td><b>${esc(x.nama)}</b><div class="small muted">${JENIS_INV[x.jenis]} · ${x.mode === 'jumlah' ? 'alat bersama' : 'per peserta'}
+              ${x.saran && !t.disiapkan ? '<br><span class="badge b-belum">saran dari batch sumber: ' + esc(x.saran) + '</span>' : ''}</div></td>
+            <td><b>${t.disiapkan}</b>${x.ukuran.length ? '<div class="small muted">' + x.rekap.filter(r => r.disiapkan).map(r => esc(r.ukuran) + ':' + r.disiapkan).join(' ') + '</div>' : ''}</td>
+            <td>${t.diambil}</td><td>${pinjam ? t.baik : '–'}</td>
+            <td>${pinjam ? `<span class="${t.rusak + t.hilang ? 'merah' : ''}">${t.rusak} / ${t.hilang}</span>` : '–'}</td>
+            <td>${pinjam ? `<span class="${t.belum ? 'badge b-alpa' : ''}">${t.belum}</span>` : '–'}</td>
+            <td>${t.sisa}</td>
+            <td class="row"><button class="btn sm" onclick="pilihInv('${esc(x.id_ib)}')">Catat</button>
+              ${tutup ? '' : `<button class="btn sm" onclick="dialogJumlahInv('${esc(x.id_ib)}')">Jumlah</button>
+              <button class="btn sm danger" title="Hapus dari batch" onclick="hapusInv(this, '${esc(x.id_ib)}')">✕</button>`}</td></tr>`;
+        }).join('')}</tbody></table>` : '<div class="small muted">Belum ada barang. Tambahkan dari katalog di bawah.</div>'}
+      ${tutup ? '' : g.barang.length && !pilihan.length ? '<p class="small muted mt">Semua barang di katalog sudah ada di batch ini.</p>' : g.barang.length ? `
+        <div class="row mt">
+          <select id="inv-barang" class="grow" onchange="modeInvAuto()">${pilihan.map(b => `<option value="${esc(b.id_barang)}">${esc(b.nama)} — ${JENIS_INV[b.jenis]}${b.ukuran.length ? ' (berukuran)' : ''}</option>`).join('')}</select>
+          <select id="inv-mode"><option value="peserta">Per peserta</option><option value="jumlah">Alat bersama (per jumlah)</option></select>
+          <button class="btn primary" ${pilihan.length ? '' : 'disabled'} onclick="tambahInv(this)">＋ Tambah ke batch</button>
+        </div>
+        <p class="small muted"><b>Per peserta</b>: status dicatat untuk tiap peserta (training kit, APD, kaos/kemeja + ukuran).
+          <b>Alat bersama</b>: dicatat keluar/kembali per jumlah (mis. 5 harness untuk 30 peserta).</p>`
+        : '<div class="alert warn small mt">Katalog barang masih kosong. Petugas inventaris/Admin mengisinya di menu <b>Gudang Inventaris</b>.</div>'}
+    </div>
+    ${it ? (it.mode === 'peserta' ? kartuPesertaInv(it, tutup) : kartuAlatInv(it, tutup)) : ''}
+    <div class="card">
+      <h2>Penutupan & berita acara</h2>
+      <ol class="small">
+        <li>${tutup ? '✅' : '⬜'} <b>Tutup inventaris</b>: sisa barang & pinjaman yang kembali baik dikembalikan ke stok gudang.</li>
+        <li>${d.ba.ttd_pic ? '✅ ' + esc(d.ba.ttd_pic) + ' · ' + esc(d.ba.ttd_pic_waktu.slice(0, 16)) : '⬜'} <b>Tanda tangan PIC</b> (tanda tangan digital dari menu Laporan).</li>
+        <li>${d.ba.ttd_gudang ? '✅ ' + esc(d.ba.ttd_gudang) + ' · ' + esc(d.ba.ttd_gudang_waktu.slice(0, 16)) : '⬜'} <b>Verifikasi bagian inventaris</b> (di menu Gudang Inventaris).</li>
+      </ol>
+      <div class="row mt">
+        ${!tutup ? `<button class="btn primary" ${d.items.length ? '' : 'disabled'} onclick="tutupInv(this, false)">🔒 Tutup & kembalikan ke gudang</button>` : ''}
+        ${tutup && !d.ba.ttd_pic ? `<button class="btn primary" onclick="ttdPicInv(this)">✍️ Tanda tangani sebagai PIC</button>` : ''}
+        ${tutup && d.ba.ttd_pic && !d.ba.ttd_gudang && d.saya_petugas ? `<button class="btn primary" onclick="verifikasiBa(this, '${esc(d.id_batch)}')">✍️ Verifikasi (bagian inventaris)</button>` : ''}
+        <button class="btn" ${d.items.length ? '' : 'disabled'} onclick="unduhBaInv(this, '${esc(d.id_batch)}')">📄 Unduh berita acara (PDF)</button>
+        ${tutup ? `<button class="btn" onclick="bukaInv(this)">↩ Buka kembali</button>` : ''}
+      </div>
+      ${d.saya_punya_ttd ? '' : '<p class="small muted mt">Anda belum punya tanda tangan digital: buat di menu <b>Laporan → Tanda tangan saya</b>.</p>'}
+    </div>`);
+  modeInvAuto();
+}
+
+function modeInvAuto() {
+  const sel = $('#inv-barang'), mode = $('#inv-mode');
+  if (!sel || !mode) return;
+  const b = C.gudang.barang.find(x => x.id_barang === sel.value);
+  const ukuran = b && b.ukuran.length;
+  mode.disabled = !!ukuran;
+  if (ukuran) mode.value = 'peserta';
+}
+
+function pilihInv(id) { C.invSel = id; renderInventaris(C.view); setTimeout(() => { const k = $('#inv-detail'); if (k) k.scrollIntoView({ behavior: 'smooth' }); }, 50); }
+
+/** Panggil API inventaris; jika stok kurang / pinjaman belum kembali, minta konfirmasi lalu ulangi dengan paksa. */
+async function callInv(action, data) {
+  try { return await call(action, data); }
+  catch (e) {
+    const [kode, pesan] = e.message.split('|');
+    if ((kode === 'STOK_KURANG' || kode === 'BELUM_KEMBALI') && pesan) {
+      const tanya = kode === 'STOK_KURANG' ? pesan + '\n\nTetap simpan? Stok gudang akan menjadi minus dan ditandai merah.'
+        : pesan + '\n\nTetap tutup? Barang tersebut tercatat BELUM KEMBALI di berita acara dan tidak masuk ke gudang.';
+      if (confirm(tanya)) return await call(action, Object.assign({}, data, { paksa: true }));
+      throw new Error('Dibatalkan.');
+    }
+    throw e;
+  }
+}
+
+function tambahInv(btn) {
+  const id = $('#inv-barang').value;
+  busy(btn, async () => {
+    C.inv = await callInv('invBatchSimpan', { id_batch: C.batch.id_batch, id_barang: id, mode: $('#inv-mode').value, jumlah: 0 });
+    const x = C.inv.items.find(i => i.id_barang === id);
+    C.invSel = x ? x.id_ib : C.invSel;
+    renderInventaris(C.view);
+    if (x) dialogJumlahInv(x.id_ib);
+  });
+}
+
+function dialogJumlahInv(idIb) {
+  const x = C.inv.items.find(i => i.id_ib === idIb);
+  const baris = x.ukuran.length ? x.ukuran : [''];
+  const minta = {};
+  x.peserta.forEach(p => { if (p.ukuran) minta[p.ukuran] = (minta[p.ukuran] || 0) + 1; });
+  openModal(`
+    <h2>Jumlah disiapkan: ${esc(x.nama)}</h2>
+    <p class="small muted">Diisi manual (tidak harus sama dengan jumlah peserta). Selisihnya otomatis diambil dari / dikembalikan ke stok gudang.
+      ${x.saran ? '<br>Batch sumber: <b>' + esc(x.saran) + '</b>' : ''}</p>
+    <form onsubmit="event.preventDefault(); simpanJumlahInv(this, '${esc(x.id_ib)}')">
+      <table><thead><tr><th>${x.ukuran.length ? 'Ukuran' : ''}</th>${x.ukuran.length ? '<th>Permintaan peserta</th>' : ''}<th>Stok gudang</th><th>Disiapkan</th></tr></thead>
+        <tbody>${baris.map(u => {
+          const s = x.stok_gudang.find(k => k.ukuran === u);
+          return `<tr><td><b>${esc(u)}</b></td>${x.ukuran.length ? `<td>${minta[u] || 0}</td>` : ''}
+            <td><span class="badge ${s && s.menipis ? 'b-belum' : 'b-none'}">${s ? s.jumlah : 0}</span></td>
+            <td><input type="number" min="0" class="jml-in" data-u="${esc(u)}" value="${x.rincian[u] !== undefined ? x.rincian[u] : (u === '' ? x.jumlah : 0)}" style="max-width:110px"></td></tr>`;
+        }).join('')}</tbody></table>
+      ${x.ukuran.length ? `<button type="button" class="btn sm mt" onclick="$$('.jml-in').forEach(el => el.value = ${JSON.stringify(minta).replace(/"/g, '&quot;')}[el.dataset.u] || 0)">
+        Isi sesuai permintaan peserta</button>` : ''}
+      <label>Catatan</label><input name="catatan" value="${esc(x.catatan)}">
+      <div class="row mt"><button type="button" class="btn" onclick="closeModal()">Batal</button><button class="btn primary grow">Simpan</button></div>
+    </form>`);
+}
+
+function simpanJumlahInv(form, idIb) {
+  const x = C.inv.items.find(i => i.id_ib === idIb);
+  const jumlah = {};
+  $$('.jml-in', form).forEach(el => { jumlah[el.dataset.u] = Number(el.value || 0); });
+  busy(form.querySelector('button.primary'), async () => {
+    C.inv = await callInv('invBatchSimpan', { id_batch: C.batch.id_batch, id_ib: idIb, jumlah: x.ukuran.length ? jumlah : (jumlah[''] || 0), catatan: form.catatan.value });
+    closeModal(); toast('Jumlah disimpan.', 'ok'); renderInventaris(C.view);
+  });
+}
+
+function hapusInv(btn, idIb) {
+  if (!confirm('Hapus barang ini dari batch? Jumlah yang disiapkan dikembalikan ke stok gudang.')) return;
+  busy(btn, async () => { C.inv = await call('invBatchHapus', { id_ib: idIb }); renderInventaris(C.view); });
+}
+
+function kartuPesertaInv(x, tutup) {
+  const pinjam = x.jenis === 'dipinjamkan';
+  const nama = {};
+  C.inv.peserta.forEach(p => { nama[p.id_user] = p; });
+  return `<div class="card table-wrap" id="inv-detail">
+    <div class="row mb"><h2 class="grow">${esc(x.nama)} <span class="small muted">· ${JENIS_INV[x.jenis]} · per peserta</span></h2>
+      ${tutup ? '' : `<button class="btn sm" onclick="ambilSemuaInv(this, '${esc(x.id_ib)}')">✔ Tandai semua ${pinjam ? 'dipinjam' : 'sudah diambil'}</button>`}</div>
+    ${x.ukuran.length ? `<p class="small muted">Pilih ukuran sesuai permintaan peserta. Rekap: ${x.rekap.map(r => `<b>${esc(r.ukuran)}</b> minta ${r.permintaan} / siap ${r.disiapkan}`
+      + (r.permintaan > r.disiapkan ? ' <span class="merah">(kurang ' + (r.permintaan - r.disiapkan) + ')</span>' : '')).join(' · ')}</p>` : ''}
+    <table><thead><tr><th>No</th><th>Nama</th>${x.ukuran.length ? '<th>Ukuran</th>' : ''}<th>Status</th>${pinjam ? '<th>Kondisi</th>' : ''}<th>Catatan</th><th>Waktu</th></tr></thead>
+      <tbody>${x.peserta.map(p => {
+        const u = nama[p.id_user];
+        const dis = tutup ? 'disabled' : '';
+        const on = `onchange="setInvPeserta(this, '${esc(x.id_ib)}', '${esc(p.id_user)}')"`;
+        return `<tr data-user="${esc(p.id_user)}">
+          <td>${esc(u.no_absen)}</td><td>${esc(u.nama)}</td>
+          ${x.ukuran.length ? `<td><select class="ip-ukuran" ${dis} ${on}><option value="">—</option>${x.ukuran.map(k => `<option ${k === p.ukuran ? 'selected' : ''}>${esc(k)}</option>`).join('')}</select></td>` : ''}
+          <td><select class="ip-status" ${dis} ${on}>
+            <option value="" ${p.status === '' ? 'selected' : ''}>Belum diambil</option>
+            <option value="diambil" ${p.status === 'diambil' ? 'selected' : ''}>${pinjam ? 'Dipinjam' : 'Sudah diambil'}</option>
+            ${pinjam ? `<option value="dikembalikan" ${p.status === 'dikembalikan' ? 'selected' : ''}>Dikembalikan</option>` : ''}</select></td>
+          ${pinjam ? `<td><select class="ip-kondisi" ${dis || (p.status !== 'dikembalikan' ? 'disabled' : '')} ${on}>
+            ${['baik', 'rusak', 'hilang'].map(k => `<option value="${k}" ${p.kondisi === k ? 'selected' : ''}>${k[0].toUpperCase() + k.slice(1)}</option>`).join('')}</select></td>` : ''}
+          <td><input class="ip-catatan" value="${esc(p.catatan)}" ${dis} ${on} placeholder="catatan"></td>
+          <td class="small muted">${esc(p.waktu_ambil.slice(5, 16))}${p.waktu_kembali ? '<br>↩ ' + esc(p.waktu_kembali.slice(5, 16)) : ''}</td></tr>`;
+      }).join('')}</tbody></table>
+  </div>`;
+}
+
+function setInvPeserta(el, idIb, idUser) {
+  const tr = el.closest('tr');
+  const v = c => { const x = tr.querySelector(c); return x ? x.value : undefined; };
+  const data = { id_ib: idIb, id_user: idUser, status: v('.ip-status'), catatan: v('.ip-catatan') };
+  if (tr.querySelector('.ip-ukuran')) data.ukuran = v('.ip-ukuran');
+  if (tr.querySelector('.ip-kondisi')) data.kondisi = v('.ip-kondisi');
+  busy(null, async () => {
+    try {
+      await call('invPesertaSet', data);
+      const k = tr.querySelector('.ip-kondisi');
+      if (k) k.disabled = data.status !== 'dikembalikan';
+      C.inv = await call('invBatch', { id_batch: C.batch.id_batch });
+      const y = window.scrollY;
+      renderInventaris(C.view);
+      window.scrollTo(0, y);
+    } catch (e) {
+      toast(e.message, 'error');
+      C.inv = await call('invBatch', { id_batch: C.batch.id_batch });
+      renderInventaris(C.view);
+    }
+  });
+}
+
+function ambilSemuaInv(btn, idIb) {
+  busy(btn, async () => {
+    const r = await call('invPesertaMassal', { id_ib: idIb });
+    toast(r.ditandai + ' peserta ditandai.' + (r.dilewati ? ' ' + r.dilewati + ' dilewati karena ukurannya belum dipilih.' : ''), r.dilewati ? 'error' : 'ok');
+    await muatUlangInv();
+  });
+}
+
+function kartuAlatInv(x, tutup) {
+  const t = x.total;
+  return `<div class="card" id="inv-detail">
+    <h2>${esc(x.nama)} <span class="small muted">· ${JENIS_INV[x.jenis]} · alat bersama</span></h2>
+    <p class="small">Disiapkan <b>${t.disiapkan}</b> · sedang di luar <b>${t.belum}</b> · kembali baik ${t.baik} · rusak ${t.rusak} · hilang ${t.hilang}</p>
+    ${tutup ? '' : `<div class="grid2">
+      <form class="card-sub" onsubmit="event.preventDefault(); transaksiInv(this, '${esc(x.id_ib)}', 'keluar')">
+        <b>Keluar</b><div class="row mt"><input name="jumlah" type="number" min="1" placeholder="jumlah" class="grow">
+        <input name="catatan" placeholder="catatan (mis. praktik Hari ke-2)" class="grow"><button class="btn primary">Catat</button></div></form>
+      <form class="card-sub" onsubmit="event.preventDefault(); transaksiInv(this, '${esc(x.id_ib)}', 'kembali')">
+        <b>Kembali</b><div class="row mt"><input name="baik" type="number" min="0" placeholder="baik" style="width:80px">
+        <input name="rusak" type="number" min="0" placeholder="rusak" style="width:80px"><input name="hilang" type="number" min="0" placeholder="hilang" style="width:80px">
+        <input name="catatan" placeholder="catatan" class="grow"><button class="btn primary">Catat</button></div></form>
+    </div>`}
+    <div class="table-wrap mt">${x.transaksi.length ? `<table><thead><tr><th>Waktu</th><th>Transaksi</th><th>Catatan</th><th>Oleh</th><th></th></tr></thead>
+      <tbody>${x.transaksi.map(r => `<tr><td class="small">${esc(r.waktu.slice(5, 16))}</td>
+        <td>${r.jenis === 'keluar' ? '➡ Keluar ' + esc(r.jumlah) : '↩ Kembali: baik ' + esc(r.baik) + ', rusak ' + esc(r.rusak) + ', hilang ' + esc(r.hilang)}</td>
+        <td class="small">${esc(r.catatan)}</td><td class="small">${esc(r.oleh)}</td>
+        <td>${tutup ? '' : `<button class="btn sm danger" onclick="hapusTransaksiInv(this, '${esc(r.id_tr)}')">✕</button>`}</td></tr>`).join('')}</tbody></table>`
+      : '<div class="small muted">Belum ada transaksi.</div>'}</div>
+  </div>`;
+}
+
+function transaksiInv(form, idIb, jenis) {
+  const data = { id_ib: idIb, jenis: jenis, catatan: form.catatan.value };
+  if (jenis === 'keluar') data.jumlah = form.jumlah.value; else ['baik', 'rusak', 'hilang'].forEach(k => { data[k] = form[k].value; });
+  busy(form.querySelector('button'), async () => { C.inv = await call('invTransaksi', data); toast('Tercatat.', 'ok'); renderInventaris(C.view); });
+}
+
+function hapusTransaksiInv(btn, id) {
+  if (!confirm('Hapus transaksi ini?')) return;
+  busy(btn, async () => { C.inv = await call('invTransaksiHapus', { id_tr: id }); renderInventaris(C.view); });
+}
+
+function tutupInv(btn) {
+  if (!confirm('Tutup inventaris batch ini?\n\nSisa barang dan pinjaman yang kembali dalam kondisi baik akan dikembalikan ke stok gudang. Data tidak bisa diubah sampai dibuka kembali.')) return;
+  busy(btn, async () => { C.inv = await callInv('invTutup', { id_batch: C.batch.id_batch }); toast('Inventaris ditutup & dikembalikan ke gudang.', 'ok'); renderInventaris(C.view); });
+}
+
+function ttdPicInv(btn) {
+  busy(btn, async () => { C.inv = await call('invTtdPic', { id_batch: C.batch.id_batch }); toast('Berita acara ditandatangani.', 'ok'); renderInventaris(C.view); });
+}
+
+function bukaInv(btn) {
+  if (!confirm('Buka kembali inventaris batch ini? Pengembalian ke gudang dibatalkan dan tanda tangan dikosongkan, lalu bisa ditutup lagi.')) return;
+  busy(btn, async () => { C.inv = await call('invBuka', { id_batch: C.batch.id_batch }); toast('Inventaris dibuka kembali.', 'ok'); renderInventaris(C.view); });
 }

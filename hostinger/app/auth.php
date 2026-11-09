@@ -21,7 +21,12 @@ function public_user(array $u): array {
     'id_user' => $u['id_user'], 'id_batch' => $u['id_batch'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'],
     'role' => $u['role'], 'kode_login' => $u['kode_login'], 'setuju_privasi' => $u['setuju_privasi'] !== '',
     'punya_ttd' => $u['ttd_id'] !== '',
-  ];
+  ] + ($u['role'] === 'peserta' ? [] : ['inventaris' => is_petugas_inventaris($u)]); // data peserta tidak berubah
+}
+
+/** Admin, atau PIC yang ditunjuk sebagai petugas inventaris (kelola katalog, stok gudang, tanda tangan bagian inventaris). */
+function is_petugas_inventaris(array $u): bool {
+  return $u['role'] === 'admin' || ($u['role'] === 'pic' && ($u['hak_inventaris'] ?? '') === 'ya');
 }
 
 function batchAktif(): array {
@@ -108,7 +113,7 @@ function gantiPin(array $data, array $user): bool {
 
 function picList(): array {
   return array_map(fn($u) => ['id_user' => $u['id_user'], 'nama' => $u['nama'], 'kode_login' => $u['kode_login'],
-    'role' => $u['role'], 'no_hp' => $u['no_hp'], 'aktif' => $u['aktif']],
+    'role' => $u['role'], 'no_hp' => $u['no_hp'], 'aktif' => $u['aktif'], 'hak_inventaris' => ($u['hak_inventaris'] ?? '') === 'ya'],
     rows("SELECT * FROM pengguna WHERE role IN ('pic', 'admin') ORDER BY role, nama"));
 }
 
@@ -149,7 +154,7 @@ function picUbah(array $data, array $user): array {
     if (!(int)$lain['n']) throw new LmsError('Harus ada minimal satu Admin aktif.');
   }
   $u = update('pengguna', $u, ['nama' => $nama, 'kode_login' => $kode, 'no_hp' => trim((string)($data['no_hp'] ?? '')),
-    'role' => $role, 'aktif' => $aktif ? 'ya' : 'tidak']);
+    'role' => $role, 'aktif' => $aktif ? 'ya' : 'tidak'] + (array_key_exists('hak_inventaris', $data) ? ['hak_inventaris' => $data['hak_inventaris'] ? 'ya' : ''] : []));
   if (!$aktif) q('DELETE FROM token WHERE id_user = ?', [$u['id_user']]); // langsung keluar dari semua perangkat
   if (isset($data['batch_ids']) && is_array($data['batch_ids'])) {
     $pilih = array_map('strval', $data['batch_ids']);

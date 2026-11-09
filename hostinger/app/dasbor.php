@@ -20,7 +20,15 @@ function dasborPic(array $data, array $user): array {
   foreach ($list as $b) $out[] = dasbor_batch($b, $now, $user);
   $urutFase = ['berjalan' => 0, 'akan' => 1, 'selesai' => 2];
   usort($out, fn($a, $b) => $urutFase[$a['fase']] <=> $urutFase[$b['fase']] ?: strcmp($a['tgl_mulai'], $b['tgl_mulai']));
-  return ['tanggal' => $now['date'], 'jam' => $now['time'], 'batches' => $out];
+  // Pengingat gudang untuk Admin & petugas inventaris: stok menipis dan berita acara menunggu verifikasi.
+  $gudang = [];
+  if (is_petugas_inventaris($user)) {
+    $tipis = stok_menipis();
+    if ($tipis) $gudang[] = pengingat_('warn', 'Stok menipis: ' . implode(', ', array_slice($tipis, 0, 6)) . (count($tipis) > 6 ? ', …' : '') . '.', 'gudang');
+    $tunggu = rows("SELECT b.kode_batch FROM inv_ba a JOIN batch b ON b.id_batch = a.id_batch WHERE a.ditutup = 'ya' AND a.ttd_pic <> '' AND a.ttd_gudang = ''");
+    if ($tunggu) $gudang[] = pengingat_('warn', 'Berita acara inventaris menunggu verifikasi: ' . implode(', ', array_column($tunggu, 'kode_batch')) . '.', 'gudang');
+  }
+  return ['tanggal' => $now['date'], 'jam' => $now['time'], 'batches' => $out, 'gudang' => $gudang];
 }
 
 function dasbor_batch(array $b, array $now, array $user): array {
@@ -139,6 +147,7 @@ function dasbor_batch(array $b, array $now, array $user): array {
     }
   }
 
+  $p = array_merge($p, pengingat_inventaris($b, $fase, $today));
   $lv = ['bad' => 0, 'warn' => 1, 'info' => 2];
   usort($p, fn($x, $y) => $lv[$x['level']] <=> $lv[$y['level']]);
   return ['id_batch' => $b['id_batch'], 'kode_batch' => $b['kode_batch'], 'nama_pelatihan' => $b['nama_pelatihan'], 'status' => $b['status'],

@@ -12,6 +12,7 @@ require_once __DIR__ . '/dasbor.php';
 require_once __DIR__ . '/narasumber.php';
 require_once __DIR__ . '/pustaka.php';
 require_once __DIR__ . '/perangkat.php';
+require_once __DIR__ . '/inventaris.php';
 
 /** auth: '' = publik, 'user' = sudah login, 'pic' = PIC/Admin, 'admin' = Admin. */
 const ROUTES = [
@@ -19,7 +20,10 @@ const ROUTES = [
   'me' => 'user', 'beranda' => 'user', 'logout' => 'user', 'setuju' => 'user',
   'statusHariIni' => 'user', 'absen' => 'user', 'riwayat' => 'user', 'kontenPeserta' => 'user',
   'gantiPin' => 'pic', 'batchList' => 'pic', 'batchUbah' => 'pic', 'hariList' => 'pic', 'hariSetLokasi' => 'pic',
-  'hariResetLokasi' => 'pic', 'hariSetAturan' => 'pic', 'perangkatLepas' => 'pic', 'lokasiDariTeks' => 'pic', 'pesertaList' => 'pic', 'pesertaTambah' => 'pic', 'pesertaUbah' => 'pic',
+  'hariResetLokasi' => 'pic', 'hariSetAturan' => 'pic', 'perangkatLepas' => 'pic',
+  'invGudang' => 'pic', 'invBarangSimpan' => 'gudang', 'invStokTambah' => 'gudang', 'invMutasiList' => 'gudang', 'invVerifikasi' => 'gudang',
+  'invBatch' => 'pic', 'invBatchSimpan' => 'pic', 'invBatchHapus' => 'pic', 'invPesertaSet' => 'pic', 'invPesertaMassal' => 'pic',
+  'invTransaksi' => 'pic', 'invTransaksiHapus' => 'pic', 'invTutup' => 'pic', 'invBuka' => 'pic', 'invTtdPic' => 'pic', 'invPdf' => 'pic', 'lokasiDariTeks' => 'pic', 'pesertaList' => 'pic', 'pesertaTambah' => 'pic', 'pesertaUbah' => 'pic',
   'pesertaResetDevice' => 'pic', 'pesertaAktif' => 'pic', 'monitor' => 'pic', 'absenSetStatus' => 'pic', 'absenFoto' => 'pic',
   'rundownGet' => 'pic', 'rundownSimpan' => 'pic', 'rundownSalin' => 'pic', 'materiList' => 'pic', 'materiTambah' => 'pic',
   'materiHapus' => 'pic', 'dokList' => 'pic', 'dokTambah' => 'pic', 'dokUbah' => 'pic', 'dokHapus' => 'pic',
@@ -47,6 +51,7 @@ function api($action, $data): array {
       $user = user_from_token($data['token'] ?? '');
       if ($auth === 'pic' && !is_pic($user)) throw new LmsError('Menu ini khusus PIC/Admin.');
       if ($auth === 'admin' && $user['role'] !== 'admin') throw new LmsError('Menu ini khusus Admin.');
+      if ($auth === 'gudang' && !is_petugas_inventaris($user)) throw new LmsError('Menu ini khusus Admin dan petugas inventaris.');
     }
     return ['ok' => true, 'data' => $auth === '' ? $action($data) : $action($data, $user)];
   } catch (LmsError $e) {

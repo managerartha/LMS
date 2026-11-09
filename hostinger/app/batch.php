@@ -151,7 +151,9 @@ function batchHapus(array $data, array $user): bool {
   try {
     q("DELETE FROM token WHERE id_user IN (SELECT id_user FROM pengguna WHERE role = 'peserta' AND id_batch = ?)", [$b['id_batch']]);
     q("DELETE FROM pengguna WHERE role = 'peserta' AND id_batch = ?", [$b['id_batch']]);
-    foreach (['absensi', 'rundown', 'materi', 'dokumentasi', 'laporan', 'skl', 'absen_narasumber', 'hari'] as $t) {
+    // inventaris: alokasi barang batch ikut terhapus sehingga stok gudang kembali seperti sebelum batch disiapkan
+    foreach (['absensi', 'rundown', 'materi', 'dokumentasi', 'laporan', 'skl', 'absen_narasumber', 'hari',
+      'inv_peserta', 'inv_transaksi', 'inv_batch', 'inv_mutasi', 'inv_ba'] as $t) {
       q("DELETE FROM `$t` WHERE id_batch = ?", [$b['id_batch']]);
     }
     q('DELETE FROM batch WHERE id_batch = ?', [$b['id_batch']]);
@@ -226,6 +228,14 @@ function batchDuplikat(array $data, array $user): array {
           $n['materi']++;
         }
       }
+    }
+    // Daftar barang inventaris ikut disalin; jumlah disiapkan 0 (stok gudang baru terpotong saat PIC mengisi jumlah),
+    // jumlah batch sumber disimpan sebagai saran.
+    foreach (rows('SELECT * FROM inv_batch WHERE id_batch = ?', [$src['id_batch']]) as $ib) {
+      $saran = $ib['rincian'] !== '' ? implode(', ', array_map(fn($u, $j) => "$u: $j", array_keys((array)json_decode($ib['rincian'], true)), (array)json_decode($ib['rincian'], true))) : $ib['jumlah'];
+      insert('inv_batch', ['id_ib' => new_id('j'), 'id_batch' => $b['id_batch'], 'id_barang' => $ib['id_barang'], 'mode' => $ib['mode'], 'jumlah' => 0,
+        'rincian' => '', 'saran' => (string)$saran, 'catatan' => $ib['catatan'], 'diubah_oleh' => $user['nama'], 'diubah_pada' => now_()['stamp']]);
+      $n['inventaris'] = ($n['inventaris'] ?? 0) + 1;
     }
   } catch (Throwable $e) {
     // Gagal di tengah jalan: batch baru dihapus lagi supaya tidak setengah jadi.

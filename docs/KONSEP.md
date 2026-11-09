@@ -465,3 +465,17 @@ Semua perubahan bersifat **tambahan** (skema versi 4: tabel `program`, `dokumen_
 - PIC/Admin: menu **Peserta** menampilkan perangkat terhubung (📱/💻/📲); di **Kelola** bisa **Lepas** satu perangkat (sesi di perangkat itu berakhir) atau **Reset semua perangkat**.
 - Setiap absen mencatat perangkat yang dipakai (`absensi.perangkat`), tampil di menu **Absensi** (ikon + detail) dan **laporan harian**. Laporan resmi tidak diubah.
 - Absen offline (wajib lokasi) tetap memakai GPS & radius; laptop tidak punya GPS akurat, jadi untuk kelas offline PIC menyampaikan agar absen memakai HP.
+
+## 23. Inventaris pelatihan
+
+Semua tambahan (skema versi 7); akses dan tampilan peserta tidak berubah (`peserta.js`/`common.js` tidak diubah, data `user` peserta sama).
+
+- **Peran**: Admin dan PIC yang dicentang **Petugas inventaris** (menu Akun PIC → Edit; kolom `pengguna.hak_inventaris`) mengelola katalog & stok gudang dan menandatangani berita acara sebagai bagian inventaris.
+- **Gudang Inventaris** (`app/inventaris.php`): katalog barang — jenis *Diberikan* (training kit, kaos/kemeja) atau *Dipinjamkan* (APD, alat praktik), satuan, **ukuran** opsional (mis. S, M, L, XL, XXL), batas stok menipis. Stok = jumlah mutasi di `inv_mutasi` (buku besar): **Tambah stok** (+), **Koreksi** (+/−), disiapkan untuk batch (−), batal dari batch (+), kembali dari batch saat ditutup (+). Stok ≤ batas = menipis (per ukuran), minus ditandai merah. Riwayat keluar-masuk per barang.
+- **Inventaris batch** (PIC & Admin): pilih barang dari katalog; jumlah disiapkan diisi manual (per ukuran untuk barang berukuran; tombol *Isi sesuai permintaan peserta*). Selisih jumlah otomatis memotong/mengembalikan stok gudang; stok kurang → konfirmasi (boleh minus).
+  - *Per peserta* (`inv_peserta`): ukuran, status Belum / Diambil (Dipinjam) / Dikembalikan + kondisi Baik/Rusak/Hilang, catatan, waktu ambil & kembali; tombol *Tandai semua sudah diambil*.
+  - *Alat bersama* (`inv_transaksi`): keluar N / kembali baik-rusak-hilang.
+  - **Tutup & kembalikan ke gudang**: sisa barang + pinjaman yang kembali baik masuk lagi ke stok; pinjaman belum kembali perlu konfirmasi dan tercatat di berita acara. **Buka kembali** membatalkan pengembalian & tanda tangan.
+  - **Berita acara PDF** (disimpan juga di riwayat laporan): ringkasan per barang & ukuran, rincian per peserta, riwayat alat bersama, daftar perlu tindak lanjut, tanda tangan digital **PIC Batch** dan **Bagian Inventaris** (verifikasi dari menu Gudang).
+- **Dashboard PIC/Admin**: pinjaman belum kembali (hari terakhir), inventaris belum ditutup, berita acara belum ditandatangani; untuk petugas inventaris: stok menipis dan berita acara menunggu verifikasi.
+- **Duplikat batch**: daftar barang ikut tersalin dengan jumlah 0 dan saran jumlah dari batch sumber (stok baru terpotong saat jumlah diisi). **Hapus batch**: alokasi barang batch ikut terhapus sehingga stok kembali.

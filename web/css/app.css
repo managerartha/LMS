@@ -272,6 +272,12 @@ details summary { cursor: pointer; color: var(--navy-2); margin-top: 6px; }
   background: repeating-conic-gradient(#f1f2f6 0% 25%, #fff 0% 50%) 50% / 16px 16px; text-align: center; }
 .ttd-preview img { max-width: 100%; max-height: 140px; }
 
+/* Inventaris */
+.merah { color: var(--bad); font-weight: 700; }
+tr.aktif-baris td { background: #f2f5ff; }
+.card-sub { border: 1px solid var(--line); border-radius: 12px; padding: 12px; margin: 0; }
+#inv-detail select, #inv-detail input { padding: 6px 8px; font-size: 14px; }
+
 #print-area { display: none; }
 .cards-print { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .kartu { border: 1.5px dashed #555; border-radius: 8px; padding: 10px; break-inside: avoid; font-size: 12px; }
