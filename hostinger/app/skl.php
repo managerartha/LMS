@@ -103,7 +103,7 @@ function sklList(array $data, array $user): array {
   foreach (rows('SELECT * FROM skl WHERE id_batch = ?', [$b['id_batch']]) as $s) $skl[$s['id_user']] = $s;
   return [
     'jenis_pelatihan' => jenis_pelatihan($b),
-    'kode_skl' => kode_skl($b), 'lembaga_skl' => lembaga_skl($b), 'lembaga_pilihan' => LEMBAGA_SKL, 'contoh_nomor' => skl_nomor_baru($b, now_()['date'])[2],
+    'kode_skl' => kode_skl($b), 'lembaga_skl' => lembaga_skl($b), 'lembaga_pilihan' => LEMBAGA_SKL, 'contoh_nomor' => skl_nomor_baru($b, batch_tgl_akhir($b))[2], 'tgl_skl' => batch_tgl_akhir($b),
     'periode' => tanggal_batch_teks($b),
     'peserta' => array_map(fn($u) => ['id_user' => $u['id_user'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'],
       'kode_login' => $u['kode_login'], 'tempat_lahir' => $u['tempat_lahir'], 'tgl_lahir' => $u['tgl_lahir'],
@@ -157,7 +157,7 @@ function sklTerbitkan(array $data, array $user): array {
       update('skl', $s, ['status' => 'terbit', 'tgl_terbit' => $now['date'], 'diubah_oleh' => $user['nama'], 'diubah_pada' => $now['stamp']]);
     } else {
       for ($coba = 0, $mulai = 0; ; $coba++) {
-        [$urut, $tahun, $nomor] = skl_nomor_baru($b, $now['date'], $mulai);
+        [$urut, $tahun, $nomor] = skl_nomor_baru($b, batch_tgl_akhir($b), $mulai);
         try {
           insert('skl', ['id_skl' => 'k' . $id, 'id_batch' => $b['id_batch'], 'id_user' => $id, 'nomor' => $nomor, 'urut' => $urut,
             'tahun' => $tahun, 'status' => 'terbit', 'tgl_terbit' => $now['date'], 'diubah_oleh' => $user['nama'], 'diubah_pada' => $now['stamp']]);
@@ -268,7 +268,7 @@ function skl_html(array $batch, array $list): string {
       '<p>Surat keterangan ini kami terbitkan dan menjadi bukti bahwa peserta sudah menyelesaikan pelatihan dengan <b>Predikat BAIK</b> dan dinyatakan <b>LULUS</b>. ' .
       'Adapun surat ini untuk menerangkan bahwa Sertifikat <b>' . h_($sertifikat) . '</b> sedang dalam proses penerbitan oleh <b>' . h_($lembaga) . '</b>.</p>' .
       '<p style="word-spacing:-0.6pt">Demikian surat keterangan ini kami sampaikan untuk dapat dipergunakan sebagaimana mestinya. Atas perhatiannya kami ucapkan terimakasih.</p></div>' .
-      skl_tengah(453.8, 221.5, 220, h_($org['kota']) . ', ' . h_(tgl_skl($s['tgl_terbit']))) .
+      skl_tengah(453.8, 221.5, 220, h_($org['kota']) . ', ' . h_(tgl_skl(batch_tgl_akhir($batch)))) .
       skl_tengah(457.2, 200.8, 220, 'PT. Artha Safety Indonesia') .
       skl_tengah(459.5, 118.0, 220, h_($org['penandatangan'])) .
       skl_tengah(455.9, 97.3, 220, h_($org['jabatan'])) .

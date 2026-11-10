@@ -42,6 +42,10 @@ const SCHEMA = [
   'berkas_batch' => ['id_batch', 'drive_link', 'drive_root', 'batas', 'riwayat_link', 'diubah_oleh', 'diubah_pada'],
   'berkas' => ['id_berkas', 'id_batch', 'id_user', 'id_item', 'file_id', 'nama_file', 'tipe', 'ukuran', 'diupload_pada',
     'status', 'catatan_pic', 'diverifikasi_oleh', 'diverifikasi_pada', 'drive_status', 'drive_file', 'drive_url', 'drive_root', 'drive_error', 'drive_waktu'],
+  // Sertifikat pelatihan (BNSP, BST, HSE): topik HSE, pengaturan per batch, sertifikat per peserta per jenis.
+  'sertifikat_topik' => ['id_topik', 'kode', 'judul', 'bahasa', 'isi_materi', 'urutan', 'aktif'],
+  'sertifikat_batch' => ['id_batch', 'setelan', 'diubah_oleh', 'diubah_pada'],
+  'sertifikat' => ['id_sertifikat', 'id_batch', 'id_user', 'jenis', 'daftar_nomor', 'status', 'tgl_terbit', 'diterbitkan_oleh', 'diubah_oleh', 'diubah_pada'],
   'log' => ['id_log', 'waktu', 'id_user', 'nama', 'aksi', 'detail'],
   'pengaturan' => ['kunci', 'nilai'],
   'geo_cache' => ['kunci', 'alamat'],
@@ -49,9 +53,9 @@ const SCHEMA = [
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '8';
+const SCHEMA_VERSI = '9';
 
-const SCHEMA_TEXT = ['batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
+const SCHEMA_TEXT = ['isi_materi', 'setelan', 'daftar_nomor', 'batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 
 /** Index tambahan agar pencarian cepat. */
 const SCHEMA_INDEX = [
@@ -75,6 +79,7 @@ const SCHEMA_INDEX = [
   'inv_transaksi' => [['id_ib']],
   'berkas_item' => [['id_program']],
   'berkas' => [['id_batch'], ['id_user']],
+  'sertifikat' => [['id_batch']],
 ];
 
 /** Satu absen per peserta per sesi per hari (mencegah absen dobel di tingkat database). */
@@ -85,6 +90,7 @@ const SCHEMA_UNIQUE = [
   'video_tonton' => ['id_user', 'id_video'],
   'inv_peserta' => ['id_ib', 'id_user'],
   'berkas' => ['id_user', 'id_item'],
+  'sertifikat' => ['id_user', 'jenis'],
 ];
 
 /** Perintah CREATE TABLE untuk MySQL (atau SQLite saat pengujian). */

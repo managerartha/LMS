@@ -14,6 +14,7 @@ require_once __DIR__ . '/pustaka.php';
 require_once __DIR__ . '/perangkat.php';
 require_once __DIR__ . '/inventaris.php';
 require_once __DIR__ . '/berkas.php';
+require_once __DIR__ . '/sertifikat.php';
 
 /** auth: '' = publik, 'user' = sudah login, 'pic' = PIC/Admin, 'admin' = Admin. */
 const ROUTES = [
@@ -35,6 +36,8 @@ const ROUTES = [
   'ttdSaya' => 'pic', 'ttdSayaSimpan' => 'pic', 'laporanList' => 'pic', 'laporanBuat' => 'pic', 'laporanUnduh' => 'pic',
   'infoLaporanGet' => 'pic', 'infoLaporanSimpan' => 'pic',
   'sklSaya' => 'user', 'sklUnduh' => 'user', 'sklList' => 'pic', 'sklSimpanData' => 'pic', 'sklTerbitkan' => 'pic', 'sklTahan' => 'pic', 'sklUnduhSemua' => 'pic',
+  'sertifikatSaya' => 'user', 'sertifikatUnduh' => 'user', 'sertifikatData' => 'pic', 'sertifikatSimpan' => 'pic', 'sertifikatUnduhSemua' => 'pic',
+  'sertifikatTerbitkan' => 'admin', 'sertifikatTahan' => 'admin', 'sertifikatBatal' => 'admin', 'sertifikatFormat' => 'admin', 'topikHseList' => 'admin', 'topikHseSimpan' => 'admin',
   'batchBuat' => 'admin', 'picList' => 'admin', 'picTambah' => 'admin', 'picResetPin' => 'admin', 'picUbah' => 'admin', 'batchHapus' => 'admin', 'batchDuplikat' => 'admin', 'duplikatInfo' => 'admin', 'dasborPic' => 'pic',
   'narasumberList' => 'pic', 'narasumberAbsen' => 'pic', 'narasumberHapus' => 'pic',
   'panduanPeserta' => 'user', 'setujuDokumen' => 'user', 'videoTonton' => 'user', 'programList' => 'pic', 'kepatuhanBatch' => 'pic',

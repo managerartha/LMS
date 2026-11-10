@@ -1,0 +1,557 @@
+[
+ {
+  "urutan": 1,
+  "kode": "AI",
+  "bahasa": "en",
+  "judul": "Accident Investigation Training",
+  "materi": [
+   "Accident Investigation Process",
+   "Investigation Process",
+   "Accident Allocation",
+   "Improvement / Corrective Actions",
+   "Potential Problem & Final Consideration"
+  ]
+ },
+ {
+  "urutan": 2,
+  "kode": "BBS",
+  "bahasa": "en",
+  "judul": "Awareness Behavior Based Safety (BBS)",
+  "materi": [
+   "Incident Fundamental",
+   "Human Error and Accident Causation",
+   "Incident Prevention and BBS",
+   "BBS Process",
+   "BBS Principle",
+   "Development of Critical Behavior Checklist",
+   "Observation and Interview Methodology"
+  ]
+ },
+ {
+  "urutan": 3,
+  "kode": "CM",
+  "bahasa": "id",
+  "judul": "Awareness Chemical Management",
+  "materi": [
+   "Pendahuluan",
+   "Bahan Kimia Berbahaya",
+   "Sistem Penyeragaman Label",
+   "Label NFPA"
+  ]
+ },
+ {
+  "urutan": 4,
+  "kode": "CWP",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Cold Work Permit",
+  "materi": [
+   "Konsep Dasar Cold Work dan Identifikasi Bahaya",
+   "Proses Peninjauan dan Persetujuan Kerja Aman",
+   "Kontrol Bahaya dan Mitigasi Spesifik",
+   "Implementasi dan Audit Pelanggaran Permit to Work"
+  ]
+ },
+ {
+  "urutan": 5,
+  "kode": "CS",
+  "bahasa": "id",
+  "judul": "Awareness Confined Space (Ruang Terbatas)",
+  "materi": [
+   "Pengertian Confined Space",
+   "Dasar – Dasar Hukum Confined Space",
+   "Identifikasi Bahaya",
+   "Potensi Bahaya"
+  ]
+ },
+ {
+  "urutan": 6,
+  "kode": "CSMS",
+  "bahasa": "en",
+  "judul": "Contractor Safety Management System (CSMS)",
+  "materi": [
+   "Health, Safety & Environmental Policy",
+   "General Health, Safety & Environmental Rules",
+   "Emergency Response Procedure",
+   "Job Safety Analysis",
+   "Personal Protective Equipment",
+   "Work Permit System",
+   "Internal Audit & Group Meeting / Communication"
+  ]
+ },
+ {
+  "urutan": 7,
+  "kode": "QES",
+  "bahasa": "en",
+  "judul": "Awareness System ISO 14001 : 2015 The Quality Enviromental System",
+  "materi": [
+   "Leadership",
+   "Planning",
+   "Support & Operation",
+   "Performance Evaluation",
+   "Improvement",
+   "Documentation / Documented Information"
+  ]
+ },
+ {
+  "urutan": 8,
+  "kode": "ERG",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Ergonomi",
+  "materi": [
+   "Konsep Dasar Ergonomi",
+   "Analisis Postur Kerja",
+   "Ergonomi Manual Handling",
+   "Desain Tempat Kerja & Stasiun Kerja",
+   "Ergonomi Peralatan & Tool Design",
+   "Ergonomi Kognitif (Beban Metal)",
+   "Faktor Lingkungan Kerja"
+  ]
+ },
+ {
+  "urutan": 9,
+  "kode": "ERP",
+  "bahasa": "en",
+  "judul": "Emergency Response Plan (ERP)",
+  "materi": [
+   "Escape procedures and escape route assignments",
+   "Special procedures for employes who perform or shut down critical plant",
+   "A system to account for all employees after evacuation",
+   "Rescue and medical duties for employees who perform them",
+   "Means for reporting fires and other emergencies"
+  ]
+ },
+ {
+  "urutan": 10,
+  "kode": "EXP",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Excavation Permit",
+  "materi": [
+   "Konsep Dasar dan Risiko Penggalian",
+   "Identifikasi Utilitas dan Klasifikasi Tanah",
+   "Metode Proteksi dan Pengendalian Bahaya",
+   "Prosedur Izin, Atmosfer dan Darurat"
+  ]
+ },
+ {
+  "urutan": 11,
+  "kode": "FM",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Fatigue Management",
+  "materi": [
+   "Konsep Dasar Kelelahan dan Dampak Kelelahan Terhadap K3",
+   "Faktor Penyebab dan Penilaian Risiko",
+   "Strategi Pengendalian Kelelahan",
+   "Mitigasi Personal dan Implementasi Program"
+  ]
+ },
+ {
+  "urutan": 12,
+  "kode": "HACCP",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Hazard Analysis Critical Control Point (HACCP)",
+  "materi": [
+   "Konsep Dasar HACCP dan Program Prasyarat K3",
+   "Analisis Bahaya dan Critical Control Point (CCP)",
+   "Penetapan Batas Kritis (Critical Limits)",
+   "Penetapan Sistem Pemantauan (Monitoring) dan Tindakan Koreksi",
+   "Verifikasi dan Dokumentasi"
+  ]
+ },
+ {
+  "urutan": 13,
+  "kode": "HMM",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Hazardous Material Management",
+  "materi": [
+   "Dasar Hukum dan Klasifikasi Material Bahaya pada pertambangan",
+   "Penyimpanan dan Penanganan Aman",
+   "Penanganan dan Transportasi Aman",
+   "Manajemen Bahan Peledak",
+   "Tanggap Darurat dan Pengendalian Limbah"
+  ]
+ },
+ {
+  "urutan": 14,
+  "kode": "HI",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Higiene Industri",
+  "materi": [
+   "Konsep Dasar Higiene Industri",
+   "Bahaya Fisika dan Pengendaliannya",
+   "Bahaya Kimia dan Pengendaliannya",
+   "Pengendalian dan Program Higiene Industri"
+  ]
+ },
+ {
+  "urutan": 15,
+  "kode": "HIRADC",
+  "bahasa": "id",
+  "judul": "Hazard Identification Risk Assessment Determining Control (HIRADC)",
+  "materi": [
+   "Tujuan HIRADC",
+   "Dasar Hukum HIRADC",
+   "Proses HIRADC",
+   "Identifikasi jenis bahaya di area kerja",
+   "Penilaian Risiko",
+   "Pengendalian Risiko"
+  ]
+ },
+ {
+  "urutan": 16,
+  "kode": "HWP",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Hot Work Permit",
+  "materi": [
+   "Dasar-Dasar Hot Work dan Regulasi",
+   "Prosedur dan Proses Pengajuan Izin Kerja Panas",
+   "Pengendalian dan Mitigasi Risiko"
+  ]
+ },
+ {
+  "urutan": 17,
+  "kode": "HSEP",
+  "bahasa": "id",
+  "judul": "Awareness HSE PLAN",
+  "materi": [
+   "Pengertian HSE Plan",
+   "Cara Membuat HSE Plan",
+   "Contoh – Contoh HSE Plan"
+  ]
+ },
+ {
+  "urutan": 18,
+  "kode": "HSER",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness HSE Report",
+  "materi": [
+   "Konsep Dasar dan Tujuan Pelaporan",
+   "Metode Pengumpulan Data",
+   "Struktur dan Komponen Laporan (Harian & Mingguan)",
+   "Analisis Statistik dan Laporan Bulanan",
+   "Investigasi Insiden dan Rekomendasi",
+   "Dokumentasi dan Presentasi"
+  ]
+ },
+ {
+  "urutan": 19,
+  "kode": "AUD",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness ISO 19011 : 2018 (Audit Sistem Manajemen)",
+  "materi": [
+   "Konsep Dasar Audit dan ISO 19011 : 2018",
+   "Pengelolaan Program Audit",
+   "Pelaksanaan Audit dan Pengumpulan Bukti",
+   "Kompetensi Auditor, Pelaporan dan Tindak Lanjut"
+  ]
+ },
+ {
+  "urutan": 20,
+  "kode": "FSMS",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness ISO 22000 : 2018 (Sistem Manajemen Mutu Keamanan Pangan)",
+  "materi": [
+   "Konsep Dasar Keamanan Pangan (Food Safety)",
+   "Perencanaan, Dukungan dan Program Prasyarat",
+   "Analisa Bahaya Keamanan Pangan",
+   "Pengendalian Produk dan Proses Tidak Sesuai",
+   "Evaluasi Kinerja dan Peningkatan Berkelanjutan"
+  ]
+ },
+ {
+  "urutan": 21,
+  "kode": "JSA",
+  "bahasa": "en",
+  "judul": "Job Safety Analysis (JSA)",
+  "materi": [
+   "Job Safety Analysis",
+   "Supervisory Safety Management",
+   "Engagement of People",
+   "Safety Inspection",
+   "Identify Potential Hazards",
+   "Determining Preventive Measures to Overcome These Hazards",
+   "Selecting the Job to be Analyzed"
+  ]
+ },
+ {
+  "urutan": 22,
+  "kode": "LKK",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Laporan Kecelakaan Kerja",
+  "materi": [
+   "Konsep Dasar Insiden dan Kecelakaan",
+   "Prosedur Pelaporan dan Klasifikasi",
+   "Metodologi Investigasi Kecelakaan",
+   "Penyusunan Laporan dan Tindak Lanjut"
+  ]
+ },
+ {
+  "urutan": 23,
+  "kode": "LOTO",
+  "bahasa": "en",
+  "judul": "Lock Out Tag Out (LOTO)",
+  "materi": [
+   "Basics of Lockout / Tagout and LOTO safety",
+   "Lock Out Tag Out Procedure used in Industry",
+   "Special Hazards and Special Safety Procedures",
+   "Lock Out Tag Out Device Application",
+   "Management’s Removal of Lock and Tag Out"
+  ]
+ },
+ {
+  "urutan": 24,
+  "kode": "MCU",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Medical Check Up (MCU)",
+  "materi": [
+   "Konsep Dasar Medical Check Up (MCU)",
+   "Jenis-Jenis MCU Berdasarkan Waktu Pelaksanaan",
+   "Komponen dan Pemeriksaaan Spesifik",
+   "Tindak Lanjut Medis",
+   "Program Return to Work dan Health Promotion"
+  ]
+ },
+ {
+  "urutan": 25,
+  "kode": "OHSA",
+  "bahasa": "en",
+  "judul": "Awareness System ISO 45001: 2018 Occupational Health & Safety Assessment",
+  "materi": [
+   "Occupational Health & Safety (OHS) Introduction",
+   "Annex SL Appendix 2 and the framework for the new ISO high level structure",
+   "Summary of key Changes between OHSAS 18001:2007 & ISO 45001:2018",
+   "Overview of ISO 45001:2018",
+   "Action plan for implementation",
+   "OHS Risk Identification and Controlling",
+   "Certification process of ISO 45001:2018",
+   "Workshop / simulation / case study"
+  ]
+ },
+ {
+  "urutan": 26,
+  "kode": "PAK",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Penyakit Akibat Kerja (PAK) & Penyakit Akibat Hubungan Kerja (PAHK)",
+  "materi": [
+   "Konsep Dasar dan Klasifikasi Penyakit Kerja",
+   "Penyakit Akibat Pajanan Fisika dan Kimia",
+   "Penyakit Akibat agen Biologi, Ergonomi dan Psikososial",
+   "Pengelolaan dan Pencegahan PAK/PAHK"
+  ]
+ },
+ {
+  "urutan": 27,
+  "kode": "PPKL",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Penanganan Pencegahan Kebakaran dan Ledakan",
+  "materi": [
+   "Prinsip Dasar Kebakaran dan Pencegahan",
+   "Pencegahan Kebakaran dan Pengendalian Sumber Penyulut",
+   "Sistem Proteksi Kebakaran dan Deteksi",
+   "Tanggap Darurat Penanganan Kebakaran dan Ledakan"
+  ]
+ },
+ {
+  "urutan": 28,
+  "kode": "PW",
+  "bahasa": "id",
+  "judul": "Permit to Work",
+  "materi": [
+   "Izin Kerja Panas / Hot Work Permit",
+   "Izin Kerja Dingin / Cold Work Permit",
+   "Izin Kerja Memasuki Ruang Terbatas",
+   "Izin Kerja Pekerjaan Listrik",
+   "Izin Kerja Khusus"
+  ]
+ },
+ {
+  "urutan": 29,
+  "kode": "QMS",
+  "bahasa": "en",
+  "judul": "Awareness System ISO 9001 : 2015 The Quality Management System",
+  "materi": [
+   "Costumer Focus",
+   "Leadership",
+   "Engagement of People",
+   "Process Approach",
+   "Improvement",
+   "Evidenced Based Decision Making",
+   "Relationship Management"
+  ]
+ },
+ {
+  "urutan": 30,
+  "kode": "RM",
+  "bahasa": "id",
+  "judul": "Awareness ISO 31000: 2018 Risk Management - Guidelines",
+  "materi": [
+   "Prinsip Manajemen Risiko",
+   "Kerangka Manajemen Risiko",
+   "Kepemimpinan & Komitmen",
+   "Proses Manajemen Risiko",
+   "Communication and Consultation",
+   "Ruang Lingkup, Konteks dan Kriteria Risiko"
+  ]
+ },
+ {
+  "urutan": 31,
+  "kode": "SI",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Safety Induction",
+  "materi": [
+   "Pengantar dan Kebijakan Perushaan",
+   "Bahaya Spesifik Lokasi Perusahaan",
+   "Safety Sign",
+   "Alat Pelindung Diri (APD) Wajib",
+   "Prosedur Tanggap Darurat",
+   "Administrasi (Aturan tambahan dan Sanksi)"
+  ]
+ },
+ {
+  "urutan": 32,
+  "kode": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Safety Leadership",
+  "materi": [
+   "Konsep Modern Budaya K3",
+   "Konsep Perilaku K3",
+   "Asessmen Kepemimpinan K3",
+   "Implementasi Perubahan Perilaku K3 dan Peran Inti Leadership",
+   "Pengenalan Kunjungan Audit Manajemen dan Dialog Safety untuk Mewujudkan",
+   "Rahasia dari Kepemimpinan HSE yang sukses"
+  ]
+ },
+ {
+  "urutan": 33,
+  "kode": "SMSM",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Safety Management System Mining",
+  "materi": [
+   "Kebijakan Keselamatan Pertambangan",
+   "Penelaahan Awal Keselamatan Pertambangan",
+   "Identifikasi Bahaya dan Pengendalian Risiko",
+   "Pengawas Operasional dan Teknis",
+   "Sistem Perizinan Kerja",
+   "Pengelolaan Keadaaan Darurat",
+   "Pemantauan, Evaluasi dan Tindak Lanjut Kinerja"
+  ]
+ },
+ {
+  "urutan": 34,
+  "kode": "SMSO",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Safety Management System Oil & Gas",
+  "materi": [
+   "Konsep Dasar Safety Management System Oil & Gas",
+   "Kebijakan dan Regulasi Migas",
+   "Manajemen Keselamatan dan Sistem Izin Kerja Aman",
+   "Identifikasi Bahaya dan Penilaian Risiko",
+   "Pemantauan Kinerja dan Penyelidikan Insiden",
+   "Tanggap Darurat dan Peningkatan Berkelanjutan"
+  ]
+ },
+ {
+  "urutan": 35,
+  "kode": "ASM",
+  "bahasa": "id",
+  "judul": "Awareness Safety Meeting",
+  "materi": [
+   "Pengertian Rapat / Meeting",
+   "Tujuan Rapat / Meeting",
+   "Jenis – Jenis Rapat / Meeting",
+   "Persiapan dan Pelaksanaan Rapat / Meeting",
+   "Unsur – Unsur Rapat / Meeting",
+   "Notulen",
+   "Tujuan Safety Meeting",
+   "Sasaran Tujuan Safety Meeting",
+   "Safety Meeting VS Safety Training",
+   "Safety Meeting Objective",
+   "Notulen Safety Meeting"
+  ]
+ },
+ {
+  "urutan": 36,
+  "kode": "ST",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Safety Talk",
+  "materi": [
+   "Dasar – Dasar Keselamatan",
+   "Perilaku Kerja Aman",
+   "Keselamatan Berbasis Risiko",
+   "Keselamatan Peralatan & Lingkungan Kerja Khusus",
+   "Kesehatan Kerja, Kontrol Risiko dan Pemeliharaan"
+  ]
+ },
+ {
+  "urutan": 37,
+  "kode": "DGB",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Sistem Pemantauan & Deteksi Gas Berbahaya",
+  "materi": [
+   "Konsep Dasar dan Klasifikasi Gas Berbahaya",
+   "Jenis alat Deteksi Gas dan Prinsip Kerja",
+   "Kalibrasi, Pengujian dan Prosedur Penggunaan",
+   "Integrasi Sistem dan Tanggap Darurat"
+  ]
+ },
+ {
+  "urutan": 38,
+  "kode": "SOPAB",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Standar Operasional Prosedur Pengoperasian Alat Berat pada Pertambangan",
+  "materi": [
+   "Persyaratan Personel dan Kompetensi",
+   "Inspeksi Pra-Operasi dan Keselamatan Unit",
+   "Prosedur Pengoperasian Aman di Area Tambang",
+   "Prosedur Tanggap Darurat"
+  ]
+ },
+ {
+  "urutan": 39,
+  "kode": "WM",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Waste Management",
+  "materi": [
+   "Dasar Hukum dan Klasifikasi Limbah",
+   "Hirarki Pengelolaan dan Reduksi Limbah",
+   "Pengelolaan Limbah B3 (B3 Waste Management)",
+   "Pengelolaan Limbah Cair dan Implementasi Program",
+   "Pengelolaan Limbah Padat Domestik dan Implementasi Program"
+  ]
+ },
+ {
+  "urutan": 40,
+  "kode": "WAH",
+  "kode_lama": "SL",
+  "bahasa": "id",
+  "judul": "Awareness Working at Height Permit",
+  "materi": [
+   "Konsep Dasar dan Risiko bekerja di Ketinggian",
+   "Hirarki Kontrol Ketinggian",
+   "Sistem Penangkap Jatuh (Fall Arrest)",
+   "Alat Bantu Akses dan Prosedur Kerja",
+   "Prosedur Izin Kerja dan Tanggap Darurat"
+  ]
+ }
+]

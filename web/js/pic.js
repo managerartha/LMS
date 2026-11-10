@@ -36,10 +36,11 @@ const NAV_PIC = [
   ['kepatuhan', '📘', 'Tata Tertib & Video', 'Persiapan'], ['inventaris', '📦', 'Inventaris', 'Persiapan'],
   ['berkas', '📂', 'Berkas Peserta', 'Persiapan'],
   ['laporan', '📄', 'Laporan', 'Akhir pelatihan'], ['skl', '🎓', 'SKL', 'Akhir pelatihan'],
+  ['sertifikat', '📜', 'Sertifikat', 'Akhir pelatihan'],
   ['gudang', '🏬', 'Gudang Inventaris', 'Gudang'],
   ['batch', '🗂️', 'Batch', 'Admin'], ['pustaka', '📚', 'Pustaka Pelatihan', 'Admin'], ['pic', '🔑', 'Akun PIC', 'Admin'],
 ];
-const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'inventaris', 'berkas', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'peserta', 'lokasi'];
+const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'inventaris', 'berkas', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'sertifikat', 'peserta', 'lokasi'];
 
 function picTab(tab) {
   C.tab = tab;
@@ -81,7 +82,7 @@ function picTab(tab) {
     return;
   }
   ({ dashboard: tabDashboard, monitor: tabMonitor, narasumber: tabNarasumber, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl,
-    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka, inventaris: tabInventaris, gudang: tabGudang, berkas: tabBerkas })[aktif[0]]();
+    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka, inventaris: tabInventaris, gudang: tabGudang, berkas: tabBerkas, sertifikat: tabSertifikat })[aktif[0]]();
 }
 
 /** Mengisi isi tab, hanya jika pengguna belum berpindah tab sejak data mulai dimuat. */
@@ -1376,7 +1377,7 @@ async function tabSkl() {
         </div>
         <p class="small muted">Contoh nomor SKL berikutnya: <b>${esc(d.contoh_nomor)}</b></p>
         <p class="small muted">Nama, judul, dan periode mengikuti data peserta & batch. Nomor SKL dibuat otomatis (unik per peserta);
-          tanggal terbit = tanggal SKL diterbitkan.</p>
+          tanggal SKL = hari terakhir pelatihan.</p>
       </div>
       <div class="card">
         <div class="row mb"><h2 class="grow">Peserta (${nTerbit}/${d.peserta.length} terbit)</h2>
@@ -1471,11 +1472,246 @@ function sklUnduhSemua(btn) {
   }, 'Menyusun PDF…');
 }
 
+// ----------------------------------------------------- Tab: Sertifikat (BNSP, BST, HSE)
+const SERT_STATUS = {
+  terbit: '<span class="badge b-hadir">Terbit</span>',
+  ditahan: '<span class="badge b-alpa">Ditahan</span>',
+  '': '<span class="badge b-none">Belum</span>',
+};
+
+async function tabSertifikat() {
+  const v = C.view;
+  try {
+    C.sert = await call('sertifikatData', { id_batch: C.batch.id_batch });
+    renderSertifikat(v);
+  } catch (e) { errBox(v, e); }
+}
+
+function renderSertifikat(v) {
+  const d = C.sert, s = d.setelan, admin = d.admin;
+  const aktif = Object.keys(d.jenis).filter(j => s[j].aktif);
+  const topikPilih = Array.isArray(s.hse.topik) ? s.hse.topik : d.topik.map(t => t.id_topik);
+  const kurang = j => d.kurang[j].length ? `<div class="alert warn small mt">Belum lengkap: ${esc(d.kurang[j].join(', '))}.</div>` : '';
+  const contoh = j => `<p class="small muted">Contoh nomor: <b>${esc(d.contoh_nomor[j])}</b></p>`;
+  const kodeInput = j => `<div><label>Kode batch pada nomor</label><input id="st-${j}-kode" value="${esc(s[j].kode)}" placeholder="${j === 'bst' ? 'mis. A01' : j === 'bnsp' ? 'mis. A12B74' : 'mis. A580B84'}"></div>`;
+  const cek = (j, label) => `<label class="check"><input type="checkbox" id="st-${j}-aktif" ${s[j].aktif ? 'checked' : ''}> <b>${label}</b></label>`;
+  setBody(v, `
+    <div class="card">
+      <h2>Pengaturan sertifikat batch ini</h2>
+      <p class="small muted">Centang jenis sertifikat yang didapat peserta batch ini. Peserta baru bisa melihat & mengunduh sertifikat
+        setelah <b>diterbitkan oleh Admin</b>. Nomor: <b>{no}</b> = nomor absen peserta, bulan & tahun mengikuti tanggal sertifikat.</p>
+
+      <div class="card-sub mt">
+        ${cek('bnsp', '🏅 Sertifikat BNSP (1 lembar)')}
+        <div class="grid2">
+          ${kodeInput('bnsp')}
+          <div><label>Judul pelatihan (skema)</label><input id="st-bnsp-judul" value="${esc(s.bnsp.judul)}" placeholder="mis. Pengawas K3 Minyak dan Gas Bumi"></div>
+          <div><label>Pelatihan mulai</label><input type="date" id="st-bnsp-mulai" value="${esc(s.bnsp.mulai)}"></div>
+          <div><label>Pelatihan selesai</label><input type="date" id="st-bnsp-selesai" value="${esc(s.bnsp.selesai)}"></div>
+        </div>
+        <p class="small muted">Isi periode <b>hari pelatihan saja</b> (tanpa hari asesmen). Tanggal tanda tangan = tanggal selesai.
+          Tempat & tanggal lahir peserta wajib diisi (tabel di bawah).</p>
+        ${s.bnsp.aktif ? contoh('bnsp') + kurang('bnsp') : ''}
+      </div>
+
+      <div class="card-sub mt">
+        ${cek('bst', '🧯 Basic Safety Training — BST (3 lembar: First Aid, Fire Fighting, SCBA)')}
+        <div class="grid2">
+          ${kodeInput('bst')}
+          <div><label>Tanggal pelaksanaan BST</label><input type="date" id="st-bst-tanggal" value="${esc(s.bst.tanggal)}"></div>
+          <div><label>Tempat (bahasa Inggris)</label><input id="st-bst-tempat_en" value="${esc(s.bst.tempat_en)}" placeholder="mis. Emersia Malioboro Hotel"></div>
+          <div><label>Tempat (bahasa Indonesia)</label><input id="st-bst-tempat_id" value="${esc(s.bst.tempat_id)}" placeholder="mis. Hotel Emersia Malioboro"></div>
+        </div>
+        ${s.bst.aktif ? contoh('bst') + kurang('bst') : ''}
+      </div>
+
+      <div class="card-sub mt">
+        ${cek('hse', '🦺 HSE Training (' + topikPilih.length + ' topik)')}
+        <div class="grid2">
+          ${kodeInput('hse')}
+          <div></div>
+          <div><label>Periode mulai</label><input type="date" id="st-hse-mulai" value="${esc(s.hse.mulai)}"></div>
+          <div><label>Periode selesai</label><input type="date" id="st-hse-selesai" value="${esc(s.hse.selesai)}"></div>
+        </div>
+        <p class="small muted">Bawaan: tanggal batch (${esc(d.periode_batch)}). Untuk batch inhouse/webinar, hilangkan centang HSE.</p>
+        <details><summary>Pilih topik HSE (${topikPilih.length}/${d.topik.length})</summary>
+          <div class="row mt"><button type="button" class="btn sm" onclick="$$('.st-topik').forEach(c => c.checked = true)">Pilih semua</button>
+            <button type="button" class="btn sm" onclick="$$('.st-topik').forEach(c => c.checked = false)">Kosongkan</button></div>
+          <div class="grid2 mt">${d.topik.map(t => `<label class="check small"><input type="checkbox" class="st-topik" value="${esc(t.id_topik)}"
+            ${topikPilih.indexOf(t.id_topik) >= 0 ? 'checked' : ''}> ${esc(t.kode)} — ${esc(t.judul)}</label>`).join('')}</div>
+        </details>
+        ${s.hse.aktif ? contoh('hse') + kurang('hse') : ''}
+      </div>
+      <button class="btn primary mt" onclick="sertSimpan(this)">Simpan pengaturan</button>
+      ${s.diubah_oleh ? `<p class="small muted">Terakhir diubah ${esc(s.diubah_oleh)} · ${esc(s.diubah_pada)}</p>` : ''}
+      ${admin ? `<details class="mt"><summary>Format nomor (Admin, berlaku semua batch)</summary>
+        <div class="grid2 mt">${Object.keys(d.jenis).map(j => `<div><label>${esc(d.jenis[j])}</label><input id="sf-${j}" value="${esc(d.format[j])}"></div>`).join('')}</div>
+        <p class="small muted">Kode: {no} nomor absen · {kode} kode batch · {lembar} BFA/BFF/SCBA · {topik} kode topik HSE · {bulan} Romawi · {bulan_angka} · {tahun}</p>
+        <button class="btn sm" onclick="sertFormat(this)">Simpan format</button></details>` : ''}
+    </div>
+
+    ${aktif.length ? `
+    <div class="card">
+      <h2>Peserta</h2>
+      ${admin ? '' : '<div class="alert info small">Penerbitan sertifikat dilakukan oleh <b>Admin</b>. Setelah terbit, Anda mendapat pemberitahuan di Dashboard dan bisa mengunduh sertifikat untuk laporan ke klien.</div>'}
+      <div class="row mb">
+        ${aktif.map(j => d.peserta.some(p => p.sertifikat[j].terbit)
+          ? `<button class="btn sm" onclick="sertUnduhSemua(this, '${j}')">⬇ Semua ${esc(j.toUpperCase())} terbit${j === 'hse' ? ' (ZIP)' : ''}</button>` : '').join('')}
+      </div>
+      ${d.peserta.length ? `
+      <div class="table-wrap"><table>
+        <thead><tr>${admin ? '<th><input type="checkbox" onchange="$$(\'.st-cb\').forEach(c => c.checked = this.checked)"></th>' : ''}
+          <th>No</th><th>Nama</th>${s.bnsp.aktif ? '<th>Tempat lahir</th><th>Tanggal lahir</th>' : ''}
+          ${aktif.map(j => `<th>${esc(j.toUpperCase())}</th>`).join('')}</tr></thead>
+        <tbody>${d.peserta.map((p, i) => `<tr>
+          ${admin ? `<td><input type="checkbox" class="st-cb" value="${esc(p.id_user)}"></td>` : ''}
+          <td>${esc(p.no_absen)}</td><td>${esc(p.nama)}</td>
+          ${s.bnsp.aktif ? `<td><input class="st-tempat" style="min-width:110px" data-id="${esc(p.id_user)}" value="${esc(p.tempat_lahir)}" placeholder="mis. Sleman"></td>
+            <td><input class="st-tgl" data-id="${esc(p.id_user)}" type="date" value="${esc(p.tgl_lahir)}"></td>` : ''}
+          ${aktif.map(j => {
+            const x = p.sertifikat[j];
+            return `<td>${SERT_STATUS[x.status] || SERT_STATUS['']}
+              ${x.nomor ? `<div class="small muted" title="${esc(x.nomor)}">${x.lembar > 1 ? x.lembar + ' lembar' : esc(x.nomor.split('/').slice(0, 2).join('/')) + '/…'}</div>` : ''}
+              ${x.terbit ? `<button class="btn sm mt" onclick="sertUnduh(this, ${i}, '${j}', false)">⬇ PDF</button>`
+                : `<button class="btn sm mt" onclick="sertUnduh(this, ${i}, '${j}', true)" title="Contoh sebelum terbit">👁 Pratinjau</button>`}</td>`;
+          }).join('')}</tr>`).join('')}
+        </tbody></table></div>` : '<div class="muted small">Belum ada peserta di batch ini.</div>'}
+      ${s.bnsp.aktif ? '<button class="btn mt" onclick="sertSimpan(this)">Simpan tempat & tanggal lahir</button>' : ''}
+      ${admin && d.peserta.length ? `
+        <div class="card-sub mt">
+          <div class="row"><label class="grow">Jenis sertifikat
+            <select id="st-jenis">${aktif.map(j => `<option value="${j}">${esc(d.jenis[j])}</option>`).join('')}</select></label></div>
+          <div class="row mt">
+            <button class="btn primary grow" onclick="sertAksi(this, 'sertifikatTerbitkan')">🎓 Terbitkan untuk yang dicentang</button>
+            <button class="btn grow" onclick="sertAksi(this, 'sertifikatTahan')">⏸ Tahan</button>
+            <button class="btn danger grow" onclick="sertAksi(this, 'sertifikatBatal')">✖ Batalkan</button>
+          </div>
+          <p class="small muted">Ditahan: peserta tidak bisa mengunduh, nomor tetap. Dibatalkan: nomor dihapus dan dibuat ulang saat diterbitkan lagi
+            (pakai ini bila kode/tanggal diubah setelah terbit).</p>
+        </div>` : ''}
+    </div>` : '<div class="card muted small">Belum ada jenis sertifikat yang dicentang untuk batch ini.</div>'}`);
+}
+
+function sertForm() {
+  const val = id => ($('#' + id) || {}).value || '';
+  const st = {};
+  ['bnsp', 'bst', 'hse'].forEach(j => { st[j] = { aktif: $('#st-' + j + '-aktif').checked, kode: val('st-' + j + '-kode') }; });
+  Object.assign(st.bnsp, { judul: val('st-bnsp-judul'), mulai: val('st-bnsp-mulai'), selesai: val('st-bnsp-selesai') });
+  Object.assign(st.bst, { tanggal: val('st-bst-tanggal'), tempat_en: val('st-bst-tempat_en'), tempat_id: val('st-bst-tempat_id') });
+  Object.assign(st.hse, { mulai: val('st-hse-mulai'), selesai: val('st-hse-selesai'), topik: $$('.st-topik:checked').map(c => c.value) });
+  const out = { id_batch: C.batch.id_batch, setelan: st };
+  if ($$('.st-tempat').length) {
+    out.peserta = $$('.st-tempat').map(el => ({ id_user: el.dataset.id, tempat_lahir: el.value,
+      tgl_lahir: $$('.st-tgl').find(t => t.dataset.id === el.dataset.id).value }));
+  }
+  return out;
+}
+
+function sertSimpan(btn) {
+  busy(btn, async () => {
+    C.sert = await call('sertifikatSimpan', sertForm());
+    toast('Pengaturan sertifikat disimpan.', 'ok');
+    renderSertifikat(C.view);
+  });
+}
+
+function sertFormat(btn) {
+  const format = {};
+  ['bnsp', 'bst', 'hse'].forEach(j => { format[j] = $('#sf-' + j).value; });
+  busy(btn, async () => { await call('sertifikatFormat', { format: format }); toast('Format nomor disimpan.', 'ok'); tabSertifikat(); });
+}
+
+function sertAksi(btn, aksi) {
+  const ids = $$('.st-cb:checked').map(c => c.value);
+  const jenis = $('#st-jenis').value;
+  const label = C.sert.jenis[jenis];
+  if (!ids.length) return toast('Centang peserta terlebih dahulu.', 'error');
+  const tanya = { sertifikatTerbitkan: `Terbitkan ${label} untuk ${ids.length} peserta? Peserta akan bisa mengunduhnya dan PIC mendapat pemberitahuan.`,
+    sertifikatTahan: `Tahan ${label} ${ids.length} peserta? Peserta tidak bisa mengunduh sampai diterbitkan lagi.`,
+    sertifikatBatal: `Batalkan ${label} ${ids.length} peserta? Nomornya dihapus dan peserta tidak bisa mengunduh.` }[aksi];
+  if (!confirm(tanya)) return;
+  busy(btn, async () => {
+    if (aksi === 'sertifikatTerbitkan') await call('sertifikatSimpan', sertForm()); // pengaturan terbaru ikut tersimpan
+    const r = await call(aksi, { id_batch: C.batch.id_batch, jenis: jenis, id_users: ids });
+    if (aksi === 'sertifikatTerbitkan') {
+      toast(r.terbit + ' peserta terbit.' + (r.dilewati.length ? ' Dilewati: ' + r.dilewati.join('; ') : ''), r.dilewati.length ? 'error' : 'ok');
+    } else toast(r + ' peserta diproses.', 'ok');
+    tabSertifikat();
+  }, 'Memproses…');
+}
+
+function sertUnduh(btn, i, jenis, pratinjau) {
+  busy(btn, async () => {
+    const r = await call('sertifikatUnduh', { id_user: C.sert.peserta[i].id_user, jenis: jenis, pratinjau: pratinjau });
+    simpanFile(r.nama, r.data, 'application/pdf');
+  }, '…');
+}
+
+function sertUnduhSemua(btn, jenis) {
+  busy(btn, async () => {
+    let r = { selesai: false, mulai: 0 };
+    do {
+      r = await call('sertifikatUnduhSemua', { id_batch: C.batch.id_batch, jenis: jenis, mulai: r.mulai || 0 });
+      if (!r.selesai) btn.textContent = 'Menyusun ' + r.mulai + '/' + r.total + '…';
+    } while (!r.selesai);
+    simpanFile(r.nama, r.data, r.tipe);
+  }, 'Menyusun…');
+}
+
+// Pustaka (Admin): daftar topik HSE beserta materinya.
+async function muatPustakaHse(v) {
+  const el = () => $('#pustaka-hse');
+  try {
+    const list = await call('topikHseList');
+    if (v !== C.view || !el()) return;
+    C.topikHse = list;
+    el().innerHTML = `
+      <div class="card">
+        <h2>🦺 Topik sertifikat HSE Training</h2>
+        <p class="small muted">Judul, kode nomor, bahasa, dan materi tiap lembar sertifikat HSE. Topik nonaktif tidak dipakai di batch baru.</p>
+        <button class="btn sm mb" onclick="dialogTopikHse(-1)">＋ Tambah topik</button>
+        <details><summary>Lihat ${list.length} topik</summary>
+        ${list.map((t, i) => `<div class="materi-item" style="${t.aktif === 'tidak' ? 'opacity:.5' : ''}">
+          <div class="grow"><b>${esc(t.urutan)}. ${esc(t.judul)}</b> <span class="badge b-none">${esc(t.kode)}</span>
+            <span class="badge b-izin">${t.bahasa === 'en' ? 'Inggris' : 'Indonesia'}</span>${t.aktif === 'tidak' ? ' <span class="badge b-none">nonaktif</span>' : ''}
+            <div class="small muted">${t.materi.length} materi: ${esc(t.materi.slice(0, 3).join('; '))}${t.materi.length > 3 ? '; …' : ''}</div></div>
+          <button class="btn sm" onclick="dialogTopikHse(${i})">✏️ Ubah</button></div>`).join('')}
+        </details>
+      </div>`;
+  } catch (e) { if (el()) el().innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>'; }
+}
+
+function dialogTopikHse(i) {
+  const t = i >= 0 ? C.topikHse[i] : { id_topik: '', kode: '', judul: '', bahasa: 'id', materi: [], urutan: C.topikHse.length + 1, aktif: 'ya' };
+  openModal(`
+    <h2>${i >= 0 ? 'Ubah' : 'Tambah'} topik HSE</h2>
+    <form onsubmit="event.preventDefault(); simpanTopikHse(this, '${esc(t.id_topik)}')">
+      <div class="grid2">
+        <div><label>Kode (di nomor)</label><input name="kode" value="${esc(t.kode)}" required placeholder="mis. LOTO"></div>
+        <div><label>Bahasa sertifikat</label><select name="bahasa"><option value="id" ${t.bahasa !== 'en' ? 'selected' : ''}>Indonesia</option>
+          <option value="en" ${t.bahasa === 'en' ? 'selected' : ''}>Inggris</option></select></div>
+      </div>
+      <label>Judul training (tercetak setelah kata "Training")</label><input name="judul" value="${esc(t.judul)}" required>
+      <label>Materi (satu per baris, maks. 15)</label><textarea name="materi" rows="8">${esc(t.materi.join('\n'))}</textarea>
+      <div class="grid2"><div><label>Urutan</label><input name="urutan" type="number" min="1" value="${esc(t.urutan)}"></div><div></div></div>
+      <label class="check mt"><input type="checkbox" name="aktif" ${t.aktif !== 'tidak' ? 'checked' : ''}> Aktif</label>
+      <div class="row mt"><button type="button" class="btn" onclick="closeModal()">Batal</button><button class="btn primary grow">Simpan</button></div>
+    </form>`);
+}
+
+function simpanTopikHse(f, id) {
+  busy(f.querySelector('button.primary'), async () => {
+    await call('topikHseSimpan', { id_topik: id, kode: f.kode.value, bahasa: f.bahasa.value, judul: f.judul.value, materi: f.materi.value,
+      urutan: f.urutan.value, aktif: f.aktif.checked });
+    closeModal(); toast('Topik HSE disimpan.', 'ok'); muatPustakaHse(C.view);
+  });
+}
+
 // ----------------------------------------------------- Tab: Dashboard (PIC & Admin)
 const LEVEL_PENGINGAT = { bad: ['b-alpa', 'Segera'], warn: ['b-belum', 'Perlu'], info: ['b-izin', 'Info'] };
 const FASE_BATCH = { berjalan: ['b-hadir', 'Berjalan'], akan: ['b-izin', 'Akan datang'], selesai: ['b-none', 'Selesai'] };
 const TAB_LABEL = { peserta: 'Peserta', lokasi: 'Jadwal & Lokasi', rundown: 'Rundown', materi: 'Materi', dok: 'Dokumentasi',
-  monitor: 'Absensi', narasumber: 'Absensi Narasumber', kepatuhan: 'Tata Tertib & Video', pustaka: 'Pustaka', inventaris: 'Inventaris', gudang: 'Gudang', berkas: 'Berkas', laporan: 'Laporan', skl: 'SKL', batch: 'Batch' };
+  monitor: 'Absensi', narasumber: 'Absensi Narasumber', kepatuhan: 'Tata Tertib & Video', pustaka: 'Pustaka', inventaris: 'Inventaris', gudang: 'Gudang', berkas: 'Berkas', laporan: 'Laporan', skl: 'SKL', sertifikat: 'Sertifikat', batch: 'Batch' };
 
 async function tabDashboard() {
   const v = C.view;
@@ -1901,8 +2137,10 @@ async function tabPustaka() {
               <button class="btn sm danger" onclick="hapusVideo(this, ${i})">Hapus</button></div>
           </div>`).join('')}
       </div>
-      <div id="pustaka-berkas"><div class="card muted small">Memuat daftar berkas…</div></div>`);
+      <div id="pustaka-berkas"><div class="card muted small">Memuat daftar berkas…</div></div>
+      <div id="pustaka-hse"></div>`);
     muatPustakaBerkas(v);
+    muatPustakaHse(v);
   } catch (e) { errBox(v, e); }
 }
 

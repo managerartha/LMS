@@ -4,6 +4,7 @@ const P = { batch: null, status: null, konten: null, tab: 'beranda' };
 function showPeserta(meRes) {
   P.batch = meRes.batch;
   P.berkasAktif = !!meRes.berkas_aktif;
+  P.sertifikatAktif = !!meRes.sertifikat_aktif;
   if (meRes.beranda) {
     cacheSet('beranda', meRes.beranda);
     P.segar = meRes.beranda; // data baru dari server, tidak perlu dimuat ulang
@@ -40,6 +41,7 @@ const NAV_PESERTA = [
   ['beranda', '🏠', 'Dashboard'], ['panduan', '📘', 'Panduan Pelatihan'], ['rundown', '🗓️', 'Jadwal & Rundown'], ['materi', '📚', 'Materi'],
   ['dok', '📷', 'Dokumentasi'], ['riwayat', '✅', 'Riwayat Absen'], ['skl', '🎓', 'Surat Keterangan Lulus'],
   ['berkas', '📂', 'Berkas Saya'], // hanya tampil untuk program yang punya daftar berkas (mis. BNSP)
+  ['sertifikat', '📜', 'Sertifikat'], // hanya tampil setelah ada sertifikat yang diterbitkan Admin
 ];
 
 function pesertaTab(tab) {
@@ -48,7 +50,7 @@ function pesertaTab(tab) {
   render(`
     <div class="shell">
       <nav class="sidenav">
-        ${NAV_PESERTA.filter(n => n[0] !== 'berkas' || P.berkasAktif).map(n => `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="pesertaTab('${n[0]}')">
+        ${NAV_PESERTA.filter(n => (n[0] !== 'berkas' || P.berkasAktif) && (n[0] !== 'sertifikat' || P.sertifikatAktif)).map(n => `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="pesertaTab('${n[0]}')">
           <span class="nav-ic">${n[1]}</span><span>${n[2]}</span></button>`).join('')}
       </nav>
       <section class="shell-main">
@@ -66,6 +68,7 @@ function pesertaTab(tab) {
   else if (tab === 'riwayat') loadRiwayat();
   else if (tab === 'skl') loadSkl();
   else if (tab === 'berkas') loadBerkas();
+  else if (tab === 'sertifikat') loadSertifikat();
   else loadKonten(tab);
 }
 
@@ -73,7 +76,7 @@ function tampilBeranda(b) {
   P.status = b.status;
   P.konten = b.konten;
   if (b.panduan) { P.panduan = b.panduan; tampilVideoArea(b.panduan); }
-  $('#tab-body').innerHTML = sklBannerHtml(b.skl) + panduanBannerHtml(b.panduan) + berkasBannerHtml(b.berkas) + berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
+  $('#tab-body').innerHTML = sklBannerHtml(b.skl) + sertifikatBannerHtml(b.sertifikat) + panduanBannerHtml(b.panduan) + berkasBannerHtml(b.berkas) + berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
 }
 
 /** Tampilkan data tersimpan dulu (instan), lalu ganti dengan data terbaru dari server. */
@@ -556,6 +559,45 @@ async function loadSkl() {
 function unduhSkl(btn) {
   busy(btn, async () => {
     const res = await call('sklUnduh');
+    simpanFile(res.nama, res.data, 'application/pdf');
+  }, 'Menyiapkan PDF…');
+}
+
+// ----------------------------------------------------- Sertifikat (diterbitkan Admin)
+function sertifikatBannerHtml(list) {
+  if (!list || !list.length) return '';
+  if (!P.sertifikatAktif) { P.sertifikatAktif = true; } // menu muncul saat pindah halaman berikutnya
+  return `
+    <div class="alert info row">
+      <div class="grow">📜 <b>Sertifikat Anda sudah terbit.</b><div class="small">${list.map(x => esc(x.label)).join(' · ')}</div></div>
+      <button class="btn primary sm" onclick="pesertaTab('sertifikat')">Lihat →</button>
+    </div>`;
+}
+
+async function loadSertifikat() {
+  try {
+    const list = await call('sertifikatSaya');
+    if (P.tab !== 'sertifikat') return;
+    $('#tab-body').innerHTML = list.length ? list.map(x => `
+      <div class="card narrow center">
+        <div style="font-size:40px">📜</div>
+        <h2>${esc(x.label)}</h2>
+        <p class="muted">${x.lembar > 1 ? x.lembar + ' lembar sertifikat dalam 1 file PDF<br>' : 'Nomor <b>' + esc(x.nomor) + '</b><br>'}Diterbitkan ${esc(fmtTanggal(x.tgl_terbit))}</p>
+        <button class="btn primary block big" onclick="unduhSertifikat(this, '${esc(x.jenis)}')">⬇ Unduh (PDF)</button>
+      </div>`).join('') : `
+      <div class="card narrow center">
+        <div style="font-size:48px">⏳</div>
+        <h2>Sertifikat belum tersedia</h2>
+        <p class="muted">Sertifikat dapat diunduh di sini setelah diterbitkan. Jika ada pertanyaan, silakan hubungi PIC pelatihan.</p>
+      </div>`;
+  } catch (e) {
+    $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+  }
+}
+
+function unduhSertifikat(btn, jenis) {
+  busy(btn, async () => {
+    const res = await call('sertifikatUnduh', { jenis: jenis });
     simpanFile(res.nama, res.data, 'application/pdf');
   }, 'Menyiapkan PDF…');
 }

@@ -78,6 +78,7 @@ function me(array $data, array $user): array {
     $b = get_batch($user['id_batch']);
     $out['batch'] = ['id_batch' => $b['id_batch'], 'nama_pelatihan' => $b['nama_pelatihan'], 'kode_batch' => $b['kode_batch']];
     $out['berkas_aktif'] = (bool)items_berkas($b); // menu Berkas Saya hanya untuk program yang punya daftar berkas (mis. BNSP)
+    $out['sertifikat_aktif'] = (bool)sertifikat_ringkas($user); // menu Sertifikat hanya muncul setelah ada sertifikat terbit
     if ($user['setuju_privasi'] !== '') $out['beranda'] = beranda($data, $user);
   } else {
     $out['batches'] = batchList($data, $user);
@@ -88,7 +89,7 @@ function me(array $data, array $user): array {
 /** Status absen hari ini + konten (rundown, materi, dokumentasi) dalam satu permintaan. */
 function beranda(array $data, array $user): array {
   return ['status' => statusHariIni($data, $user), 'konten' => kontenPeserta($data, $user), 'skl' => skl_view(skl_of($user['id_user'])),
-    'panduan' => panduan_peserta($user), 'berkas' => berkas_ringkas($user)];
+    'panduan' => panduan_peserta($user), 'berkas' => berkas_ringkas($user), 'sertifikat' => sertifikat_ringkas($user)];
 }
 
 function logout(array $data, array $user): bool {
