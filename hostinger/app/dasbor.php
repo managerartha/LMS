@@ -147,7 +147,7 @@ function dasbor_batch(array $b, array $now, array $user): array {
     }
   }
 
-  $p = array_merge($p, pengingat_inventaris($b, $fase, $today), pengingat_berkas($b, $fase), pengingat_sertifikat($b, $fase, $user));
+  $p = array_merge($p, pengingat_inventaris($b, $fase, $today), pengingat_berkas($b, $fase), pengingat_sertifikat($b, $fase, $user), pengingat_nilai($b, $fase));
   $lv = ['bad' => 0, 'warn' => 1, 'info' => 2];
   usort($p, fn($x, $y) => $lv[$x['level']] <=> $lv[$y['level']]);
   return ['id_batch' => $b['id_batch'], 'kode_batch' => $b['kode_batch'], 'nama_pelatihan' => $b['nama_pelatihan'], 'status' => $b['status'],

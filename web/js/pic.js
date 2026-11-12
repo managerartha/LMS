@@ -36,11 +36,11 @@ const NAV_PIC = [
   ['kepatuhan', '📘', 'Tata Tertib & Video', 'Persiapan'], ['inventaris', '📦', 'Inventaris', 'Persiapan'],
   ['berkas', '📂', 'Berkas Peserta', 'Persiapan'],
   ['laporan', '📄', 'Laporan', 'Akhir pelatihan'], ['skl', '🎓', 'SKL', 'Akhir pelatihan'],
-  ['sertifikat', '📜', 'Sertifikat', 'Akhir pelatihan'],
+  ['nilai', '📝', 'Nilai Ujian', 'Akhir pelatihan'], ['sertifikat', '📜', 'Sertifikat', 'Akhir pelatihan'],
   ['gudang', '🏬', 'Gudang Inventaris', 'Gudang'],
   ['batch', '🗂️', 'Batch', 'Admin'], ['pustaka', '📚', 'Pustaka Pelatihan', 'Admin'], ['pic', '🔑', 'Akun PIC', 'Admin'],
 ];
-const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'inventaris', 'berkas', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'sertifikat', 'peserta', 'lokasi'];
+const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'inventaris', 'berkas', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'sertifikat', 'nilai', 'peserta', 'lokasi'];
 
 function picTab(tab) {
   C.tab = tab;
@@ -82,7 +82,7 @@ function picTab(tab) {
     return;
   }
   ({ dashboard: tabDashboard, monitor: tabMonitor, narasumber: tabNarasumber, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl,
-    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka, inventaris: tabInventaris, gudang: tabGudang, berkas: tabBerkas, sertifikat: tabSertifikat })[aktif[0]]();
+    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka, inventaris: tabInventaris, gudang: tabGudang, berkas: tabBerkas, sertifikat: tabSertifikat, nilai: tabNilai })[aktif[0]]();
 }
 
 /** Mengisi isi tab, hanya jika pengguna belum berpindah tab sejak data mulai dimuat. */
@@ -1707,11 +1707,265 @@ function simpanTopikHse(f, id) {
   });
 }
 
+// ----------------------------------------------------- Tab: Nilai Ujian (Kemnaker: ketik nilai, BNSP: upload PDF asesor)
+/** Editor komponen nilai: baris [kategori, komponen]. Dipakai di tab Nilai dan di Pustaka (template program). */
+function komponenEditorHtml(id, list) {
+  return `<div id="${id}" class="komp-editor">${list.map(k => komponenBarisHtml(k)).join('')}</div>
+    <button type="button" class="btn sm mt" onclick="tambahKomponen('${id}')">＋ Tambah komponen</button>`;
+}
+
+function komponenBarisHtml(k) {
+  return `<div class="row mt komp-baris" data-id="${esc(k.id || '')}">
+    <input class="grow komp-kat" value="${esc(k.kategori || '')}" placeholder="Kategori, mis. Ujian Seminar">
+    <input class="grow komp-nama" value="${esc(k.nama || '')}" placeholder="Komponen, mis. Praktek">
+    <button type="button" class="btn sm danger" title="Hapus" onclick="this.parentNode.remove()">✖</button></div>`;
+}
+
+function tambahKomponen(id) {
+  const box = $('#' + id);
+  const akhir = box.querySelector('.komp-baris:last-child .komp-kat');
+  box.insertAdjacentHTML('beforeend', komponenBarisHtml({ kategori: akhir ? akhir.value : '' }));
+}
+
+function bacaKomponen(id) {
+  return $$('#' + id + ' .komp-baris').map(r => ({ id: r.dataset.id, kategori: r.querySelector('.komp-kat').value, nama: r.querySelector('.komp-nama').value }))
+    .filter(k => k.nama.trim() !== '');
+}
+
+async function tabNilai() {
+  const v = C.view;
+  try {
+    C.nilai = await call('nilaiData', { id_batch: C.batch.id_batch });
+    renderNilai(v);
+  } catch (e) { errBox(v, e); }
+}
+
+function fmtNilai(x) { return x === '' || x === null || x === undefined ? '' : String(x).replace('.', ','); }
+
+function renderNilai(v) {
+  const d = C.nilai, r = d.ringkas;
+  const status = d.terbit
+    ? `<div class="alert ok small">✅ Sudah dipublikasikan ke peserta (${esc(d.terbit_oleh)} · ${esc(d.terbit_pada)}).</div>`
+    : '<div class="alert info small">Belum dipublikasikan — peserta belum bisa melihat nilai.</div>';
+  const pilihMode = `<div class="card">
+      <h2>Jenis penilaian</h2>
+      <select id="nl-mode" onchange="nilaiGantiMode(this)">
+        <option value="" ${d.mode === '' ? 'selected' : ''}>— Tidak ada nilai ujian di batch ini —</option>
+        ${Object.keys(d.mode_pilihan).map(m => `<option value="${m}" ${d.mode === m ? 'selected' : ''}>${esc(d.mode_pilihan[m])}</option>`).join('')}
+      </select>
+      ${d.mode ? status : ''}
+    </div>`;
+  if (d.mode === 'bnsp') {
+    return setBody(v, pilihMode + `
+      <div class="card">
+        <h2>PDF nilai dari asesor</h2>
+        <p class="small muted">Upload satu file PDF berisi nilai semua peserta (maks. 20 MB). Setelah dipublikasikan, peserta bisa mengunduh file ini.</p>
+        ${d.file_bnsp ? `<div class="materi-item"><div class="materi-ikon">📄</div><div class="grow"><b>${esc(d.nama_file_bnsp)}</b></div>
+          <button class="btn sm" onclick="nilaiUnduhBnsp(this)">⬇ Unduh</button></div>` : '<div class="muted small">Belum ada file.</div>'}
+        <label class="mt">${d.file_bnsp ? 'Ganti file' : 'Pilih file'} PDF</label><input type="file" accept="application/pdf,.pdf" onchange="nilaiUploadBnsp(this)">
+        <div class="row mt">${d.terbit ? '<button class="btn" onclick="nilaiPublikasi(this, false)">Tarik publikasi</button>'
+          : `<button class="btn primary" onclick="nilaiPublikasi(this, true)" ${d.file_bnsp ? '' : 'disabled'}>📢 Publikasikan ke peserta</button>`}</div>
+      </div>`);
+  }
+  if (d.mode !== 'kemnaker') return setBody(v, pilihMode);
+  const k = d.komponen;
+  setBody(v, pilihMode + `
+    <div class="card">
+      <h2>Komponen nilai & batas lulus</h2>
+      <p class="small muted">Nilai rata-rata = rata-rata <b>semua komponen</b> (dibulatkan). Peserta lulus bila nilai rata-rata ≥ batas lulus.
+        ${d.template.program ? 'Bawaan diambil dari template program <b>' + esc(d.template.program) + '</b>.' : ''}</p>
+      ${komponenEditorHtml('nl-komp', k)}
+      <div class="grid2 mt">
+        <div><label>Batas lulus (nilai rata-rata minimal)</label><input id="nl-batas" type="number" min="0" max="100" step="0.01" value="${esc(d.batas_lulus)}"></div>
+        <div><label>Judul di rekap PDF</label><input id="nl-judul" value="${esc(d.judul_rekap)}" placeholder="mis. Calon Ahli K3 Umum Sertifikasi Kemnaker RI"></div>
+      </div>
+      <div class="row mt"><button class="btn primary" onclick="nilaiSimpanAtur(this)">Simpan komponen</button>
+        ${d.template.program ? '<button class="btn" onclick="nilaiPakaiTemplate()">↺ Pakai template program</button>' : ''}</div>
+    </div>
+    <div class="card">
+      <div class="row mb"><h2 class="grow">Nilai peserta</h2>
+        <span class="small muted">Lulus <b>${r.lulus}</b> · Tidak lulus <b>${r.tidak_lulus}</b> · Belum lengkap <b>${r.belum}</b> dari ${r.total}</span></div>
+      <p class="small muted">Bisa <b>tempel dari Excel</b>: salin blok nilai di Excel, klik kotak nilai pertama, lalu Ctrl+V — nilai terisi ke kanan & ke bawah.
+        Centang <b>Tidak ikut</b> untuk peserta yang tidak mengikuti ujian (nilai 0, tidak lulus).</p>
+      ${d.peserta.length ? `<div class="table-wrap"><table class="nilai-tabel">
+        <thead><tr><th>No</th><th>Nama</th>${k.map(x => `<th title="${esc(x.kategori)}">${esc(x.nama)}${x.kategori ? `<div class="small muted">${esc(x.kategori)}</div>` : ''}</th>`).join('')}
+          <th>Rata-rata</th><th>Keterangan</th><th>Tidak ikut</th><th>Keterangan khusus</th></tr></thead>
+        <tbody>${d.peserta.map((p, i) => `<tr data-id="${esc(p.id_user)}" data-i="${i}">
+          <td>${esc(p.no_absen)}</td><td>${esc(p.nama)}</td>
+          ${k.map((x, j) => `<td><input class="nl-in" data-k="${esc(x.id)}" data-r="${i}" data-c="${j}" inputmode="decimal" style="width:64px"
+            value="${esc(p.tidak_ikut ? '' : fmtNilai(p.nilai[x.id]))}" ${p.tidak_ikut ? 'disabled' : ''} oninput="nilaiHitungBaris(${i})" onpaste="nilaiTempel(event, ${i}, ${j})"></td>`).join('')}
+          <td class="nl-rata center"><b>${p.rata === null ? '–' : p.rata}</b></td>
+          <td class="nl-ket">${nilaiKetBadge(p.lengkap, p.lulus, p.keterangan)}</td>
+          <td class="center"><input type="checkbox" class="nl-tidak" ${p.tidak_ikut ? 'checked' : ''} onchange="nilaiTidakIkut(${i}, this.checked)"></td>
+          <td><input class="nl-ketman" value="${esc(p.keterangan_manual)}" placeholder="${esc(p.keterangan_auto || 'otomatis')}" style="min-width:150px"></td></tr>`).join('')}
+        </tbody></table></div>` : '<div class="muted small">Belum ada peserta di batch ini.</div>'}
+      <label class="mt">Keterangan di bawah tabel rekap (opsional)</label>
+      <textarea id="nl-catatan" rows="3" placeholder="${esc(d.catatan_otomatis || 'Kosongkan bila tidak ada keterangan.')}">${esc(d.catatan)}</textarea>
+      <p class="small muted">Bila dikosongkan dan ada peserta tidak lulus, keterangan dibuat otomatis seperti contoh di kotak.</p>
+      <div class="row mt">
+        <button class="btn primary grow" onclick="nilaiSimpan(this)">💾 Simpan nilai</button>
+        <button class="btn grow" onclick="nilaiUnduhPdf(this)">⬇ PDF rekap nilai</button>
+        ${d.terbit ? '<button class="btn grow" onclick="nilaiPublikasi(this, false)">Tarik publikasi</button>'
+          : '<button class="btn grow" onclick="nilaiPublikasi(this, true)">📢 Publikasikan ke peserta</button>'}
+      </div>
+      <p class="small muted">Rekap nilai otomatis ikut masuk <b>laporan resmi</b> (setelah absensi) dan mengisi jumlah peserta lulus bila belum diisi.</p>
+    </div>`);
+}
+
+function nilaiKetBadge(lengkap, lulus, ket) {
+  if (!lengkap) return '<span class="badge b-none">Belum lengkap</span>';
+  return `<span class="badge ${lulus ? 'b-hadir' : 'b-alpa'}">${esc(ket || (lulus ? 'LULUS' : 'TIDAK LULUS'))}</span>`;
+}
+
+/** Hitung ulang rata-rata & status satu baris saat mengetik (sama dengan perhitungan server). */
+function nilaiHitungBaris(i) {
+  const tr = $(`.nilai-tabel tr[data-i="${i}"]`);
+  const tidak = tr.querySelector('.nl-tidak').checked;
+  const vals = [...tr.querySelectorAll('.nl-in')].map(el => el.value.trim().replace(',', '.'));
+  let rata = null;
+  if (tidak) rata = 0;
+  else if (vals.length && vals.every(x => x !== '' && !isNaN(x))) rata = Math.round(vals.reduce((a, b) => a + parseFloat(b), 0) / vals.length);
+  const lulus = !tidak && rata !== null && rata >= parseFloat(C.nilai.batas_lulus);
+  tr.querySelector('.nl-rata').innerHTML = '<b>' + (rata === null ? '–' : rata) + '</b>';
+  const man = tr.querySelector('.nl-ketman').value.trim();
+  tr.querySelector('.nl-ket').innerHTML = nilaiKetBadge(rata !== null, lulus, man || (lulus ? 'LULUS' : 'TIDAK LULUS'));
+}
+
+function nilaiTidakIkut(i, cek) {
+  $$(`.nilai-tabel tr[data-i="${i}"] .nl-in`).forEach(el => { el.disabled = cek; if (cek) el.value = ''; });
+  nilaiHitungBaris(i);
+}
+
+/** Tempel blok nilai dari Excel (tab = kolom, baris baru = peserta berikutnya). */
+function nilaiTempel(ev, r0, c0) {
+  const teks = (ev.clipboardData || window.clipboardData).getData('text');
+  if (!/[\t\n]/.test(teks.trim())) return; // satu angka: biarkan tempel biasa
+  ev.preventDefault();
+  const baris = teks.replace(/\r/g, '').replace(/\n+$/, '').split('\n');
+  const ubah = new Set();
+  baris.forEach((b, dr) => b.split('\t').forEach((val, dc) => {
+    const el = $(`.nl-in[data-r="${r0 + dr}"][data-c="${c0 + dc}"]`);
+    if (el && !el.disabled) { el.value = val.trim(); ubah.add(r0 + dr); }
+  }));
+  ubah.forEach(nilaiHitungBaris);
+  toast('Ditempel ke ' + ubah.size + ' peserta. Jangan lupa Simpan nilai.', 'ok');
+}
+
+function nilaiGantiMode(sel) {
+  const lama = C.nilai.mode;
+  sel.disabled = true;
+  busy(null, async () => {
+    try {
+      C.nilai = await call('nilaiAtur', { id_batch: C.batch.id_batch, mode: sel.value });
+      renderNilai(C.view);
+    } catch (e) { sel.value = lama; sel.disabled = false; throw e; }
+  });
+}
+
+function nilaiSimpanAtur(btn) {
+  busy(btn, async () => {
+    C.nilai = await call('nilaiAtur', { id_batch: C.batch.id_batch, mode: 'kemnaker', komponen: bacaKomponen('nl-komp'),
+      batas_lulus: $('#nl-batas').value, judul_rekap: $('#nl-judul').value });
+    toast('Komponen nilai disimpan.', 'ok'); renderNilai(C.view);
+  });
+}
+
+function nilaiPakaiTemplate() {
+  const t = C.nilai.template;
+  $('#nl-komp').innerHTML = t.komponen.map(k => komponenBarisHtml(k)).join('');
+  $('#nl-batas').value = t.batas_lulus;
+  toast('Template program dimuat. Klik Simpan komponen untuk memakainya.', 'ok');
+}
+
+function nilaiDataForm() {
+  return $$('.nilai-tabel tbody tr').map(tr => {
+    const nilai = {};
+    tr.querySelectorAll('.nl-in').forEach(el => { nilai[el.dataset.k] = el.value; });
+    return { id_user: tr.dataset.id, nilai: nilai, tidak_ikut: tr.querySelector('.nl-tidak').checked, keterangan: tr.querySelector('.nl-ketman').value };
+  });
+}
+
+function nilaiSimpan(btn, lanjut) {
+  return busy(btn, async () => {
+    await call('nilaiSimpan', { id_batch: C.batch.id_batch, peserta: nilaiDataForm() });
+    C.nilai = await call('nilaiAtur', { id_batch: C.batch.id_batch, mode: 'kemnaker', catatan: $('#nl-catatan').value });
+    if (lanjut) return lanjut();
+    toast('Nilai disimpan.', 'ok'); renderNilai(C.view);
+  });
+}
+
+function nilaiUnduhPdf(btn) {
+  nilaiSimpan(btn, async () => {
+    const r = await call('nilaiPdf', { id_batch: C.batch.id_batch });
+    simpanFile(r.nama, r.data, 'application/pdf');
+    renderNilai(C.view);
+  });
+}
+
+function nilaiPublikasi(btn, terbit) {
+  if (!confirm(terbit ? 'Publikasikan nilai? Peserta akan bisa melihat ' + (C.nilai.mode === 'bnsp' ? 'dan mengunduh PDF nilai.' : 'nilainya sendiri di akun LMS.')
+    : 'Tarik publikasi? Peserta tidak bisa melihat nilai lagi sampai dipublikasikan ulang.')) return;
+  const jalan = async () => {
+    C.nilai = await call('nilaiTerbit', { id_batch: C.batch.id_batch, terbit: terbit });
+    toast(terbit ? 'Nilai dipublikasikan ke peserta.' : 'Publikasi nilai ditarik.', 'ok'); renderNilai(C.view);
+  };
+  if (C.nilai.mode === 'kemnaker' && terbit) return nilaiSimpan(btn, jalan);
+  busy(btn, jalan);
+}
+
+function nilaiUploadBnsp(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (!/\.pdf$/i.test(file.name)) { input.value = ''; return toast('File harus PDF.', 'error'); }
+  if (file.size > 20 * 1024 * 1024) { input.value = ''; return toast('File lebih dari 20 MB.', 'error'); }
+  input.disabled = true;
+  toast('Mengupload PDF…');
+  busy(null, async () => {
+    C.nilai = await call('nilaiBnspUpload', { id_batch: C.batch.id_batch, file: { nama: file.name, data: await bacaFile(file) } });
+    toast('PDF nilai diupload.', 'ok'); renderNilai(C.view);
+  }).finally(() => { if (input.isConnected) { input.disabled = false; input.value = ''; } });
+}
+
+function nilaiUnduhBnsp(btn) {
+  busy(btn, async () => { const r = await call('nilaiUnduh', { id_batch: C.batch.id_batch }); simpanFile(r.nama, r.data, 'application/pdf'); }, '…');
+}
+
+// Pustaka (Admin): template komponen nilai per program.
+async function muatPustakaNilai(v) {
+  const el = () => $('#pustaka-nilai');
+  try {
+    const list = await call('nilaiTemplateList');
+    if (v !== C.view || !el()) return;
+    C.nilaiTpl = list;
+    const pilih = C.nilaiTplPilih && list.some(p => p.id_program === C.nilaiTplPilih) ? C.nilaiTplPilih : (list[0] || {}).id_program;
+    const t = list.find(p => p.id_program === pilih);
+    el().innerHTML = `
+      <div class="card">
+        <h2>📝 Template nilai ujian per program (Kemnaker)</h2>
+        <p class="small muted">Kategori & komponen ujian serta batas lulus bawaan untuk setiap batch program ini. PIC masih bisa menyesuaikan per batch.</p>
+        ${list.length ? `<label>Program</label>
+        <select onchange="C.nilaiTplPilih = this.value; muatPustakaNilai(C.view)">${list.map(p => `<option value="${esc(p.id_program)}" ${p.id_program === pilih ? 'selected' : ''}>
+          ${esc(p.nama)}${p.tersimpan ? '' : ' (bawaan)'}</option>`).join('')}</select>
+        ${komponenEditorHtml('tpl-komp', t.komponen)}
+        <div class="grid2 mt"><div><label>Batas lulus</label><input id="tpl-batas" type="number" min="0" max="100" step="0.01" value="${esc(t.batas_lulus)}"></div><div></div></div>
+        <button class="btn primary mt" onclick="simpanTemplateNilai(this, '${esc(pilih)}')">Simpan template</button>`
+        : '<div class="alert warn small">Tambahkan program pelatihan terlebih dahulu.</div>'}
+      </div>`;
+  } catch (e) { if (el()) el().innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>'; }
+}
+
+function simpanTemplateNilai(btn, id) {
+  busy(btn, async () => {
+    await call('nilaiTemplateSimpan', { id_program: id, komponen: bacaKomponen('tpl-komp'), batas_lulus: $('#tpl-batas').value });
+    toast('Template nilai disimpan.', 'ok'); muatPustakaNilai(C.view);
+  });
+}
+
 // ----------------------------------------------------- Tab: Dashboard (PIC & Admin)
 const LEVEL_PENGINGAT = { bad: ['b-alpa', 'Segera'], warn: ['b-belum', 'Perlu'], info: ['b-izin', 'Info'] };
 const FASE_BATCH = { berjalan: ['b-hadir', 'Berjalan'], akan: ['b-izin', 'Akan datang'], selesai: ['b-none', 'Selesai'] };
 const TAB_LABEL = { peserta: 'Peserta', lokasi: 'Jadwal & Lokasi', rundown: 'Rundown', materi: 'Materi', dok: 'Dokumentasi',
-  monitor: 'Absensi', narasumber: 'Absensi Narasumber', kepatuhan: 'Tata Tertib & Video', pustaka: 'Pustaka', inventaris: 'Inventaris', gudang: 'Gudang', berkas: 'Berkas', laporan: 'Laporan', skl: 'SKL', sertifikat: 'Sertifikat', batch: 'Batch' };
+  monitor: 'Absensi', narasumber: 'Absensi Narasumber', kepatuhan: 'Tata Tertib & Video', pustaka: 'Pustaka', inventaris: 'Inventaris', gudang: 'Gudang', berkas: 'Berkas', laporan: 'Laporan', skl: 'SKL', sertifikat: 'Sertifikat', nilai: 'Nilai Ujian', batch: 'Batch' };
 
 async function tabDashboard() {
   const v = C.view;
@@ -2138,9 +2392,11 @@ async function tabPustaka() {
           </div>`).join('')}
       </div>
       <div id="pustaka-berkas"><div class="card muted small">Memuat daftar berkas…</div></div>
-      <div id="pustaka-hse"></div>`);
+      <div id="pustaka-hse"></div>
+      <div id="pustaka-nilai"></div>`);
     muatPustakaBerkas(v);
     muatPustakaHse(v);
+    muatPustakaNilai(v);
   } catch (e) { errBox(v, e); }
 }
 

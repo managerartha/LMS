@@ -153,7 +153,7 @@ function batchHapus(array $data, array $user): bool {
     q("DELETE FROM pengguna WHERE role = 'peserta' AND id_batch = ?", [$b['id_batch']]);
     // inventaris: alokasi barang batch ikut terhapus sehingga stok gudang kembali seperti sebelum batch disiapkan
     foreach (['absensi', 'rundown', 'materi', 'dokumentasi', 'laporan', 'skl', 'absen_narasumber', 'hari',
-      'inv_peserta', 'inv_transaksi', 'inv_batch', 'inv_mutasi', 'inv_ba', 'berkas', 'berkas_batch', 'sertifikat', 'sertifikat_batch'] as $t) {
+      'inv_peserta', 'inv_transaksi', 'inv_batch', 'inv_mutasi', 'inv_ba', 'berkas', 'berkas_batch', 'sertifikat', 'sertifikat_batch', 'nilai', 'nilai_batch'] as $t) {
       q("DELETE FROM `$t` WHERE id_batch = ?", [$b['id_batch']]);
     }
     q('DELETE FROM batch WHERE id_batch = ?', [$b['id_batch']]);

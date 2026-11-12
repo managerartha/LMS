@@ -79,6 +79,7 @@ function me(array $data, array $user): array {
     $out['batch'] = ['id_batch' => $b['id_batch'], 'nama_pelatihan' => $b['nama_pelatihan'], 'kode_batch' => $b['kode_batch']];
     $out['berkas_aktif'] = (bool)items_berkas($b); // menu Berkas Saya hanya untuk program yang punya daftar berkas (mis. BNSP)
     $out['sertifikat_aktif'] = (bool)sertifikat_ringkas($user); // menu Sertifikat hanya muncul setelah ada sertifikat terbit
+    $out['nilai_aktif'] = nilai_aktif_peserta($user); // menu Nilai Ujian hanya muncul setelah nilai dipublikasikan
     if ($user['setuju_privasi'] !== '') $out['beranda'] = beranda($data, $user);
   } else {
     $out['batches'] = batchList($data, $user);

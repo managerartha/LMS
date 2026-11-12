@@ -505,3 +505,16 @@ Semua tambahan (skema versi 9). Peserta tidak melihat perubahan apa pun sampai A
 - **PIC**: melihat status, pratinjau (bertanda PRATINJAU), unduh per peserta dan semua (BNSP/BST satu PDF, HSE ZIP satu PDF per peserta, disusun bertahap). Dashboard: pemberitahuan 14 hari setelah sertifikat terbit + pengingat data belum lengkap; Admin: pengingat sertifikat belum terbit setelah batch selesai.
 - **Peserta**: menu **Sertifikat** dan banner Dashboard muncul setelah ada sertifikat terbit; unduh satu PDF per jenis.
 - **SKL**: tanggal di SKL = **hari terakhir pelatihan** (dulu tanggal diterbitkan); bulan/tahun nomor SKL baru juga mengikuti hari terakhir. Nomor SKL yang sudah terbit tidak berubah.
+
+## 26. Nilai ujian peserta
+
+Semua tambahan (skema versi 10). Menu **Nilai Ujian** (PIC & Admin, grup Akhir pelatihan); peserta hanya melihat menu **Nilai Ujian** setelah nilai dipublikasikan.
+
+- **Jenis penilaian per batch** (`nilai_batch.mode`): *Kemnaker* (nilai diketik) atau *BNSP* (upload PDF dari asesor); bawaan mengikuti lembaga batch (KEMNAKER RI / BNSP), bisa diganti.
+- **Template per program** (`nilai_program`, Admin di Pustaka): kategori & komponen ujian (bawaan Ujian Seminar: Praktek, Laporan, Paparan, Wawancara; Ujian Teori: Teori) dan batas lulus (bawaan 65). Batch memakai template programnya dan bisa disesuaikan per batch.
+- **Kemnaker**: tabel peserta × komponen (angka 0–100, boleh desimal), bisa **tempel blok dari Excel**. Nilai rata-rata = rata-rata **semua komponen**, dibulatkan; **LULUS** bila ≥ batas lulus. *Tidak ikut ujian* = nilai 0, tidak lulus. Keterangan per peserta bisa diisi khusus (mis. "Tidak lulus ujian teori & seminar").
+- **Rekap PDF** (A4 mendatar, kop surat Artha di setiap halaman sesuai contoh): Daftar Peserta · {jenis} Training · judul rekap · periode; kolom No, Nama, Perusahaan (kosong = UMUM), Keterangan, Nilai per komponen, Nilai Rata-rata; baris tidak lulus berwarna merah; keterangan di bawah tabel (otomatis bila ada peserta tidak lulus, bisa diubah); tanda tangan **PIC Pelatihan** (PIC yang mengunduh, atau PIC batch pertama yang punya tanda tangan), tanggal = hari terakhir pelatihan.
+- **Laporan resmi**: rekap nilai (A4 tegak) masuk setelah absensi, sebelum dokumentasi; "Jumlah Peserta Lulus" terisi otomatis dari nilai bila belum diisi manual.
+- **BNSP**: satu PDF berisi semua peserta (maks. 20 MB), bisa diganti; setelah dipublikasikan peserta bisa mengunduhnya.
+- **Publikasi** (PIC & Admin): Kemnaker hanya bisa dipublikasikan bila semua peserta sudah lengkap / ditandai tidak ikut; BNSP butuh file. Bisa ditarik kembali. Peserta Kemnaker hanya melihat nilainya sendiri.
+- **Dashboard**: setelah batch selesai, pengingat nilai belum lengkap / belum dipublikasikan / PDF BNSP belum diupload. **Hapus batch** ikut menghapus nilai batch.

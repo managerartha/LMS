@@ -5,6 +5,7 @@ function showPeserta(meRes) {
   P.batch = meRes.batch;
   P.berkasAktif = !!meRes.berkas_aktif;
   P.sertifikatAktif = !!meRes.sertifikat_aktif;
+  P.nilaiAktif = !!meRes.nilai_aktif;
   if (meRes.beranda) {
     cacheSet('beranda', meRes.beranda);
     P.segar = meRes.beranda; // data baru dari server, tidak perlu dimuat ulang
@@ -41,6 +42,7 @@ const NAV_PESERTA = [
   ['beranda', '🏠', 'Dashboard'], ['panduan', '📘', 'Panduan Pelatihan'], ['rundown', '🗓️', 'Jadwal & Rundown'], ['materi', '📚', 'Materi'],
   ['dok', '📷', 'Dokumentasi'], ['riwayat', '✅', 'Riwayat Absen'], ['skl', '🎓', 'Surat Keterangan Lulus'],
   ['berkas', '📂', 'Berkas Saya'], // hanya tampil untuk program yang punya daftar berkas (mis. BNSP)
+  ['nilai', '📝', 'Nilai Ujian'], // hanya tampil setelah nilai dipublikasikan PIC/Admin
   ['sertifikat', '📜', 'Sertifikat'], // hanya tampil setelah ada sertifikat yang diterbitkan Admin
 ];
 
@@ -50,7 +52,7 @@ function pesertaTab(tab) {
   render(`
     <div class="shell">
       <nav class="sidenav">
-        ${NAV_PESERTA.filter(n => (n[0] !== 'berkas' || P.berkasAktif) && (n[0] !== 'sertifikat' || P.sertifikatAktif)).map(n => `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="pesertaTab('${n[0]}')">
+        ${NAV_PESERTA.filter(n => (n[0] !== 'berkas' || P.berkasAktif) && (n[0] !== 'sertifikat' || P.sertifikatAktif) && (n[0] !== 'nilai' || P.nilaiAktif)).map(n => `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="pesertaTab('${n[0]}')">
           <span class="nav-ic">${n[1]}</span><span>${n[2]}</span></button>`).join('')}
       </nav>
       <section class="shell-main">
@@ -69,6 +71,7 @@ function pesertaTab(tab) {
   else if (tab === 'skl') loadSkl();
   else if (tab === 'berkas') loadBerkas();
   else if (tab === 'sertifikat') loadSertifikat();
+  else if (tab === 'nilai') loadNilai();
   else loadKonten(tab);
 }
 
@@ -561,6 +564,48 @@ function unduhSkl(btn) {
     const res = await call('sklUnduh');
     simpanFile(res.nama, res.data, 'application/pdf');
   }, 'Menyiapkan PDF…');
+}
+
+// ----------------------------------------------------- Nilai ujian (setelah dipublikasikan)
+async function loadNilai() {
+  try {
+    const n = await call('nilaiSaya');
+    if (P.tab !== 'nilai') return;
+    const angka = x => x === '' || x === null ? '–' : String(x).replace('.', ',');
+    if (!n.terbit) {
+      $('#tab-body').innerHTML = `<div class="card narrow center"><div style="font-size:48px">⏳</div><h2>Nilai belum tersedia</h2>
+        <p class="muted">Nilai ujian dapat dilihat di sini setelah dipublikasikan oleh PIC. Jika ada pertanyaan, silakan hubungi PIC pelatihan.</p></div>`;
+      return;
+    }
+    if (n.mode === 'bnsp') {
+      $('#tab-body').innerHTML = `<div class="card narrow center"><div style="font-size:48px">📄</div><h2>Nilai Ujian (BNSP)</h2>
+        <p class="muted">Form nilai dari asesor dalam bentuk PDF.</p>
+        <button class="btn primary block big" onclick="unduhNilaiBnsp(this)">⬇ Unduh PDF nilai</button></div>`;
+      return;
+    }
+    const grup = [];
+    n.komponen.forEach(k => {
+      let g = grup.find(x => x.kategori === k.kategori);
+      if (!g) grup.push(g = { kategori: k.kategori, isi: [] });
+      g.isi.push(k);
+    });
+    $('#tab-body').innerHTML = `
+      <div class="card narrow">
+        <div class="center"><div style="font-size:44px">${n.lulus ? '🎉' : '📝'}</div>
+          <div class="muted small">Nilai rata-rata</div><div style="font-size:40px;font-weight:800">${n.rata === null ? '–' : n.rata}</div>
+          <span class="badge ${n.lulus ? 'b-hadir' : 'b-alpa'}" style="font-size:14px">${esc(n.keterangan || (n.lulus ? 'LULUS' : 'TIDAK LULUS'))}</span>
+          <p class="small muted">Batas lulus: nilai rata-rata minimal ${angka(n.batas_lulus)}</p></div>
+        ${grup.map(g => `<h3 class="mt">${esc(g.kategori || 'Nilai')}</h3>
+          ${g.isi.map(k => `<div class="row" style="justify-content:space-between;border-bottom:1px solid var(--line);padding:8px 0">
+            <span>${esc(k.nama)}</span><b>${angka(k.nilai)}</b></div>`).join('')}`).join('')}
+      </div>`;
+  } catch (e) {
+    $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+  }
+}
+
+function unduhNilaiBnsp(btn) {
+  busy(btn, async () => { const r = await call('nilaiUnduh'); simpanFile(r.nama, r.data, 'application/pdf'); }, 'Menyiapkan PDF…');
 }
 
 // ----------------------------------------------------- Sertifikat (diterbitkan Admin)

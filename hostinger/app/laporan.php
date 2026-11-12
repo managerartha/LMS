@@ -463,6 +463,7 @@ function laporan_resmi_html(array $batch, array $hariList, string $jenis, int $d
     if ($narasumber !== '') $out[] = halaman($org, $narasumber);
   }
   $out[] = absensi_peserta($batch, $hariList, $info, $peserta, $now, $jenis !== 'resmi');
+  if ($jenis === 'resmi') $out[] = nilai_laporan_resmi($batch, $org); // rekap nilai Kemnaker (bila sudah diisi)
   if ($jenis === 'resmi') $out[] = halaman($org, dokumentasi_resmi($hariList));
   $out[] = '</body></html>';
   return implode("\n", $out);
@@ -513,7 +514,7 @@ function penyelenggaraan(array $batch, array $hariList, array $info, array $org)
     "<div class=\"bag\">C.{$sp}PERSYARATAN ADMINISTRASI</div>",
     '<table class="garis" style="margin-left:28px;width:90%"><tr><th style="width:35px">No</th><th>Persyaratan Administrasi</th><th style="width:50px">Ada</th><th style="width:50px">Tidak</th></tr>' . $tabelSyarat . '</table>',
     "<div class=\"bag\">D.{$sp}KEPESERTAAN</div>",
-    isian([["a.{$sp}Jumlah Pendaftar", orang_($pendaftar)], ["b.{$sp}Jumlah Peserta", orang_($jumlah)], ["c.{$sp}Jumlah Peserta Lulus", orang_($info['jumlah_lulus'])]]),
+    isian([["a.{$sp}Jumlah Pendaftar", orang_($pendaftar)], ["b.{$sp}Jumlah Peserta", orang_($jumlah)], ["c.{$sp}Jumlah Peserta Lulus", orang_($info['jumlah_lulus'] !== '' ? $info['jumlah_lulus'] : (jumlah_lulus_nilai($batch) ?? ''))]]),
     "<div class=\"bag\">E.{$sp}PENUTUP</div>",
     '<div style="margin-left:28px">Demikian laporan ini kami sampaikan dengan data yang sebenar-benarnya.</div><br>',
     '<table style="width:100%"><tr><td style="width:55%"></td><td style="text-align:center">Hormat kami,<br>' . h_($org['nama']) . '<br>' .

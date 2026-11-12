@@ -46,6 +46,11 @@ const SCHEMA = [
   'sertifikat_topik' => ['id_topik', 'kode', 'judul', 'bahasa', 'isi_materi', 'urutan', 'aktif'],
   'sertifikat_batch' => ['id_batch', 'setelan', 'diubah_oleh', 'diubah_pada'],
   'sertifikat' => ['id_sertifikat', 'id_batch', 'id_user', 'jenis', 'daftar_nomor', 'status', 'tgl_terbit', 'diterbitkan_oleh', 'diubah_oleh', 'diubah_pada'],
+  // Nilai ujian: template komponen per program, pengaturan per batch, nilai per peserta.
+  'nilai_program' => ['id_program', 'komponen', 'batas_lulus', 'diubah_oleh', 'diubah_pada'],
+  'nilai_batch' => ['id_batch', 'mode', 'komponen', 'batas_lulus', 'judul_rekap', 'catatan_rekap', 'terbit', 'terbit_oleh', 'terbit_pada',
+    'file_bnsp', 'nama_file_bnsp', 'diubah_oleh', 'diubah_pada'],
+  'nilai' => ['id_nilai', 'id_batch', 'id_user', 'isi_nilai', 'tidak_ikut', 'keterangan', 'diubah_oleh', 'diubah_pada'],
   'log' => ['id_log', 'waktu', 'id_user', 'nama', 'aksi', 'detail'],
   'pengaturan' => ['kunci', 'nilai'],
   'geo_cache' => ['kunci', 'alamat'],
@@ -53,9 +58,9 @@ const SCHEMA = [
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '9';
+const SCHEMA_VERSI = '10';
 
-const SCHEMA_TEXT = ['isi_materi', 'setelan', 'daftar_nomor', 'batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
+const SCHEMA_TEXT = ['komponen', 'catatan_rekap', 'isi_nilai', 'isi_materi', 'setelan', 'daftar_nomor', 'batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 
 /** Index tambahan agar pencarian cepat. */
 const SCHEMA_INDEX = [
@@ -80,6 +85,7 @@ const SCHEMA_INDEX = [
   'berkas_item' => [['id_program']],
   'berkas' => [['id_batch'], ['id_user']],
   'sertifikat' => [['id_batch']],
+  'nilai' => [['id_batch']],
 ];
 
 /** Satu absen per peserta per sesi per hari (mencegah absen dobel di tingkat database). */
