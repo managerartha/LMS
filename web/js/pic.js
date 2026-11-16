@@ -230,6 +230,7 @@ async function tabPeserta() {
         <textarea id="peserta-teks" placeholder="Kikis Ramadhan\nAndi Pratama; PT Maju Jaya; 0812xxxx"></textarea>
         <button class="btn primary mt" onclick="tambahPeserta(this)">Tambah peserta</button>
       </div>
+      <div class="card" id="link-batch"><h2>🔗 Link & QR login batch ini</h2><div class="muted small">Memuat…</div></div>
       <div class="card">
         <div class="row mb"><h2 class="grow">Daftar peserta (${aktif})</h2>
           ${C.peserta.length ? '<button class="btn sm" onclick="cetakKartu()">🖨 Cetak kartu kode</button>' : ''}</div>
@@ -250,6 +251,7 @@ async function tabPeserta() {
           </table>` : '<div class="muted">Belum ada peserta.</div>'}
         </div>
       </div>`);
+    muatLinkBatch(v);
   } catch (e) { errBox(v, e); }
 }
 
@@ -317,18 +319,118 @@ function aktifPeserta(btn, id, aktif) {
   busy(btn, async () => { await call('pesertaAktif', { id_user: id, aktif: aktif }); closeModal(); tabPeserta(); });
 }
 
-function cetakKartu() {
+async function cetakKartu() {
   const b = C.batch;
+  let qr = '', alamat = location.host;
+  try {
+    const l = await linkBatchData();
+    qr = await qrSvg(l.url);
+    alamat = l.url.replace(/^https?:\/\//, '');
+  } catch (e) { /* kartu tetap dicetak tanpa QR */ }
   $('#print-area').innerHTML = `
     <h3 style="margin:0 0 8px">${esc(b.kode_batch)} — ${esc(b.nama_pelatihan)}</h3>
     <div class="cards-print">${C.peserta.filter(p => p.aktif).map(p => `
       <div class="kartu">
+        ${qr ? `<div class="kartu-qr">${qr}</div>` : ''}
         <b>LMS Artha Safety Indonesia</b><br>${esc(p.nama)}
         <span class="kode">${esc(p.kode_login)}</span>
-        Batch: ${esc(b.kode_batch)}<br>Login di link LMS, pilih batch, lalu ketik kode di atas.
+        ${esc(b.nama_pelatihan)}<br>Pindai QR atau buka ${esc(alamat)}, lalu ketik kode di atas.
       </div>`).join('')}
     </div>`;
   window.print();
+}
+
+// Link & QR login batch: dibuat otomatis per batch (kode acak), peserta tetap bisa masuk hanya dengan kode.
+function muatQrLib() {
+  if (window.qrcode) return Promise.resolve();
+  return new Promise((ok, gagal) => {
+    const s = document.createElement('script');
+    s.src = 'js/qrcode.js?v=1'; s.onload = ok; s.onerror = () => gagal(new Error('QR tidak bisa dimuat.'));
+    document.head.appendChild(s);
+  });
+}
+
+async function linkBatchData() {
+  if (!C.linkBatch || C.linkBatch.id_batch !== C.batch.id_batch) {
+    const r = await call('linkBatch', { id_batch: C.batch.id_batch });
+    r.url = location.origin + location.pathname.replace(/index\.html$/, '') + '?b=' + r.kode;
+    C.linkBatch = r;
+  }
+  return C.linkBatch;
+}
+
+function buatQr(teks) {
+  const q = qrcode(0, 'M');
+  q.addData(teks);
+  q.make();
+  return q;
+}
+
+async function qrSvg(teks) {
+  await muatQrLib();
+  const q = buatQr(teks), n = q.getModuleCount();
+  let d = '';
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) d += `M${c + 2},${r + 2}h1v1h-1z`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${n + 4} ${n + 4}" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#1b1e4f"/></svg>`;
+}
+
+async function muatLinkBatch(v) {
+  const el = () => $('#link-batch');
+  try {
+    const l = await linkBatchData();
+    const svg = await qrSvg(l.url);
+    if (v !== C.view || !el()) return;
+    el().innerHTML = `
+      <h2>🔗 Link & QR login batch ini</h2>
+      <p class="small muted">Dibuat otomatis. Bagikan lewat WhatsApp, tampilkan di layar saat pembukaan, atau cetak di kartu kode.
+        Peserta tetap bisa masuk hanya dengan mengetik kode tanpa link.</p>
+      <div class="row" style="gap:20px;align-items:center;flex-wrap:wrap">
+        <div class="qr-box">${svg}</div>
+        <div class="grow" style="min-width:260px">
+          <label>Link login</label>
+          <div class="row"><input class="grow" id="link-url" value="${esc(l.url)}" readonly onclick="this.select()"><button class="btn sm" onclick="salinLink()">📋 Salin</button></div>
+          <div class="row mt" style="flex-wrap:wrap">
+            <a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(pesanWa(l))}">💬 Bagikan ke WhatsApp</a>
+            <button class="btn sm" onclick="unduhQr(this)">⬇ Unduh QR (PNG)</button>
+            <button class="btn sm" onclick="qrLayarPenuh()">🖥 Tampilkan QR layar penuh</button>
+          </div>
+        </div>
+      </div>`;
+  } catch (e) { if (el()) el().innerHTML = '<h2>🔗 Link & QR login batch ini</h2><div class="alert bad small">' + esc(e.message) + '</div>'; }
+}
+
+function pesanWa(l) {
+  return `Selamat datang di pelatihan ${l.nama_pelatihan} (${l.periode}).\nLogin LMS: ${l.url}\nMasukkan kode peserta Anda dari kartu (contoh: 003-Andi).`;
+}
+
+function salinLink() {
+  const el = $('#link-url');
+  el.select();
+  (navigator.clipboard ? navigator.clipboard.writeText(el.value) : Promise.reject()).then(() => toast('Link disalin.', 'ok'))
+    .catch(() => { document.execCommand('copy'); toast('Link disalin.', 'ok'); });
+}
+
+function unduhQr(btn) {
+  busy(btn, async () => {
+    await muatQrLib();
+    const l = await linkBatchData(), q = buatQr(l.url), n = q.getModuleCount(), sel = 16, tepi = 4 * sel;
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = n * sel + tepi * 2;
+    const g = cv.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, cv.width, cv.height);
+    g.fillStyle = '#1b1e4f';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (q.isDark(r, c)) g.fillRect(tepi + c * sel, tepi + r * sel, sel, sel);
+    simpanFile('QR login ' + C.batch.kode_batch + '.png', cv.toDataURL('image/png').split(',')[1], 'image/png');
+  }, '…');
+}
+
+async function qrLayarPenuh() {
+  const l = await linkBatchData();
+  openModal(`<div class="qr-layar"><h2>${esc(l.nama_pelatihan)}</h2><div class="muted">${esc(l.periode)}</div>
+    <div class="qr-box">${await qrSvg(l.url)}</div>
+    <div style="font-size:18px;font-weight:700">${esc(l.url.replace(/^https?:\/\//, ''))}</div>
+    <p class="muted">Pindai QR, lalu ketik kode peserta dari kartu Anda.</p>
+    <button class="btn block" onclick="closeModal()">Tutup</button></div>`);
 }
 
 // ----------------------------------------------------- Tab: Jadwal & lokasi

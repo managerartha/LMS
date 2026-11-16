@@ -6,7 +6,7 @@
 const SCHEMA = [
   'batch' => ['id_batch', 'nama_pelatihan', 'kode_batch', 'lokasi_nama', 'tgl_mulai', 'tgl_selesai',
     'sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai', 'lat', 'lng', 'radius_meter',
-    'lewati_weekend', 'pic_ids', 'folder', 'status', 'dibuat_pada', 'info_laporan', 'jenis_pelatihan', 'id_program', 'tanggal_custom', 'lokasi_bebas'],
+    'lewati_weekend', 'pic_ids', 'folder', 'status', 'dibuat_pada', 'info_laporan', 'jenis_pelatihan', 'id_program', 'tanggal_custom', 'lokasi_bebas', 'kode_link'],
   'pengguna' => ['id_user', 'id_batch', 'no_absen', 'nama', 'role', 'kode_login', 'pin_hash', 'instansi',
     'no_hp', 'device_id', 'setuju_privasi', 'ttd_id', 'aktif', 'dibuat_pada', 'tempat_lahir', 'tgl_lahir', 'hak_inventaris'],
   'token' => ['token', 'id_user', 'dibuat_pada', 'device_id'],
@@ -58,7 +58,7 @@ const SCHEMA = [
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '10';
+const SCHEMA_VERSI = '11';
 
 const SCHEMA_TEXT = ['komponen', 'catatan_rekap', 'isi_nilai', 'isi_materi', 'setelan', 'daftar_nomor', 'batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 

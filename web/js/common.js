@@ -227,7 +227,7 @@ async function showLogin(tab) {
       </section>
       <section class="card login-card">
         <h2>Masuk ke akun Anda</h2>
-        <p class="muted small">Pilih jenis akun, lalu masukkan kode Anda.</p>
+        <p class="muted small">${tab === 'pic' ? 'Pilih jenis akun, lalu masukkan kode Anda.' : 'Masukkan kode peserta dari kartu Anda.'}</p>
         <div class="seg">
           <button class="${tab === 'peserta' ? 'active' : ''}" onclick="showLogin('peserta')">👷 Peserta</button>
           <button class="${tab === 'pic' ? 'active' : ''}" onclick="showLogin('pic')">🛡️ PIC / Admin</button>
@@ -246,37 +246,65 @@ async function showLogin(tab) {
       </form>`;
     return;
   }
-  try {
-    const batches = await call('batchAktif');
-    if (!batches.length) {
-      $('#login-form').innerHTML = '<div class="alert warn">Belum ada batch pelatihan yang aktif.</div>';
-      return;
-    }
-    const last = store('lms_batch');
-    $('#login-form').innerHTML = `
-      <form onsubmit="event.preventDefault(); doLoginPeserta(this)">
-        <label>Batch pelatihan</label>
-        <select name="id_batch" ${batches.length === 1 ? 'disabled' : ''}>
-          ${batches.map(b => `<option value="${esc(b.id_batch)}" ${b.id_batch === last ? 'selected' : ''}>${esc(b.kode_batch)} — ${esc(b.nama_pelatihan)}${b.selesai ? ' (selesai)' : ''}</option>`).join('')}
-        </select>
-        <label>Kode peserta</label>
-        <input name="kode" placeholder="contoh: 001-Kikis" autocapitalize="off" autocomplete="off" required>
-        <p class="small muted">Kode ada di kartu peserta dari PIC (nomor absen + nama depan).</p>
-        <button class="btn primary block big">Masuk</button>
-      </form>`;
-  } catch (e) {
-    $('#login-form').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
+  // Peserta: cukup kode dari kartu. Link/QR batch (?b=KODE) menampilkan nama pelatihan lebih dulu.
+  const kodeLink = new URLSearchParams(location.search).get('b');
+  let info = null;
+  if (kodeLink) {
+    try { info = await call('batchLink', { b: kodeLink }); }
+    catch (e) { toast(e.message, 'error'); hapusLinkBatch(); }
   }
+  $('#login-form').innerHTML = `
+    ${info ? `<p class="muted small">Anda masuk dari link pelatihan berikut:</p>
+      <div class="batch-info"><b>${esc(info.nama_pelatihan)}</b>
+        <div class="small muted">${esc(info.periode)} · ${esc(info.jenis)}${info.lokasi ? ' · ' + esc(info.lokasi) : ''}${info.selesai ? ' · selesai' : ''}</div></div>` : ''}
+    <form onsubmit="event.preventDefault(); doLoginPeserta(this, ${info ? `'${esc(info.id_batch)}'` : "''"})">
+      <label>Kode peserta</label>
+      <input name="kode" class="kode-input" placeholder="contoh: 003-Andi" autocapitalize="off" autocomplete="off" required>
+      <p class="small muted">Kode ada di kartu peserta dari PIC (nomor absen + nama depan).</p>
+      <button class="btn primary block big">Masuk</button>
+    </form>
+    ${info ? '<p class="small muted mt"><a href="#" onclick="event.preventDefault(); hapusLinkBatch(); showLogin(\'peserta\')">Bukan pelatihan ini? Masuk biasa</a></p>' : ''}`;
 }
 
-function doLoginPeserta(form) {
-  const id_batch = form.id_batch.value;
+/** Hapus ?b= dari alamat (setelah login atau bila peserta memilih masuk biasa). */
+function hapusLinkBatch() {
+  if (location.search) history.replaceState(null, '', location.pathname + location.hash);
+}
+
+function doLoginPeserta(form, idBatch) {
+  const kode = form.kode.value.trim();
   busy(form.querySelector('button'), async () => {
-    const res = await call('loginPeserta', { id_batch: id_batch, kode: form.kode.value, device_id: deviceId() });
-    store('lms_batch', id_batch);
-    saveLogin(res);
-    route(res.me);
+    const res = await call('loginPeserta', { id_batch: idBatch || '', kode: kode, device_id: deviceId() });
+    if (res.pilih) return pilihPelatihan(kode, res.pilih);
+    selesaiLoginPeserta(res);
   });
+}
+
+/** Kode yang sama ada di beberapa pelatihan: peserta memilih pelatihannya. */
+function pilihPelatihan(kode, list) {
+  $('#login-form').innerHTML = `
+    <p class="muted small">Kode <b>${esc(kode)}</b> terdaftar di ${list.length} pelatihan. Pilih pelatihan Anda:</p>
+    <div class="pilih-batch">${list.map((b, i) => `
+      <button type="button" class="${i === 0 ? 'on' : ''}" data-id="${esc(b.id_batch)}" onclick="$$('.pilih-batch button').forEach(x => x.classList.remove('on')); this.classList.add('on')">
+        <b>${esc(b.nama_pelatihan)}</b><br><span class="small muted">${esc(b.periode)} · ${esc(b.jenis)}${b.lokasi ? ' · ' + esc(b.lokasi) : ''}</span><br>
+        <span class="badge ${b.selesai ? 'b-none' : 'b-hadir'}">${b.selesai ? 'Selesai' : 'Sedang berjalan / akan datang'}</span></button>`).join('')}</div>
+    <button class="btn primary block big mt" onclick="masukPilihan(this, '${esc(kode)}')">Lanjut masuk</button>
+    <p class="small muted mt">Bukan Anda? <a href="#" onclick="event.preventDefault(); showLogin('peserta')">Ganti kode</a></p>`;
+}
+
+function masukPilihan(btn, kode) {
+  const on = $('.pilih-batch button.on');
+  busy(btn, async () => {
+    const res = await call('loginPeserta', { id_batch: on.dataset.id, kode: kode, device_id: deviceId() });
+    selesaiLoginPeserta(res);
+  });
+}
+
+function selesaiLoginPeserta(res) {
+  if (res.user && res.user.id_batch) store('lms_batch', res.user.id_batch);
+  hapusLinkBatch();
+  saveLogin(res);
+  route(res.me);
 }
 
 function doLoginPic(form) {

@@ -19,7 +19,7 @@ require_once __DIR__ . '/nilai.php';
 
 /** auth: '' = publik, 'user' = sudah login, 'pic' = PIC/Admin, 'admin' = Admin. */
 const ROUTES = [
-  'waktu' => '', 'batchAktif' => '', 'loginPeserta' => '', 'loginPic' => '',
+  'waktu' => '', 'batchAktif' => '', 'batchLink' => '', 'linkBatch' => 'pic', 'loginPeserta' => '', 'loginPic' => '',
   'me' => 'user', 'beranda' => 'user', 'logout' => 'user', 'setuju' => 'user',
   'statusHariIni' => 'user', 'absen' => 'user', 'riwayat' => 'user', 'kontenPeserta' => 'user',
   'gantiPin' => 'pic', 'batchList' => 'pic', 'batchUbah' => 'pic', 'hariList' => 'pic', 'hariSetLokasi' => 'pic',

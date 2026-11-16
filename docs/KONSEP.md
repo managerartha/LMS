@@ -518,3 +518,13 @@ Semua tambahan (skema versi 10). Menu **Nilai Ujian** (PIC & Admin, grup Akhir p
 - **BNSP**: satu PDF berisi semua peserta (maks. 20 MB), bisa diganti; setelah dipublikasikan peserta bisa mengunduhnya.
 - **Publikasi** (PIC & Admin): Kemnaker hanya bisa dipublikasikan bila semua peserta sudah lengkap / ditandai tidak ikut; BNSP butuh file. Bisa ditarik kembali. Peserta Kemnaker hanya melihat nilainya sendiri.
 - **Dashboard**: setelah batch selesai, pengingat nilai belum lengkap / belum dipublikasikan / PDF BNSP belum diupload. **Hapus batch** ikut menghapus nilai batch.
+
+## 27. Login peserta cukup dengan kode + link/QR per batch
+
+Skema versi 11 (kolom baru `batch.kode_link`). Halaman login PIC/Admin tidak berubah.
+
+- **Peserta cukup mengetik kode dari kartu** (mis. `003-Andi`, tidak membedakan huruf besar/kecil, spasi diabaikan); daftar pilihan batch dihapus. LMS mencari batch sendiri di **semua batch, termasuk yang selesai/diarsipkan** (peserta tetap bisa masuk untuk melihat materi, SKL, nilai, sertifikat; absen tetap hanya batch aktif). Kode peserta tidak berubah, kartu lama tetap berlaku.
+- Bila kode yang sama ada di beberapa batch (nomor absen dimulai dari 001 di setiap batch), server mengembalikan `pilih` dan peserta memilih pelatihan berdasarkan nama, tanggal, jenis, lokasi, dan status (berjalan didahulukan). Kode salah: "Kode tidak ditemukan…".
+- **Link & QR per batch**: kode acak 6 karakter tanpa huruf/angka yang mirip (`?b=V75MVX`), dibuat otomatis saat pertama kali dibutuhkan (`kode_link_batch`), tidak ikut tersalin saat duplikat batch. Membuka link menampilkan nama pelatihan di halaman login; peserta tinggal mengetik kode. Link tidak dikenal → pesan dan kembali ke login biasa.
+- **PIC (menu Peserta)**: kotak *Link & QR login batch ini* — salin link, bagikan ke WhatsApp (pesan terisi), unduh QR (PNG), tampilkan QR layar penuh. **Kartu kode** yang dicetak kini memuat QR batch dan nama pelatihan. QR dibuat di browser dengan `js/qrcode.js` (qrcode-generator, MIT), dimuat hanya saat dibutuhkan.
+- Kompatibel: tampilan lama yang masih mengirim `id_batch` tetap berfungsi. Kotak kode tidak diisi otomatis agar perangkat bersama (laptop) tidak membuat peserta masuk sebagai orang lain.

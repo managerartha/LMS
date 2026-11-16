@@ -37,6 +37,32 @@ function batchAktif(): array {
     rows("SELECT * FROM batch ORDER BY CASE WHEN status = 'aktif' THEN 0 ELSE 1 END, tgl_mulai DESC"));
 }
 
+/** Kode acak pendek untuk link/QR login batch (dibuat sekali, otomatis). Tanpa huruf/angka yang mirip (0/O, 1/I/L). */
+function kode_link_batch(array $b): string {
+  if (($b['kode_link'] ?? '') !== '') return $b['kode_link'];
+  $huruf = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
+  do {
+    $k = '';
+    for ($i = 0; $i < 6; $i++) $k .= $huruf[random_int(0, strlen($huruf) - 1)];
+  } while (row('SELECT id_batch FROM batch WHERE kode_link = ?', [$k]));
+  update('batch', $b, ['kode_link' => $k]);
+  return $k;
+}
+
+/** Info pelatihan dari link/QR (?b=KODE) untuk halaman login peserta. */
+function batchLink(array $data): array {
+  $k = strtoupper(trim((string)($data['b'] ?? '')));
+  $b = preg_match('/^[A-Z0-9]{4,12}$/', $k) ? row('SELECT * FROM batch WHERE kode_link = ?', [$k]) : null;
+  if (!$b) throw new LmsError('Link pelatihan tidak dikenali. Silakan masuk dengan kode peserta saja.');
+  return ringkas_batch_login($b);
+}
+
+/** Link & QR login batch untuk PIC/Admin. */
+function linkBatch(array $data, array $user): array {
+  $b = batch_for_pic($user, (string)($data['id_batch'] ?? ''));
+  return ['kode' => kode_link_batch($b)] + ringkas_batch_login($b);
+}
+
 function buat_token(array $u, int $simpan, string $deviceId = ''): string {
   $token = new_token();
   insert('token', ['token' => $token, 'id_user' => $u['id_user'], 'dibuat_pada' => now_()['stamp'], 'device_id' => $deviceId]);
@@ -47,14 +73,38 @@ function buat_token(array $u, int $simpan, string $deviceId = ''): string {
   return $token;
 }
 
+/** Ringkasan batch untuk halaman login peserta (pilihan pelatihan & link/QR). */
+function ringkas_batch_login(array $b): array {
+  return ['id_batch' => $b['id_batch'], 'nama_pelatihan' => $b['nama_pelatihan'], 'periode' => tanggal_batch_teks($b),
+    'jenis' => jenis_pelatihan($b), 'lokasi' => $b['lokasi_bebas'] === 'ya' ? 'Online' : $b['lokasi_nama'],
+    'selesai' => $b['status'] !== 'aktif' || $b['tgl_selesai'] < now_()['date'], 'tgl_mulai' => $b['tgl_mulai']];
+}
+
+/**
+ * Login peserta. Cukup kode dari kartu: batch dicari otomatis (semua batch, termasuk selesai/arsip).
+ * Bila kode yang sama ada di beberapa batch, dikembalikan daftar pilihan ('pilih') dan peserta memilih batchnya.
+ * id_batch dikirim bila peserta datang dari link/QR batch atau sudah memilih (juga kompatibel dengan tampilan lama).
+ */
 function loginPeserta(array $data): array {
-  $kode = strtolower(trim((string)($data['kode'] ?? '')));
+  $kode = strtolower(preg_replace('/\s+/', '', (string)($data['kode'] ?? '')));
   $deviceId = (string)($data['device_id'] ?? '');
   if ($kode === '') throw new LmsError('Kode wajib diisi.');
   if ($deviceId === '') throw new LmsError('Perangkat tidak dikenali. Muat ulang halaman.');
-  $batch = get_batch((string)($data['id_batch'] ?? ''));
-  $u = row("SELECT * FROM pengguna WHERE role = 'peserta' AND id_batch = ? AND LOWER(kode_login) = ?", [$batch['id_batch'], $kode]);
-  if (!$u || $u['aktif'] === 'tidak') throw new LmsError('Kode tidak ditemukan di batch ini. Periksa kembali kode Anda.');
+  $idBatch = (string)($data['id_batch'] ?? '');
+  if ($idBatch !== '') {
+    $batch = get_batch($idBatch);
+    $u = row("SELECT * FROM pengguna WHERE role = 'peserta' AND id_batch = ? AND LOWER(kode_login) = ?", [$batch['id_batch'], $kode]);
+    if (!$u || $u['aktif'] === 'tidak') throw new LmsError('Kode tidak ditemukan di pelatihan ini. Periksa kembali kode di kartu peserta Anda atau hubungi PIC.');
+  } else {
+    $cocok = rows("SELECT * FROM pengguna WHERE role = 'peserta' AND LOWER(kode_login) = ? AND aktif <> 'tidak'", [$kode]);
+    if (!$cocok) throw new LmsError('Kode tidak ditemukan. Periksa kembali kode di kartu peserta Anda atau hubungi PIC.');
+    if (count($cocok) > 1) {
+      $pilih = array_map(fn($x) => ringkas_batch_login(get_batch($x['id_batch'])), $cocok);
+      usort($pilih, fn($a, $b) => $a['selesai'] <=> $b['selesai'] ?: strcmp($b['tgl_mulai'], $a['tgl_mulai']));
+      return ['pilih' => $pilih];
+    }
+    $u = $cocok[0];
+  }
   $u = daftarkan_perangkat($u, $deviceId); // maksimal 2 perangkat (mis. HP + laptop)
   $token = buat_token($u, MAKS_PERANGKAT, $deviceId);
   log_($u, 'login', 'peserta');
