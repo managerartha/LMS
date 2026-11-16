@@ -52,18 +52,19 @@ function pesertaTab(tab) {
   render(`
     <div class="shell">
       <nav class="sidenav">
-        ${NAV_PESERTA.filter(n => (n[0] !== 'berkas' || P.berkasAktif) && (n[0] !== 'sertifikat' || P.sertifikatAktif) && (n[0] !== 'nilai' || P.nilaiAktif)).map(n => `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="pesertaTab('${n[0]}')">
+        ${menuPesertaTampil().map(n => `<button class="navlink ${tab === n[0] ? 'active' : ''}" onclick="pesertaTab('${n[0]}')">
           <span class="nav-ic">${n[1]}</span><span>${n[2]}</span></button>`).join('')}
       </nav>
       <section class="shell-main">
-        <div class="page-head">
-          <h1>${tab === 'beranda' ? 'Selamat Datang di Dashboard Peserta' : aktif[2]}</h1>
-          ${tab === 'beranda' ? `<p class="muted">Halo, ${esc(S.user.nama)} 👋</p>` : ''}
+        <div class="page-head ${tab === 'beranda' ? 'row' : ''}">
+          ${tab === 'beranda' ? `<div class="grow"><h1>Halo, ${esc(namaDepan(S.user.nama))} 👋</h1>
+            <p class="muted small">${esc(P.batch ? P.batch.nama_pelatihan + ' · Batch ' + P.batch.kode_batch : '')}</p></div>
+            <button class="btn sm" title="Muat ulang" onclick="loadBeranda()">↻</button>` : `<h1>${aktif[2]}</h1>`}
         </div>
-        ${tab === 'beranda' ? '<div id="video-area"></div>' : ''}
         <div id="tab-body"><div class="center muted pad">Memuat…</div></div>
       </section>
-    </div>`);
+    </div>
+    ${bnavPesertaHtml(tab)}`);
   P.videoKey = null;
   if (tab === 'beranda') loadBeranda();
   else if (tab === 'panduan') loadPanduan();
@@ -75,11 +76,141 @@ function pesertaTab(tab) {
   else loadKonten(tab);
 }
 
+/** Dashboard peserta: absen hari ini paling atas, lalu tugas, dokumen, rundown & materi (HP satu kolom, laptop dua kolom). */
 function tampilBeranda(b) {
   P.status = b.status;
   P.konten = b.konten;
-  if (b.panduan) { P.panduan = b.panduan; tampilVideoArea(b.panduan); }
-  $('#tab-body').innerHTML = sklBannerHtml(b.skl) + sertifikatBannerHtml(b.sertifikat) + panduanBannerHtml(b.panduan) + berkasBannerHtml(b.berkas) + berandaHtml(b.status, b.konten) + kontenHariIniHtml(b.konten);
+  if (b.panduan) P.panduan = b.panduan;
+  if (b.sertifikat && b.sertifikat.length) P.sertifikatAktif = true;
+  const st = b.status, k = b.konten;
+  const h = k.hari.find(x => x.tanggal === k.tanggal);
+  $('#tab-body').innerHTML = `
+    <div class="dash-ps">
+      <div class="dps-kol">
+        <div class="o1">${heroDashHtml(st, k)}</div>
+        ${st.hari ? `<div class="o2 dps-sesi">${st.hari.sesi.map(sesiMiniHtml).join('')}</div>` : ''}
+        ${h ? `<div class="card o5"><h2>🗓️ Rundown hari ini</h2>${rundownHtml(h.rundown, k.jam)}</div>` : ''}
+        ${h && h.dok.length ? `<div class="card o7"><h2>📷 Dokumentasi hari ini</h2>${galeriHtml(h, 6)}</div>` : ''}
+      </div>
+      <div class="dps-kol">
+        ${tugasPesertaHtml(b)}
+        ${dokumenPesertaHtml(b)}
+        ${h ? `<div class="card o6"><h2>📚 Materi hari ini</h2>${materiHtml(h.materi)}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+function namaDepan(nama) { return String(nama || '').trim().split(/\s+/)[0] || ''; }
+
+/** Kartu utama: hari ini, tombol absen yang sedang dibuka, kegiatan berlangsung, kehadiran & progres. */
+function heroDashHtml(st, k) {
+  const b = st.batch, r = st.rekap;
+  let chip, judul, sub, aksi = '', now = '';
+  if (st.hari) {
+    const h = st.hari;
+    const buka = h.sesi.find(s => s.state === 'buka' && s.status !== 'hadir');
+    const nanti = h.sesi.find(s => s.state === 'belum_dibuka');
+    chip = buka ? `<span class="chip chip-live">● Absen Sesi ${buka.sesi} dibuka</span>`
+      : `<span class="chip chip-glass">Hari ke-${esc(h.hari_ke)} dari ${esc(h.total_hari)}</span>`;
+    judul = `${esc(b.nama_pelatihan)} – Hari Ke-${esc(h.hari_ke)}`;
+    sub = `${esc(fmtTanggal(st.tanggal))} · ${esc(h.sesi[0].mulai)}–${esc(h.sesi[h.sesi.length - 1].selesai)} WIB · ${h.lokasi.bebas ? '🌐 Online' : '📍 ' + esc(h.lokasi.nama)}`;
+    if (buka) aksi = `<button class="btn white big block" onclick="mulaiAbsen(${buka.sesi})">📸 Absen Sesi ${buka.sesi} Sekarang</button>`;
+    else if (nanti) aksi = `<div class="hero-now">⏰ Absen Sesi ${nanti.sesi} dibuka pukul <b>${esc(nanti.mulai)} WIB</b></div>`;
+    const hk = k.hari.find(x => x.tanggal === k.tanggal);
+    const jalan = hk && hk.rundown.find(x => k.jam >= x.jam_mulai && k.jam < x.jam_selesai);
+    if (jalan) now = `<div class="hero-now">▶ Sedang berlangsung: <b>${esc(jalan.kegiatan)}</b> (${esc(jalan.jam_mulai)}–${esc(jalan.jam_selesai)})</div>`;
+  } else {
+    chip = `<span class="chip chip-glass">${st.hari_selesai && !st.berikutnya ? 'Pelatihan selesai' : 'Tidak ada jadwal hari ini'}</span>`;
+    judul = esc(b.nama_pelatihan);
+    sub = st.berikutnya ? 'Jadwal pelatihan berikutnya: <b>' + esc(fmtTanggal(st.berikutnya)) + '</b>'
+      : st.hari_selesai ? 'Pelatihan telah selesai 🎉 Terima kasih atas partisipasi Anda. SKL, nilai, dan sertifikat ada di bagian Dokumen Anda.' : '';
+  }
+  const pct = r.total ? Math.round(r.hadir / r.total * 100) + '%' : '–';
+  const hariKe = st.hari ? Number(st.hari.hari_ke) : st.hari_selesai;
+  const progres = st.total_hari ? Math.min(100, Math.round(hariKe / st.total_hari * 100)) : 0;
+  return `
+    <div class="hero hero-dash">
+      <div>${chip}<h2 class="hero-title">${judul}</h2><div class="hero-sub">${sub}</div>${now}</div>
+      ${aksi}
+      <div class="hero-mini">
+        <div>Kehadiran saya<b>${r.hadir} / ${r.total} sesi · ${pct}</b></div>
+        <div>Progres pelatihan<b>Hari ${hariKe || 0} dari ${st.total_hari}</b><div class="bar"><span style="width:${progres}%"></span></div></div>
+      </div>
+    </div>`;
+}
+
+/** Status sesi ringkas (tombol absen besar ada di kartu utama). */
+function sesiMiniHtml(s) {
+  const done = s.status === 'hadir';
+  let isi;
+  if (done) isi = `<span class="badge b-hadir">✅ Hadir ${esc(jamSaja(s.absen.waktu))}</span>`;
+  else if (s.state === 'buka') isi = `<button class="btn accent sm" onclick="mulaiAbsen(${s.sesi})">📸 Absen sekarang</button>`;
+  else if (s.state === 'belum_dibuka') isi = `<span class="badge b-none">Dibuka ${esc(s.mulai)}</span>`;
+  else isi = badge(s.status);
+  return `
+    <div class="card sesi-card ${done ? 'done' : s.state === 'buka' ? 'buka' : ''}">
+      <b class="sesi-judul">Sesi ${s.sesi} · ${s.sesi === 1 ? 'Pagi' : 'Siang'}</b>
+      <div class="sesi-time">${esc(s.mulai)}–${esc(s.selesai)} WIB</div>
+      <div class="mt">${isi}</div>
+    </div>`;
+}
+
+/** Checklist "Yang perlu Anda lakukan": video wajib, tata tertib/guideline, berkas. Disembunyikan bila semua sudah beres. */
+function tugasPesertaHtml(b) {
+  const item = [];
+  const pd = b.panduan;
+  if (pd && pd.video.length) {
+    const belum = pd.video.filter(v => !v.ditonton).length;
+    item.push([!belum, `Tonton ${pd.video.length} video wajib`, pd.video.map(v => v.judul).join(' · '), 'Tonton', 'panduan']);
+  }
+  if (pd) pd.dokumen.forEach(d => item.push([!!d.disetujui, 'Baca & setujui ' + d.jenis_label, '', 'Buka', 'panduan']));
+  const bk = b.berkas;
+  if (bk && bk.aktif) {
+    item.push([!bk.kurang && !bk.revisi, bk.revisi ? bk.revisi + ' berkas perlu direvisi' : 'Upload berkas persyaratan & asesmen',
+      bk.kurang ? bk.kurang + ' berkas wajib belum diupload' : '', 'Upload', 'berkas']);
+  }
+  const belum = item.filter(x => !x[0]).length;
+  if (!belum) return '';
+  return `
+    <div class="card o3">
+      <div class="row"><h2 class="grow" style="margin:0">✅ Yang perlu Anda lakukan</h2><span class="badge b-belum">${belum} belum</span></div>
+      ${item.map(([ok, judul, ket, tombol, tab]) => `
+        <div class="cek ${ok ? 'ok' : ''}">
+          <div class="cek-box">${ok ? '✓' : ''}</div>
+          <div class="grow"><b>${esc(judul)}</b>${ket ? `<div class="small muted">${esc(ket)}</div>` : ''}</div>
+          ${ok ? '' : `<button class="btn sm" onclick="pesertaTab('${tab}')">${tombol} →</button>`}
+        </div>`).join('')}
+    </div>`;
+}
+
+/** "Dokumen Anda": SKL, nilai, sertifikat — hanya yang sudah terbit/dipublikasikan. */
+function dokumenPesertaHtml(b) {
+  const t = [];
+  if (b.skl && b.skl.terbit) t.push(`<button class="dok-tile" onclick="unduhSkl(this)"><span>🎓</span>SKL<small>Unduh</small></button>`);
+  if (P.nilaiAktif) t.push(`<button class="dok-tile" onclick="pesertaTab('nilai')"><span>📝</span>Nilai<small>Lihat</small></button>`);
+  if (b.sertifikat && b.sertifikat.length) t.push(`<button class="dok-tile" onclick="pesertaTab('sertifikat')"><span>📜</span>Sertifikat<small>${b.sertifikat.length} jenis</small></button>`);
+  if (!t.length) return '';
+  return `<div class="card o4"><h2>📄 Dokumen Anda</h2><div class="dok-grid">${t.join('')}</div></div>`;
+}
+
+/** Menu tetap di bawah layar (HP). */
+const BNAV_PESERTA = [['beranda', '🏠', 'Beranda'], ['rundown', '🗓️', 'Jadwal'], ['materi', '📚', 'Materi'], ['riwayat', '✅', 'Riwayat']];
+
+function menuPesertaTampil() {
+  return NAV_PESERTA.filter(n => (n[0] !== 'berkas' || P.berkasAktif) && (n[0] !== 'sertifikat' || P.sertifikatAktif) && (n[0] !== 'nilai' || P.nilaiAktif));
+}
+
+function bnavPesertaHtml(tab) {
+  const utama = BNAV_PESERTA.map(n => n[0]);
+  return `<nav class="bnav">${BNAV_PESERTA.map(n => `<button class="${tab === n[0] ? 'on' : ''}" onclick="pesertaTab('${n[0]}')"><span>${n[1]}</span>${n[2]}</button>`).join('')}
+    <button class="${utama.indexOf(tab) < 0 ? 'on' : ''}" onclick="menuLainPeserta()"><span>☰</span>Lainnya</button></nav>`;
+}
+
+function menuLainPeserta() {
+  const utama = BNAV_PESERTA.map(n => n[0]);
+  openModal(`<h2>Menu</h2><div class="menu-lain">${menuPesertaTampil().filter(n => utama.indexOf(n[0]) < 0).map(n =>
+    `<button class="navlink" onclick="closeModal(); pesertaTab('${n[0]}')"><span class="nav-ic">${n[1]}</span><span>${n[2]}</span></button>`).join('')}</div>
+    <button class="btn block mt" onclick="closeModal()">Tutup</button>`);
 }
 
 /** Tampilkan data tersimpan dulu (instan), lalu ganti dengan data terbaru dari server. */

@@ -152,5 +152,7 @@ function dasbor_batch(array $b, array $now, array $user): array {
   usort($p, fn($x, $y) => $lv[$x['level']] <=> $lv[$y['level']]);
   return ['id_batch' => $b['id_batch'], 'kode_batch' => $b['kode_batch'], 'nama_pelatihan' => $b['nama_pelatihan'], 'status' => $b['status'],
     'tgl_mulai' => $b['tgl_mulai'], 'tgl_selesai' => $b['tgl_selesai'], 'fase' => $fase, 'peserta' => $peserta, 'total_hari' => count($hari),
-    'hari_ini' => $absenHariIni, 'berikutnya' => $besok ? $besok['tanggal'] : '', 'pengingat' => $p];
+    'hari_ini' => $absenHariIni, 'berikutnya' => $besok ? $besok['tanggal'] : '', 'pengingat' => $p,
+    'lokasi' => $b['lokasi_bebas'] === 'ya' ? 'Online' : $b['lokasi_nama'],
+    'pic' => array_values(array_filter(array_map(fn($id) => row('SELECT nama FROM pengguna WHERE id_user = ?', [$id])['nama'] ?? '', pic_ids($b))))];
 }

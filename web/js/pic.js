@@ -42,6 +42,20 @@ const NAV_PIC = [
 ];
 const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'inventaris', 'berkas', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'sertifikat', 'nilai', 'peserta', 'lokasi'];
 
+/** Menu tetap di bawah layar (HP). */
+const BNAV_PIC = [['dashboard', '🏠', 'Dashboard'], ['monitor', '✅', 'Absensi'], ['rundown', '🗓️', 'Rundown'], ['dok', '📷', 'Dokumentasi']];
+
+function menuLainPic() {
+  const admin = S.user.role === 'admin';
+  const nav = NAV_PIC.filter(n => (admin || n[3] !== 'Admin') && (n[3] !== 'Gudang' || admin || S.user.inventaris));
+  let grup = '';
+  openModal(`<h2>Menu</h2><div class="menu-lain">${nav.map(n => {
+    const j = n[3] && n[3] !== grup ? `<div class="menu-grup">${esc(n[3])}</div>` : '';
+    grup = n[3];
+    return j + `<button class="navlink" onclick="closeModal(); picTab('${n[0]}')"><span class="nav-ic">${n[1]}</span><span>${n[2]}</span></button>`;
+  }).join('')}</div><button class="btn block mt" onclick="closeModal()">Tutup</button>`);
+}
+
 function picTab(tab) {
   C.tab = tab;
   C.view++; // hasil muat dari tab sebelumnya yang datang terlambat akan diabaikan
@@ -75,7 +89,9 @@ function picTab(tab) {
           </div>` : ''}
         <div id="tab-body"><div class="center muted pad">Memuat…</div></div>
       </section>
-    </div>`);
+    </div>
+    <nav class="bnav">${BNAV_PIC.map(n => `<button class="${tab === n[0] ? 'on' : ''}" onclick="picTab('${n[0]}')"><span>${n[1]}</span>${n[2]}</button>`).join('')}
+      <button class="${BNAV_PIC.some(n => n[0] === tab) ? '' : 'on'}" onclick="menuLainPic()"><span>☰</span>Lainnya</button></nav>`);
   if (butuhBatch && !C.batch) {
     $('#tab-body').innerHTML = '<div class="card center muted">' +
       (admin ? 'Belum ada batch. Buat batch baru di menu <b>Batch</b>.' : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.') + '</div>';
@@ -2072,64 +2088,152 @@ const TAB_LABEL = { peserta: 'Peserta', lokasi: 'Jadwal & Lokasi', rundown: 'Run
 async function tabDashboard() {
   const v = C.view;
   try {
-    const d = await call('dasborPic');
-    C.dasbor = d;
+    C.dasbor = await call('dasborPic');
+    renderDasbor(v);
+  } catch (e) { errBox(v, e); }
+}
+
+function renderDasbor(v) {
+    const d = C.dasbor;
+    C.grupBuka = C.grupBuka || {};
     const bs = d.batches;
-    const semua = [];
-    bs.forEach((b, i) => b.pengingat.forEach((p, j) => semua.push({ b: b, i: i, j: j, p: p })));
-    (d.gudang || []).forEach((p, j) => semua.push({ b: { kode_batch: '🏬 Gudang' }, i: -1, j: j, p: p }));
-    const urut = { bad: 0, warn: 1, info: 2 };
-    semua.sort((x, y) => urut[x.p.level] - urut[y.p.level]);
+    const admin = S.user.role === 'admin';
     const berjalan = bs.filter(b => b.fase === 'berjalan');
     let hadir = 0, total = 0;
     berjalan.forEach(b => (b.hari_ini ? b.hari_ini.sesi : []).forEach(s => {
       if (s.state !== 'belum_dibuka') { hadir += s.hadir; total += b.peserta; }
     }));
-    const penting = semua.filter(x => x.p.level !== 'info').length;
+    const semua = [];
+    bs.forEach(b => b.pengingat.forEach(p => semua.push(p)));
+    (d.gudang || []).forEach(p => semua.push(p));
+    const penting = semua.filter(p => p.level !== 'info').length;
+    const iBerjalan = bs.findIndex(b => b.fase === 'berjalan');
     setBody(v, `
       <p class="muted" style="margin-top:-4px">Halo, ${esc(S.user.nama)} 👋 · ${esc(fmtTanggal(d.tanggal))}, ${esc(d.jam)} WIB</p>
-      <div class="dash-stats">
-        <div class="card stat-card"><span class="chip chip-blue">Batch berjalan</span><div class="stat-main">${berjalan.length}</div>
-          <div class="small muted">${bs.filter(b => b.fase === 'akan').length} akan datang · ${bs.filter(b => b.fase === 'selesai').length} selesai</div></div>
-        <div class="card stat-card"><span class="chip chip-blue">Peserta aktif</span><div class="stat-main">${berjalan.reduce((n, b) => n + b.peserta, 0)}</div>
-          <div class="small muted">di batch yang sedang berjalan</div></div>
-        <div class="card stat-card"><span class="chip chip-green">Kehadiran hari ini</span><div class="stat-main">${total ? Math.round(hadir / total * 100) + '%' : '–'}</div>
-          <div class="small muted">${total ? hadir + ' dari ' + total + ' absen sesi' : 'belum ada sesi yang dibuka'}</div></div>
-        <div class="card stat-card"><span class="chip ${penting ? 'chip-live' : 'chip-green'}">Pengingat</span><div class="stat-main">${penting}</div>
-          <div class="small muted">perlu ditindaklanjuti${semua.length > penting ? ' · ' + (semua.length - penting) + ' info' : ''}</div></div>
+      <div class="kpi-strip">
+        <div><span>Batch berjalan</span><b>${berjalan.length}</b><small>${bs.filter(b => b.fase === 'akan').length} akan datang</small></div>
+        <div><span>Peserta aktif</span><b>${berjalan.reduce((n, b) => n + b.peserta, 0)}</b><small>di batch berjalan</small></div>
+        <button ${iBerjalan >= 0 ? `onclick="bukaBatchDasbor(${iBerjalan}, 'monitor')"` : 'disabled'}><span>Hadir hari ini</span><b>${total ? Math.round(hadir / total * 100) + '%' : '–'}</b>
+          <small>${total ? hadir + ' dari ' + total + ' absen sesi' : 'belum ada sesi dibuka'}</small></button>
+        <button class="${penting ? 'merah' : ''}" onclick="$('#dash-pengingat').scrollIntoView({ behavior: 'smooth' })"><span>Perlu tindakan</span><b>${penting}</b>
+          <small>${semua.length - penting} info</small></button>
       </div>
-      <div class="card">
-        <h2>🔔 Pengingat</h2>
-        ${semua.length ? `<div class="reminder-list">${semua.map(x => `
-          <div class="reminder r-${x.p.level}">
-            <span class="badge ${LEVEL_PENGINGAT[x.p.level][0]}">${LEVEL_PENGINGAT[x.p.level][1]}</span>
-            <div class="grow"><b>${esc(x.b.kode_batch)}</b> · ${esc(x.p.teks)}</div>
-            <button class="btn sm" onclick="bukaPengingat(${x.i}, ${x.j})">Buka ${esc(TAB_LABEL[x.p.tab] || '')} →</button>
-          </div>`).join('')}</div>`
-          : '<div class="alert info small">✅ Semua beres. Tidak ada pengingat saat ini.</div>'}
+      <div class="dash-pic">
+        <div>
+          ${berjalan.map(b => hariIniBatchHtml(b, bs.indexOf(b))).join('')}
+          <div class="card" id="dash-pengingat">
+            <h2>🔔 Pengingat${bs.length > 1 ? ' per batch' : ''}</h2>
+            ${semua.length ? bs.map((b, i) => grupPengingatHtml(b.kode_batch + ' · ' + faseTeks(b), b.pengingat, i, b.fase === 'berjalan')).join('') +
+              grupPengingatHtml('🏬 Gudang', d.gudang || [], -1, true)
+              : '<div class="alert ok small">✅ Semua beres. Tidak ada pengingat saat ini.</div>'}
+          </div>
+        </div>
+        <div>
+          ${admin ? aksiCepatHtml(d) : ''}
+          ${bs.length ? jadwalBatchHtml(d) : `<div class="card center muted">${admin ? 'Belum ada batch aktif. Buat batch baru di menu <b>Batch</b>.'
+            : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.'}</div>`}
+        </div>
+      </div>`);
+}
+
+function faseTeks(b) {
+  return b.fase === 'berjalan' ? 'Berjalan' : b.fase === 'akan' ? 'Mulai ' + fmtTanggal(b.tgl_mulai).replace(/^\w+, /, '') : 'Selesai';
+}
+
+/** Kartu "Hari ini" untuk batch yang sedang berjalan: progres absen per sesi + tombol cepat. */
+function hariIniBatchHtml(b, i) {
+  const h = b.hari_ini;
+  return `
+    <div class="card dash-hari">
+      <div class="row"><span class="chip chip-green">Hari ini</span><span class="grow"></span>
+        <span class="small muted">${h ? 'Hari ke-' + esc(h.hari_ke) + ' dari ' + esc(h.total_hari) : 'Tidak ada jadwal hari ini'}</span></div>
+      <h3 class="mt" style="margin-bottom:2px">${esc(b.kode_batch)} · ${esc(b.nama_pelatihan)}</h3>
+      <div class="small muted">${b.peserta} peserta${b.lokasi ? ' · ' + esc(b.lokasi) : ''}${(b.pic || []).length ? ' · PIC: ' + esc(b.pic.join(', ')) : ''}</div>
+      ${h ? h.sesi.map(s => {
+        const pct = b.peserta ? Math.round(s.hadir / b.peserta * 100) : 0;
+        const ket = s.state === 'belum_dibuka' ? '<span class="muted">(belum dibuka)</span>' : s.state === 'buka' ? '<span class="badge b-hadir">dibuka</span>' : '<span class="muted">(ditutup)</span>';
+        return `<div class="dash-sesi"><div class="row small"><span class="grow"><b>Sesi ${s.sesi}</b> ${esc(s.mulai)}–${esc(s.selesai)} ${ket}</span>
+          <b>${s.hadir}/${b.peserta}</b></div><div class="bar"><span style="width:${pct}%"></span></div></div>`;
+      }).join('') : `<div class="small muted mt">${b.berikutnya ? 'Jadwal berikutnya ' + esc(fmtTanggal(b.berikutnya)) : ''}</div>`}
+      <div class="qa">
+        <button class="btn sm" onclick="bukaBatchDasbor(${i}, 'monitor')">✅ Absensi</button>
+        <button class="btn sm" onclick="bukaBatchDasbor(${i}, 'rundown')">🗓️ Rundown</button>
+        <button class="btn sm" onclick="bukaBatchDasbor(${i}, 'dok')">📷 Dokumentasi</button>
       </div>
-      <h2 class="section-title">Batch saya</h2>
-      ${bs.length ? `<div class="grid2">${bs.map((b, i) => `
-        <div class="card dash-batch">
-          <div class="row"><div class="grow"><b>${esc(b.kode_batch)}</b> <span class="badge ${FASE_BATCH[b.fase][0]}">${FASE_BATCH[b.fase][1]}</span>
-            <div class="small">${esc(b.nama_pelatihan)}</div></div>
-            <button class="btn sm" onclick="bukaBatchDasbor(${i}, 'monitor')">Buka</button></div>
-          <div class="small muted mt">${esc(fmtTanggal(b.tgl_mulai))} – ${esc(fmtTanggal(b.tgl_selesai))} · ${b.peserta} peserta</div>
-          ${b.hari_ini ? `
-            <div class="small mt"><b>Hari ke-${esc(b.hari_ini.hari_ke)} dari ${esc(b.hari_ini.total_hari)}</b></div>
-            ${b.hari_ini.sesi.map(s => {
-              const pct = b.peserta ? Math.round(s.hadir / b.peserta * 100) : 0;
-              const ket = s.state === 'belum_dibuka' ? 'belum dibuka' : s.state === 'buka' ? 'berlangsung' : 'ditutup';
-              return `<div class="dash-sesi"><div class="row small"><span class="grow">Sesi ${s.sesi} · ${esc(s.mulai)}–${esc(s.selesai)} (${ket})</span>
-                <b>${s.hadir}/${b.peserta}</b></div><div class="bar"><span style="width:${pct}%"></span></div></div>`;
-            }).join('')}`
-            : `<div class="small muted mt">${b.fase === 'akan' ? 'Mulai ' + esc(fmtTanggal(b.tgl_mulai)) : b.fase === 'selesai' ? 'Pelatihan sudah selesai'
-              : b.berikutnya ? 'Tidak ada jadwal hari ini · berikutnya ' + esc(fmtTanggal(b.berikutnya)) : 'Tidak ada jadwal hari ini'}</div>`}
-          <div class="small mt">${b.pengingat.length ? '🔔 ' + b.pengingat.length + ' pengingat' : '✅ Tidak ada pengingat'}</div>
-        </div>`).join('')}</div>`
-        : `<div class="card center muted">${S.user.role === 'admin' ? 'Belum ada batch aktif. Buat batch baru di menu <b>Batch</b>.'
-          : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.'}</div>`}`);
-  } catch (e) { errBox(v, e); }
+    </div>`;
+}
+
+/** Satu kelompok pengingat (per batch / gudang). Info disembunyikan di balik "Lihat N info"; info sertifikat terbit digabung. */
+function grupPengingatHtml(judul, list, i, bukaAwal) {
+  if (!list.length) return '';
+  const idx = list.map((p, j) => ({ p: p, j: j }));
+  let info = idx.filter(x => x.p.level === 'info');
+  const perlu = idx.filter(x => x.p.level !== 'info');
+  const terbit = info.filter(x => x.p.tab === 'sertifikat' && /sudah diterbitkan/.test(x.p.teks));
+  if (terbit.length > 1) {
+    const jenis = terbit.map(x => x.p.teks.split(' sudah diterbitkan')[0]).join(', ');
+    info = info.filter(x => terbit.indexOf(x) < 0);
+    info.unshift({ p: { level: 'info', teks: terbit.length + ' jenis sertifikat sudah terbit (' + jenis + ') — bisa diunduh untuk laporan ke klien.' }, j: terbit[0].j });
+  }
+  const key = 'g' + i;
+  const buka = C.grupBuka[key] !== undefined ? C.grupBuka[key] : (bukaAwal || perlu.length > 0);
+  const item = x => `<button class="rem r-${x.p.level}" onclick="bukaPengingat(${i}, ${x.j})">
+      <span class="badge ${LEVEL_PENGINGAT[x.p.level][0]}">${LEVEL_PENGINGAT[x.p.level][1]}</span><span class="grow">${esc(x.p.teks)}</span><span class="panah">›</span></button>`;
+  const infoBuka = C.grupBuka[key + '#info'];
+  return `
+    <div class="grp">
+      <button class="grp-h" onclick="C.grupBuka['${key}'] = ${!buka}; renderDasbor(C.view)">
+        <span class="grow">${esc(judul)}</span>
+        ${perlu.length ? `<span class="badge b-belum">${perlu.length} perlu</span>` : ''}${info.length ? `<span class="badge b-izin">${info.length} info</span>` : ''}
+        <span class="muted">${buka ? '▾' : '▸'}</span></button>
+      ${buka ? `<div class="grp-b">${perlu.map(item).join('')}
+        ${info.length ? (infoBuka || !perlu.length ? info.map(item).join('')
+          : `<button class="lihat" onclick="C.grupBuka['${key}#info'] = true; renderDasbor(C.view)">Lihat ${info.length} info ▾</button>`) : ''}</div>` : ''}
+    </div>`;
+}
+
+/** Admin: tombol cepat. */
+function aksiCepatHtml(d) {
+  const semua = [];
+  d.batches.forEach((b, i) => b.pengingat.forEach((p, j) => semua.push({ p: p, i: i, j: j })));
+  const sert = semua.filter(x => x.p.tab === 'sertifikat' && /belum diterbitkan/.test(x.p.teks));
+  const stok = (d.gudang || []).find(p => /Stok menipis/.test(p.teks));
+  const nStok = stok ? (stok.teks.match(/\(/g) || []).length : 0;
+  return `
+    <div class="card"><h2>⚡ Aksi cepat</h2>
+      <div class="aksi-cepat">
+        <button class="btn primary" onclick="picTab('batch')">＋ Batch baru</button>
+        <button class="btn" ${sert.length ? `onclick="bukaPengingat(${sert[0].i}, ${sert[0].j})"` : 'disabled'}>📜 Sertifikat menunggu terbit
+          <span class="badge ${sert.length ? 'b-belum' : 'b-none'}">${sert.length}</span></button>
+        <button class="btn" onclick="picTab('gudang')">🏬 Stok menipis <span class="badge ${nStok ? 'b-belum' : 'b-none'}">${nStok} barang</span></button>
+      </div></div>`;
+}
+
+/** Garis waktu batch (hijau = berjalan, biru = akan datang, abu-abu = selesai). Klik baris untuk membuka batch. */
+function jadwalBatchHtml(d) {
+  const hari = t => Math.round(new Date(t + 'T00:00:00') / 86400000);
+  const hariIni = hari(d.tanggal);
+  const bs = d.batches;
+  let a = Math.min(hariIni - 3, ...bs.map(b => hari(b.tgl_mulai)));
+  a = Math.max(a, hariIni - 30);
+  let z = Math.max(hariIni + 14, ...bs.map(b => hari(b.tgl_selesai)));
+  z = Math.min(z, a + 120);
+  const L = z - a + 1;
+  const pos = t => Math.max(0, Math.min(100, (hari(t) - a) / L * 100));
+  const tgl = n => { const x = new Date(n * 86400000); return x.getUTCDate() + ' ' + BULAN[x.getUTCMonth()]; };
+  const ticks = [0, 1, 2, 3].map(k => tgl(Math.round(a + k * (L - 1) / 3)));
+  const warna = { berjalan: 'var(--accent-strong)', akan: 'var(--hero-1)', selesai: '#98a2b3' };
+  return `
+    <div class="card"><h2>📅 Jadwal batch</h2>
+      <div class="tl-hd">${ticks.map(t => `<span>${esc(t)}</span>`).join('')}</div>
+      ${bs.map((b, i) => {
+        const x1 = pos(b.tgl_mulai), x2 = Math.max(x1 + 1.5, (hari(b.tgl_selesai) - a + 1) / L * 100);
+        return `<button class="tl-row" onclick="bukaBatchDasbor(${i}, 'monitor')" title="${esc(b.nama_pelatihan)} · ${esc(fmtTanggal(b.tgl_mulai))} – ${esc(fmtTanggal(b.tgl_selesai))}">
+          <b>${esc(b.kode_batch)}</b><span class="tl-trk"><span class="tl-now" style="left:${pos(d.tanggal)}%"></span>
+          <span class="tl-bar" style="left:${x1}%;width:${Math.min(100, x2) - x1}%;background:${warna[b.fase]}"></span></span></button>`;
+      }).join('')}
+      <div class="small muted mt">Hijau = berjalan · biru = akan datang · abu-abu = selesai · garis merah = hari ini</div>
+    </div>`;
 }
 
 /** Pindah ke batch & tab tujuan pengingat (dan hari terkait, jika ada). */
