@@ -103,7 +103,7 @@ function sklList(array $data, array $user): array {
   foreach (rows('SELECT * FROM skl WHERE id_batch = ?', [$b['id_batch']]) as $s) $skl[$s['id_user']] = $s;
   return [
     'jenis_pelatihan' => jenis_pelatihan($b),
-    'kode_skl' => kode_skl($b), 'lembaga_skl' => lembaga_skl($b), 'lembaga_pilihan' => LEMBAGA_SKL, 'contoh_nomor' => skl_nomor_baru($b, batch_tgl_akhir($b))[2], 'tgl_skl' => batch_tgl_akhir($b),
+    'kode_skl' => kode_skl($b), 'lembaga_skl' => lembaga_skl($b), 'lembaga_pilihan' => LEMBAGA_SKL, 'contoh_nomor' => skl_nomor_baru($b, batch_tgl_akhir($b))[2], 'tgl_skl' => batch_tgl_akhir($b), 'cetak' => skl_cetak_atur(),
     'periode' => tanggal_batch_teks($b),
     'peserta' => array_map(fn($u) => ['id_user' => $u['id_user'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'],
       'kode_login' => $u['kode_login'], 'tempat_lahir' => $u['tempat_lahir'], 'tgl_lahir' => $u['tgl_lahir'],
@@ -235,7 +235,11 @@ function skl_tengah(float $cx, float $y, float $w, string $html): string {
 }
 
 /** $list = [[pengguna, skl], ...]; satu halaman per peserta. */
-function skl_html(array $batch, array $list): string {
+/**
+ * $cetak = null: PDF lengkap (dengan latar desain). $cetak = ['dx','dy','garis','uji'] (versi cetak di blanko):
+ * tanpa latar, hanya tulisan + tanda tangan direktur (cap dibubuhkan basah), digeser dx/dy mm untuk menyesuaikan printer.
+ */
+function skl_html(array $batch, array $list, ?array $cetak = null): string {
   $org = org_();
   $latar = 'data:image/jpeg;base64,' . base64_encode((string)file_get_contents(__DIR__ . '/skl-latar.jpg'));
   $judul = $batch['nama_pelatihan'];
@@ -256,7 +260,7 @@ function skl_html(array $batch, array $list): string {
     $ttl = trim($u['tempat_lahir'] . ($u['tgl_lahir'] !== '' ? ', ' . tgl_skl($u['tgl_lahir']) : ''));
     $isiTop = $H - 428.6 - SKL_ASCENT - (20.9 - 12) / 2 - 0.7;
     $out[] = '<div class="hal"' . ($i < count($list) - 1 ? ' style="page-break-after:always"' : '') . '>' .
-      '<img src="' . $latar . '" style="position:absolute;left:0;top:0;width:' . $W . 'pt;height:' . $H . 'pt">' .
+      ($cetak ? skl_cetak_buka($cetak, $W, $H) : '<img src="' . $latar . '" style="position:absolute;left:0;top:0;width:' . $W . 'pt;height:' . $H . 'pt">') .
       skl_tengah(313.5, 606.1, 500, 'NO : ' . h_($s['nomor'])) .
       skl_teks(99, 544.0, 'Yang bertanda tangan di bawah ini, ' . h_($org['jabatan']) . ' PT. Artha Safety Indonesia.', 'width:463pt;word-spacing:2.55pt;') .
       skl_teks(63, 523.2, 'Menerangkan bahwa :') .
@@ -272,8 +276,79 @@ function skl_html(array $batch, array $list): string {
       skl_tengah(457.2, 200.8, 220, 'PT. Artha Safety Indonesia') .
       skl_tengah(459.5, 118.0, 220, h_($org['penandatangan'])) .
       skl_tengah(455.9, 97.3, 220, h_($org['jabatan'])) .
+      ($cetak ? skl_cetak_tutup($cetak) : '') .
       '</div>';
   }
   $out[] = '</body></html>';
   return implode("\n", $out);
+}
+
+// ---------------------------------------------------------------- SKL versi cetak di blanko (Admin)
+
+const MM = 2.8346; // 1 mm dalam point
+
+/** Pengaturan cetak blanko: geser kanan (dx) & bawah (dy) dalam mm, cetak garis di bawah nama direktur. */
+function skl_cetak_atur(): array {
+  $a = json_decode(pengaturan('skl_cetak') ?: '{}', true);
+  $a = is_array($a) ? $a : [];
+  return ['dx' => (float)($a['dx'] ?? 0), 'dy' => (float)($a['dy'] ?? 0), 'garis' => (bool)($a['garis'] ?? true)];
+}
+
+/** Pembungkus bergeser (semua tulisan ikut bergeser) + tanda pojok untuk cetak uji. */
+function skl_cetak_buka(array $c, float $W, float $H): string {
+  $uji = '';
+  if (!empty($c['uji'])) {
+    $t = 'position:absolute;background:#e0262b;';
+    foreach ([[0, 0], [1, 0], [0, 1], [1, 1]] as [$kx, $ky]) {
+      $x = $kx ? $W - 10 * MM : 10 * MM;
+      $y = $ky ? $H - 10 * MM : 10 * MM;
+      $uji .= '<div style="' . $t . 'left:' . round($x - 6 * MM, 1) . 'pt;top:' . round($y, 1) . 'pt;width:' . round(12 * MM, 1) . 'pt;height:0.5pt"></div>' .
+        '<div style="' . $t . 'left:' . round($x, 1) . 'pt;top:' . round($y - 6 * MM, 1) . 'pt;width:0.5pt;height:' . round(12 * MM, 1) . 'pt"></div>';
+    }
+    $uji .= '<div style="position:absolute;left:0;top:' . round(14 * MM, 1) . 'pt;width:' . $W . 'pt;text-align:center;font:9pt Helvetica;color:#e0262b">' .
+      'CETAK UJI — tumpuk dengan blanko, terawang ke cahaya. Tanda + berada 10 mm dari tepi kertas. Geser: kanan ' .
+      h_(str_replace('.', ',', (string)$c['dx'])) . ' mm, bawah ' . h_(str_replace('.', ',', (string)$c['dy'])) . ' mm.</div>';
+  }
+  return $uji . '<div style="position:absolute;left:' . round($c['dx'] * MM, 2) . 'pt;top:' . round($c['dy'] * MM, 2) . 'pt;width:' . $W . 'pt;height:' . $H . 'pt">';
+}
+
+/** Tanda tangan direktur (tanpa logo/cap) + garis opsional, lalu tutup pembungkus. */
+function skl_cetak_tutup(array $c): string {
+  $ttd = 'data:image/png;base64,' . base64_encode((string)file_get_contents(__DIR__ . '/skl-ttd.png'));
+  return '<img src="' . $ttd . '" style="position:absolute;left:426pt;top:669.5pt;width:83.9pt;height:93.3pt">' .
+    (!empty($c['garis']) ? '<div style="position:absolute;left:382.1pt;top:753.8pt;width:154.9pt;height:0.6pt;background:#000"></div>' : '') . '</div>';
+}
+
+/** Admin: simpan pergeseran cetak (mm) & pilihan garis. */
+function sklCetakAtur(array $data, array $user): array {
+  $n = fn($v) => max(-20, min(20, round((float)str_replace(',', '.', (string)$v), 1)));
+  $a = ['dx' => $n($data['dx'] ?? 0), 'dy' => $n($data['dy'] ?? 0), 'garis' => !empty($data['garis'])];
+  pengaturan_simpan('skl_cetak', json_encode($a));
+  log_($user, 'skl_cetak_atur', json_encode($a));
+  return $a;
+}
+
+/**
+ * Admin: PDF SKL untuk dicetak di blanko (tanpa latar). id_users kosong = semua SKL terbit di batch.
+ * uji = satu halaman contoh + tanda pojok untuk mencocokkan posisi dengan blanko.
+ */
+function sklCetak(array $data, array $user): array {
+  $b = batch_for_pic($user, (string)($data['id_batch'] ?? ''));
+  $c = skl_cetak_atur() + ['uji' => !empty($data['uji'])];
+  $pilih = array_map('strval', (array)($data['id_users'] ?? []));
+  $list = [];
+  foreach (peserta_batch($b['id_batch'], false) as $u) {
+    if ($pilih && !in_array($u['id_user'], $pilih, true)) continue;
+    $s = skl_of($u['id_user']);
+    if ($s && $s['status'] === 'terbit') $list[] = [$u, $s];
+  }
+  if ($c['uji']) {
+    $peserta = peserta_batch($b['id_batch'], false);
+    $u = $list[0][0] ?? ($peserta[0] ?? ['nama' => 'Nama Peserta Contoh', 'tempat_lahir' => 'Yogyakarta', 'tgl_lahir' => '1990-01-01']);
+    $list = [[$u, $list[0][1] ?? ['nomor' => skl_nomor_baru($b, batch_tgl_akhir($b))[2]]]];
+  }
+  if (!$list) throw new LmsError($pilih ? 'Peserta yang dipilih belum punya SKL terbit.' : 'Belum ada SKL yang diterbitkan di batch ini.');
+  log_($user, 'skl_cetak', $b['kode_batch'] . ': ' . ($c['uji'] ? 'uji' : count($list) . ' SKL'));
+  $nama = preg_replace('#[\\\\/:*?"<>|]#', '-', ($c['uji'] ? 'CETAK UJI SKL ' : 'SKL cetak blanko ') . $b['kode_batch'] . '.pdf');
+  return ['nama' => $nama, 'data' => base64_encode(html_ke_pdf(skl_html($b, $list, $c), SKL_KERTAS))];
 }

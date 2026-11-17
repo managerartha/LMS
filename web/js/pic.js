@@ -1528,8 +1528,44 @@ async function tabSkl() {
         </div>
         <p class="small muted">Tempat & tanggal lahir wajib diisi sebelum SKL diterbitkan. SKL yang ditahan bisa diterbitkan lagi
           dengan nomor yang sama.</p>
-      </div>`);
+      </div>
+      ${S.user.role === 'admin' ? `
+      <div class="card">
+        <h2>🖨 Cetak di blanko (hardcopy)</h2>
+        <p class="small muted">PDF tanpa desain latar — hanya tulisan SKL dan <b>tanda tangan direktur</b>, untuk dicetak di kertas blanko SKL.
+          <b>Cap dibubuhkan basah.</b> Saat mencetak pilih ukuran <b>sebenarnya / 100%</b> (bukan "sesuaikan halaman").</p>
+        <ol class="small muted">
+          <li>Klik <b>Cetak uji</b>, cetak di kertas polos, tumpuk dengan blanko lalu terawang ke cahaya.</li>
+          <li>Bila tulisan kurang pas, isi geser (mm), simpan, cetak uji lagi sampai pas.</li>
+          <li>Centang peserta di tabel atas, lalu <b>Cetak yang dipilih</b> (atau cetak semua yang terbit) di kertas blanko.</li>
+        </ol>
+        <div class="grid2">
+          <div><label>Geser ke kanan (mm, minus = ke kiri)</label><input id="skl-dx" type="number" step="0.5" min="-20" max="20" value="${esc(d.cetak.dx)}"></div>
+          <div><label>Geser ke bawah (mm, minus = ke atas)</label><input id="skl-dy" type="number" step="0.5" min="-20" max="20" value="${esc(d.cetak.dy)}"></div>
+        </div>
+        <label class="check mt"><input type="checkbox" id="skl-garis" ${d.cetak.garis ? 'checked' : ''}> Cetak garis di bawah nama direktur
+          (hilangkan centang bila garis sudah ada di blanko)</label>
+        <div class="row mt" style="flex-wrap:wrap">
+          <button class="btn" onclick="sklCetak(this, 'atur')">💾 Simpan geser</button>
+          <button class="btn" onclick="sklCetak(this, 'uji')">🧪 Cetak uji</button>
+          <button class="btn primary" onclick="sklCetak(this, 'pilih')">🖨 Cetak yang dipilih</button>
+          <button class="btn" onclick="sklCetak(this, 'semua')">🖨 Cetak semua yang terbit</button>
+        </div>
+      </div>` : ''}`);
   } catch (e) { errBox(v, e); }
+}
+
+/** Admin: SKL versi cetak di blanko (tanpa latar), cetak uji, dan pengaturan geser. */
+function sklCetak(btn, aksi) {
+  const atur = { dx: $('#skl-dx').value || 0, dy: $('#skl-dy').value || 0, garis: $('#skl-garis').checked };
+  const ids = aksi === 'pilih' ? sklTerpilih() : [];
+  if (aksi === 'pilih' && !ids.length) return toast('Centang peserta di tabel atas terlebih dahulu.', 'error');
+  busy(btn, async () => {
+    C.skl.cetak = await call('sklCetakAtur', atur);
+    if (aksi === 'atur') return toast('Pengaturan cetak disimpan.', 'ok');
+    const r = await call('sklCetak', { id_batch: C.batch.id_batch, id_users: ids, uji: aksi === 'uji' });
+    simpanFile(r.nama, r.data, 'application/pdf');
+  }, 'Menyiapkan…');
 }
 
 function sklPilih(mode) {

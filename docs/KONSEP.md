@@ -536,3 +536,11 @@ Hanya tampilan; data dan fitur tidak berubah (server hanya menambah `lokasi` & n
 - **Peserta**: sapaan "Halo, {nama depan}" + nama pelatihan & batch, tombol ↻ muat ulang. Kartu utama paling atas: hari ke-, tombol **Absen Sesi N Sekarang** (atau jam dibukanya sesi), kegiatan yang sedang berlangsung, kehadiran (sesi & %) dan garis progres. Di bawahnya status Sesi 1/2 ringkas, **Yang perlu Anda lakukan** (checklist: video wajib, tata tertib/guideline, berkas; tersembunyi bila semua beres), **Dokumen Anda** (SKL, nilai, sertifikat — hanya yang sudah terbit), rundown & materi hari ini. Video tidak lagi diputar di Dashboard (tombol Tonton → Panduan Pelatihan). Laptop: dua kolom.
 - **PIC/Admin**: baris angka ringkas (klik "Hadir hari ini" → Absensi), kartu **Hari ini** per batch berjalan (progres absen per sesi, lokasi, PIC, tombol Absensi/Rundown/Dokumentasi), **pengingat dikelompokkan per batch** (buka/tutup; info disembunyikan di balik "Lihat N info"; info sertifikat terbit digabung; seluruh kartu bisa diklik), **Jadwal batch** berupa garis waktu, dan untuk Admin **Aksi cepat** (+ Batch baru, sertifikat menunggu terbit, stok menipis).
 - **HP (< 900 px)**: menu tetap di bawah layar — peserta: Beranda · Jadwal · Materi · Riwayat · Lainnya; PIC/Admin: Dashboard · Absensi · Rundown · Dokumentasi · Lainnya (menu lengkap per kelompok). Laptop tetap memakai menu samping.
+
+## 29. SKL versi cetak di blanko (hardcopy, khusus Admin)
+
+- Menu **SKL** → kotak *Cetak di blanko* (hanya Admin): PDF **tanpa desain latar**, berisi tulisan SKL di posisi yang sama persis dengan PDF lengkap + **tanda tangan direktur saja** (`app/skl-ttd.png`, diambil terpisah dari template asli; logo/cap tidak dicetak karena **cap dibubuhkan basah**). Nama & jabatan direktur ikut dicetak. Ukuran kertas sama dengan PDF (±22 × 30,7 cm).
+- **Cetak uji**: satu halaman contoh + tanda + merah 10 mm dari setiap tepi dan keterangan geser, untuk ditumpuk dengan blanko dan diterawang.
+- **Geser (mm)** kanan/bawah (−20…20, minus = kiri/atas) dan pilihan **garis di bawah nama direktur** disimpan di `pengaturan.skl_cetak` dan berlaku untuk semua cetakan.
+- Cetak **yang dipilih** (centang di tabel peserta) atau **semua SKL terbit**; hanya SKL berstatus terbit. Cetak dengan skala 100% (ukuran sebenarnya).
+- PDF SKL untuk peserta (dengan latar) tidak berubah.

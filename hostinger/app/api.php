@@ -37,6 +37,7 @@ const ROUTES = [
   'ttdSaya' => 'pic', 'ttdSayaSimpan' => 'pic', 'laporanList' => 'pic', 'laporanBuat' => 'pic', 'laporanUnduh' => 'pic',
   'infoLaporanGet' => 'pic', 'infoLaporanSimpan' => 'pic',
   'sklSaya' => 'user', 'sklUnduh' => 'user', 'sklList' => 'pic', 'sklSimpanData' => 'pic', 'sklTerbitkan' => 'pic', 'sklTahan' => 'pic', 'sklUnduhSemua' => 'pic',
+  'sklCetak' => 'admin', 'sklCetakAtur' => 'admin',
   'sertifikatSaya' => 'user', 'sertifikatUnduh' => 'user', 'sertifikatData' => 'pic', 'sertifikatSimpan' => 'pic', 'sertifikatUnduhSemua' => 'pic',
   'sertifikatTerbitkan' => 'admin', 'sertifikatTahan' => 'admin', 'sertifikatBatal' => 'admin', 'sertifikatFormat' => 'admin', 'topikHseList' => 'admin', 'topikHseSimpan' => 'admin',
   'nilaiSaya' => 'user', 'nilaiUnduh' => 'user', 'nilaiData' => 'pic', 'nilaiAtur' => 'pic', 'nilaiSimpan' => 'pic', 'nilaiBnspUpload' => 'pic',
