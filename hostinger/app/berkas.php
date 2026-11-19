@@ -31,6 +31,47 @@ function format_item(array $it): array {
   return $f ?: ['pdf', 'jpg', 'jpeg', 'png'];
 }
 
+/** Maksimal file per berkas: hanya kategori asesmen yang boleh lebih dari 1 (maks. 10). */
+const MAKS_FILE_BERKAS = 10;
+
+function maks_file(array $it): int {
+  return $it['kategori'] === 'asesmen' ? max(1, min(MAKS_FILE_BERKAS, (int)($it['maks_file'] ?? 1) ?: 1)) : 1;
+}
+
+function multi_item(array $it): bool { return maks_file($it) > 1; }
+
+/**
+ * Daftar file sebuah berkas banyak-file. Berkas lama (1 file, dibuat sebelum jenis berkas diubah menjadi banyak file)
+ * dipindahkan menjadi file pertama — isinya tetap sama, hanya pencatatannya pindah ke tabel berkas_file.
+ */
+function files_berkas(array $b): array {
+  if ($b['file_id'] !== '') {
+    insert('berkas_file', ['id_file' => new_id('x'), 'id_berkas' => $b['id_berkas'], 'id_batch' => $b['id_batch'], 'id_user' => $b['id_user'],
+      'file_id' => $b['file_id'], 'nama_file' => $b['nama_file'], 'tipe' => $b['tipe'], 'ukuran' => $b['ukuran'], 'diupload_pada' => $b['diupload_pada'],
+      'drive_status' => $b['drive_status'], 'drive_file' => $b['drive_file'], 'drive_url' => $b['drive_url'], 'drive_root' => $b['drive_root'],
+      'drive_error' => $b['drive_error'], 'drive_waktu' => $b['drive_waktu']]);
+    update('berkas', $b, ['file_id' => '']);
+  }
+  return rows('SELECT * FROM berkas_file WHERE id_berkas = ? ORDER BY diupload_pada, id_file', [$b['id_berkas']]);
+}
+
+/** Ringkasan berkas banyak-file di baris berkas: jumlah file, ukuran total, status kirim gabungan. */
+function rangkum_berkas(string $idBerkas): void {
+  $b = row('SELECT * FROM berkas WHERE id_berkas = ?', [$idBerkas]);
+  if (!$b) return;
+  $f = rows('SELECT * FROM berkas_file WHERE id_berkas = ?', [$idBerkas]);
+  $st = array_column($f, 'drive_status');
+  $err = array_values(array_filter(array_column($f, 'drive_error')));
+  update('berkas', $b, ['nama_file' => count($f) . ' file', 'tipe' => '', 'ukuran' => array_sum(array_map('intval', array_column($f, 'ukuran'))),
+    'drive_status' => in_array('gagal', $st, true) ? 'gagal' : (in_array('antri', $st, true) ? 'antri' : 'terkirim'),
+    'drive_error' => $err[0] ?? '', 'drive_url' => '', 'drive_waktu' => now_()['stamp']]);
+}
+
+function file_view(array $f): array {
+  return ['id_file' => $f['id_file'], 'nama_file' => $f['nama_file'], 'tipe' => $f['tipe'], 'ukuran' => (int)$f['ukuran'], 'diupload_pada' => $f['diupload_pada'],
+    'drive_status' => $f['drive_status'], 'drive_url' => $f['drive_url'], 'drive_error' => $f['drive_error']];
+}
+
 function berkas_batch_set(string $idBatch): array {
   return row('SELECT * FROM berkas_batch WHERE id_batch = ?', [$idBatch])
     ?? ['id_batch' => $idBatch, 'drive_link' => '', 'drive_root' => '', 'batas' => '', 'riwayat_link' => '', 'diubah_oleh' => '', 'diubah_pada' => ''];
@@ -108,13 +149,19 @@ function berkasItemSimpan(array $data, array $user): array {
   if (!$fmt) throw new LmsError('Format tidak dikenali. Contoh: pdf, jpg, png');
   $c = ['id_program' => $p['id_program'], 'kategori' => $kat, 'nama' => mb_substr($nama, 0, 120), 'keterangan' => mb_substr(trim((string)($data['keterangan'] ?? '')), 0, 300),
     'wajib' => !empty($data['wajib']) ? 'ya' : '', 'format' => implode(',', $fmt), 'maks_mb' => max(1, min(25, (int)($data['maks_mb'] ?? 10))),
-    'urutan' => (int)($data['urutan'] ?? 1), 'aktif' => array_key_exists('aktif', $data) && !$data['aktif'] ? 'tidak' : 'ya'];
+    'urutan' => (int)($data['urutan'] ?? 1), 'aktif' => array_key_exists('aktif', $data) && !$data['aktif'] ? 'tidak' : 'ya',
+    'maks_file' => $kat === 'asesmen' ? max(1, min(MAKS_FILE_BERKAS, (int)($data['maks_file'] ?? 1) ?: 1)) : 1];
   $id = (string)($data['id_item'] ?? '');
   if ($id === '') {
     insert('berkas_item', array_merge($c, ['id_item' => new_id('f')]));
   } else {
     $it = row('SELECT * FROM berkas_item WHERE id_item = ?', [$id]);
     if (!$it) throw new LmsError('Item tidak ditemukan.');
+    // file peserta yang sudah ada tetap harus terlihat: batas file tidak boleh di bawah jumlah file yang sudah diupload
+    $terbanyak = (int)(row('SELECT MAX(n) AS n FROM (SELECT COUNT(*) AS n FROM berkas_file f JOIN berkas b ON b.id_berkas = f.id_berkas WHERE b.id_item = ? GROUP BY f.id_berkas) x', [$id])['n'] ?? 0);
+    if ($terbanyak > 0 && $c['maks_file'] < max(2, $terbanyak)) {
+      throw new LmsError("Sudah ada peserta yang mengupload $terbanyak file untuk berkas ini, jadi maks. jumlah file minimal " . max(2, $terbanyak) . ' dan kategori tetap Asesmen.');
+    }
     update('berkas_item', $it, $c);
   }
   log_($user, 'berkas_item', $p['nama'] . ': ' . $nama);
@@ -134,10 +181,16 @@ function berkasItemHapus(array $data, array $user): array {
 
 // ---------------------------------------------------------------- Peserta
 
-function berkas_view(?array $b): ?array {
-  return $b ? ['id_berkas' => $b['id_berkas'], 'nama_file' => $b['nama_file'], 'tipe' => $b['tipe'], 'ukuran' => (int)$b['ukuran'],
+function berkas_view(?array $b, ?array $it = null): ?array {
+  if (!$b) return null;
+  $v = ['id_berkas' => $b['id_berkas'], 'nama_file' => $b['nama_file'], 'tipe' => $b['tipe'], 'ukuran' => (int)$b['ukuran'],
     'diupload_pada' => $b['diupload_pada'], 'status' => $b['status'], 'catatan' => $b['catatan_pic'], 'diverifikasi_oleh' => $b['diverifikasi_oleh'],
-    'drive_status' => $b['drive_status'], 'drive_url' => $b['drive_url'], 'drive_error' => $b['drive_error']] : null;
+    'drive_status' => $b['drive_status'], 'drive_url' => $b['drive_url'], 'drive_error' => $b['drive_error']];
+  if ($it && multi_item($it)) {
+    $v['files'] = array_map('file_view', files_berkas($b));
+    $v['jumlah_file'] = count($v['files']);
+  }
+  return $v;
 }
 
 function berkas_peserta(array $user, array $batch): array {
@@ -148,8 +201,10 @@ function berkas_peserta(array $user, array $batch): array {
     $b = $punya[$it['id_item']] ?? null;
     $batas = batas_item($set, $it['id_item']);
     $lewat = $batas !== '' && $today > $batas;
+    $bv = berkas_view($b, $it);
+    if ($bv && isset($bv['jumlah_file']) && !$bv['jumlah_file'] && $bv['status'] !== 'revisi') $bv = null; // semua file dihapus = belum upload
     return ['id_item' => $it['id_item'], 'kategori' => $it['kategori'], 'nama' => $it['nama'], 'keterangan' => $it['keterangan'], 'wajib' => $it['wajib'] === 'ya',
-      'format' => format_item($it), 'maks_mb' => (int)$it['maks_mb'], 'batas' => $batas, 'lewat' => $lewat, 'berkas' => berkas_view($b),
+      'format' => format_item($it), 'maks_mb' => (int)$it['maks_mb'], 'maks_file' => maks_file($it), 'batas' => $batas, 'lewat' => $lewat, 'berkas' => $bv,
       // boleh upload: belum diterima, dan belum lewat batas (kecuali diminta revisi)
       'boleh_upload' => (!$b || $b['status'] !== 'diterima') && (!$lewat || ($b && $b['status'] === 'revisi'))];
   }, items_berkas($batch));
@@ -189,6 +244,7 @@ function berkasUpload(array $data, array $user): array {
   if ($bytes === false || $bytes === '') throw new LmsError('File tidak terbaca. Coba pilih ulang file.');
   if (strlen($bytes) > (int)$it['maks_mb'] * 1048576) throw new LmsError('Ukuran file lebih dari ' . $it['maks_mb'] . ' MB.');
   $bersih = fn($x) => trim(preg_replace('/\s+/', ' ', preg_replace('/[\\\\\/:*?"<>|]+/', ' ', $x)));
+  if (multi_item($it)) return upload_file_tambahan($user, $batch, $it, $nama, $ext, $bytes, $bersih);
   $namaRapi = $bersih($it['nama']) . ' - ' . $bersih($user['nama']) . '.' . ($ext === 'jpeg' ? 'jpg' : $ext); // mis. "KTP - Andi Saputra.pdf"
   $rel = simpan_bytes('storage/' . $batch['folder'] . '/berkas/' . folder_aman($user['kode_login']), $bytes, $namaRapi);
   $lama = row('SELECT * FROM berkas WHERE id_user = ? AND id_item = ?', [$user['id_user'], $it['id_item']]);
@@ -208,10 +264,71 @@ function berkasUpload(array $data, array $user): array {
   return berkasSaya([], $user);
 }
 
+/**
+ * Berkas banyak file (asesmen): setiap upload menambah satu file (nama asli dipertahankan), maks. maks_file.
+ * Status berkas kembali "menunggu verifikasi"; file dikirim ke Drive di belakang layar ke Asesmen/<nama berkas>/.
+ */
+function upload_file_tambahan(array $user, array $batch, array $it, string $nama, string $ext, string $bytes, callable $bersih): array {
+  $now = now_()['stamp'];
+  $b = row('SELECT * FROM berkas WHERE id_user = ? AND id_item = ?', [$user['id_user'], $it['id_item']]);
+  if (!$b) {
+    $b = insert('berkas', ['id_berkas' => new_id('b'), 'id_batch' => $batch['id_batch'], 'id_user' => $user['id_user'], 'id_item' => $it['id_item'],
+      'file_id' => '', 'nama_file' => '', 'tipe' => '', 'ukuran' => 0, 'diupload_pada' => $now, 'status' => 'menunggu', 'catatan_pic' => '',
+      'diverifikasi_oleh' => '', 'diverifikasi_pada' => '', 'drive_status' => 'antri', 'drive_file' => '', 'drive_url' => '', 'drive_root' => '',
+      'drive_error' => '', 'drive_waktu' => '']);
+  }
+  $ada = files_berkas($b);
+  if (count($ada) >= maks_file($it)) throw new LmsError('Maksimal ' . maks_file($it) . ' file untuk ' . $it['nama'] . '. Hapus file yang tidak perlu terlebih dahulu.');
+  $dasar = $bersih(pathinfo($nama, PATHINFO_FILENAME)) ?: $bersih($it['nama']);
+  $namaFile = $dasar . '.' . ($ext === 'jpeg' ? 'jpg' : $ext);
+  $pakai = array_map('mb_strtolower', array_column($ada, 'nama_file'));
+  for ($i = 2; in_array(mb_strtolower($namaFile), $pakai, true); $i++) $namaFile = $dasar . " ($i)." . ($ext === 'jpeg' ? 'jpg' : $ext);
+  $rel = simpan_bytes('storage/' . $batch['folder'] . '/berkas/' . folder_aman($user['kode_login']) . '/' . folder_aman($it['nama']), $bytes, $namaFile);
+  $f = insert('berkas_file', ['id_file' => new_id('x'), 'id_berkas' => $b['id_berkas'], 'id_batch' => $batch['id_batch'], 'id_user' => $user['id_user'],
+    'file_id' => $rel, 'nama_file' => $namaFile, 'tipe' => $ext, 'ukuran' => strlen($bytes), 'diupload_pada' => $now,
+    'drive_status' => 'antri', 'drive_file' => '', 'drive_url' => '', 'drive_root' => '', 'drive_error' => '', 'drive_waktu' => '']);
+  update('berkas', row('SELECT * FROM berkas WHERE id_berkas = ?', [$b['id_berkas']]), ['status' => 'menunggu', 'diupload_pada' => $now,
+    'diverifikasi_oleh' => '', 'diverifikasi_pada' => '']);
+  rangkum_berkas($b['id_berkas']);
+  log_($user, 'berkas_upload', $it['nama'] . ': ' . $namaFile);
+  $id = $f['id_file'];
+  setelah_respon(fn() => kirim_file($id));
+  return berkasSaya([], $user);
+}
+
+/** Peserta menghapus satu file dari berkas banyak-file (selama belum diterima PIC). File di Drive dipindah ke sampah. */
+function berkasHapusFile(array $data, array $user): array {
+  wajib_peserta($user);
+  $f = row('SELECT * FROM berkas_file WHERE id_file = ? AND id_user = ?', [(string)($data['id_file'] ?? ''), $user['id_user']]);
+  if (!$f) throw new LmsError('File tidak ditemukan.');
+  $b = row('SELECT * FROM berkas WHERE id_berkas = ?', [$f['id_berkas']]);
+  $batch = get_batch($user['id_batch']);
+  $info = null;
+  foreach (berkas_peserta($user, $batch) as $x) if ($b && $x['id_item'] === $b['id_item']) $info = $x;
+  if (!$info || !$info['boleh_upload']) throw new LmsError($b && $b['status'] === 'diterima' ? 'Berkas ini sudah diterima PIC, file tidak bisa dihapus.' : 'Batas waktu berkas ini sudah lewat. Hubungi PIC.');
+  hapus('berkas_file', $f);
+  hapus_file($f['file_id']);
+  $sisa = (int)row('SELECT COUNT(*) AS n FROM berkas_file WHERE id_berkas = ?', [$b['id_berkas']])['n'];
+  if (!$sisa && $b['status'] !== 'revisi') hapus('berkas', $b); // semua file dihapus = kembali "belum upload"
+  else {
+    update('berkas', $b, ['status' => $b['status'] === 'revisi' ? 'revisi' : 'menunggu']);
+    rangkum_berkas($b['id_berkas']);
+  }
+  log_($user, 'berkas_hapus_file', $f['nama_file']);
+  if ($f['drive_file'] !== '' && pengaturan('drive_jembatan_url') !== '') {
+    $idDrive = $f['drive_file'];
+    setelah_respon(function () use ($idDrive) { try { jembatan(['action' => 'trash', 'id' => $idDrive], 60); } catch (Throwable $e) { /* jembatan versi lama: file tetap di Drive */ } });
+  }
+  return berkasSaya([], $user);
+}
+
 /** Unduh / lihat berkas: peserta pemiliknya, PIC batch, atau Admin. */
 function berkasUnduh(array $data, array $user): array {
-  $b = row('SELECT * FROM berkas WHERE id_berkas = ?', [(string)($data['id_berkas'] ?? '')]);
+  $file = !empty($data['id_file']) ? row('SELECT * FROM berkas_file WHERE id_file = ?', [(string)$data['id_file']]) : null;
+  if (!empty($data['id_file']) && !$file) throw new LmsError('File tidak ditemukan.');
+  $b = row('SELECT * FROM berkas WHERE id_berkas = ?', [$file ? $file['id_berkas'] : (string)($data['id_berkas'] ?? '')]);
   if (!$b) throw new LmsError('Berkas tidak ditemukan.');
+  if ($file) $b = array_merge($b, ['file_id' => $file['file_id'], 'nama_file' => $file['nama_file'], 'tipe' => $file['tipe']]);
   if ($user['role'] === 'peserta' ? $b['id_user'] !== $user['id_user'] : !can_access_batch($user, get_batch($b['id_batch']))) throw new LmsError('Anda tidak berhak membuka berkas ini.');
   $f = ROOT . '/' . $b['file_id'];
   if ($b['file_id'] === '' || str_contains($b['file_id'], '..') || !is_file($f)) throw new LmsError('File tidak ditemukan di server.');
@@ -229,6 +346,12 @@ function kirim_berkas(string $idBerkas): bool {
   if ($set['drive_root'] === '') { $catat(['drive_status' => 'antri', 'drive_error' => 'Link Google Drive batch belum diisi PIC.']); return false; }
   $u = row('SELECT * FROM pengguna WHERE id_user = ?', [$b['id_user']]);
   $it = row('SELECT * FROM berkas_item WHERE id_item = ?', [$b['id_item']]);
+  if ($it && multi_item($it)) { // kirim setiap file yang belum terkirim
+    $ok = true;
+    foreach (files_berkas($b) as $x) if ($x['drive_status'] !== 'terkirim') $ok = kirim_file($x['id_file'], false) && $ok;
+    rangkum_berkas($b['id_berkas']);
+    return $ok;
+  }
   $f = ROOT . '/' . $b['file_id'];
   if (!$u || !$it || !is_file($f)) { $catat(['drive_status' => 'gagal', 'drive_error' => 'File atau data peserta tidak ditemukan.']); return false; }
   try {
@@ -237,6 +360,34 @@ function kirim_berkas(string $idBerkas): bool {
       'data' => base64_encode((string)file_get_contents($f)),
       // file lama di Drive diganti hanya jika masih di folder lembaga yang sama
       'replace' => $b['drive_root'] === $set['drive_root'] ? $b['drive_file'] : ''], 120);
+    $catat(['drive_status' => 'terkirim', 'drive_file' => (string)($j['id'] ?? ''), 'drive_url' => (string)($j['url'] ?? ''), 'drive_root' => $set['drive_root'], 'drive_error' => '']);
+    return true;
+  } catch (Throwable $e) {
+    $catat(['drive_status' => 'gagal', 'drive_error' => mb_substr($e->getMessage(), 0, 300)]);
+    return false;
+  }
+}
+
+/** Mengirim satu file berkas banyak-file ke Drive: <Nama>/Asesmen/<Nama berkas>/<nama file asli>. */
+function kirim_file(string $idFile, bool $rangkum = true): bool {
+  $x = row('SELECT * FROM berkas_file WHERE id_file = ?', [$idFile]);
+  if (!$x || $x['drive_status'] === 'terkirim') return true;
+  $b = row('SELECT * FROM berkas WHERE id_berkas = ?', [$x['id_berkas']]);
+  $set = berkas_batch_set($x['id_batch']);
+  $catat = function (array $c) use ($x, $rangkum) {
+    $r = row('SELECT * FROM berkas_file WHERE id_file = ?', [$x['id_file']]);
+    if ($r) update('berkas_file', $r, $c + ['drive_waktu' => now_()['stamp']]);
+    if ($rangkum) rangkum_berkas($x['id_berkas']);
+  };
+  if ($set['drive_root'] === '') { $catat(['drive_status' => 'antri', 'drive_error' => 'Link Google Drive batch belum diisi PIC.']); return false; }
+  $u = row('SELECT * FROM pengguna WHERE id_user = ?', [$x['id_user']]);
+  $it = $b ? row('SELECT * FROM berkas_item WHERE id_item = ?', [$b['id_item']]) : null;
+  $f = ROOT . '/' . $x['file_id'];
+  if (!$u || !$it || !is_file($f)) { $catat(['drive_status' => 'gagal', 'drive_error' => 'File atau data peserta tidak ditemukan.']); return false; }
+  try {
+    $j = jembatan(['action' => 'upload', 'root' => $set['drive_root'], 'folder' => nama_folder_peserta($u), 'sub' => 'Asesmen',
+      'sub2' => trim(preg_replace('/[\\\\\/:*?"<>|]+/', ' ', $it['nama'])), 'name' => $x['nama_file'],
+      'mime' => MIME_BERKAS[$x['tipe']] ?? 'application/octet-stream', 'data' => base64_encode((string)file_get_contents($f)), 'replace' => ''], 120);
     $catat(['drive_status' => 'terkirim', 'drive_file' => (string)($j['id'] ?? ''), 'drive_url' => (string)($j['url'] ?? ''), 'drive_root' => $set['drive_root'], 'drive_error' => '']);
     return true;
   } catch (Throwable $e) {
@@ -276,10 +427,10 @@ function berkasBatch(array $data, array $user): array {
   $batas = json_decode($set['batas'] ?: '{}', true) ?: [];
   return ['aktif' => (bool)$items, 'program' => $prog ? $prog['nama'] : '', 'jembatan' => pengaturan('drive_jembatan_url') !== '',
     'drive_link' => $set['drive_link'], 'riwayat_link' => json_decode($set['riwayat_link'] ?: '[]', true) ?: [], 'hitung' => $hitung,
-    'item' => array_map(fn($it) => ['id_item' => $it['id_item'], 'kategori' => $it['kategori'], 'nama' => $it['nama'], 'wajib' => $it['wajib'] === 'ya',
+    'item' => array_map(fn($it) => ['id_item' => $it['id_item'], 'kategori' => $it['kategori'], 'nama' => $it['nama'], 'wajib' => $it['wajib'] === 'ya', 'maks_file' => maks_file($it),
       'batas' => (string)($batas[$it['id_item']] ?? '')], $items),
     'peserta' => array_map(fn($u) => ['id_user' => $u['id_user'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'], 'kode_login' => $u['kode_login'],
-      'berkas' => array_map(fn($it) => berkas_view($semua[$u['id_user']][$it['id_item']] ?? null), $items)], peserta_batch($batch['id_batch'], false))];
+      'berkas' => array_map(fn($it) => berkas_view($semua[$u['id_user']][$it['id_item']] ?? null, $it), $items)], peserta_batch($batch['id_batch'], false))];
 }
 
 /** Simpan link folder Drive lembaga (boleh diganti kapan saja; riwayat disimpan) dan batas waktu per berkas. */
@@ -357,7 +508,7 @@ function berkasRekap(array $data, array $user): array {
   $rows = [array_merge(['No', 'Nama', 'Kode'], array_map(fn($i) => $i['nama'] . ($i['wajib'] ? ' (wajib)' : ''), $d['item']))];
   foreach ($d['peserta'] as $p) {
     $rows[] = array_merge([$p['no_absen'], $p['nama'], $p['kode_login']], array_map(fn($b) => !$b ? 'Belum upload'
-      : (STATUS_BERKAS[$b['status']] ?? $b['status']) . ' / Drive: ' . ($b['drive_status'] === 'terkirim' ? 'terkirim' : ($b['drive_status'] === 'gagal' ? 'gagal' : 'antri')), $p['berkas']));
+      : (STATUS_BERKAS[$b['status']] ?? $b['status']) . (isset($b['jumlah_file']) ? ' (' . $b['jumlah_file'] . ' file)' : '') . ' / Drive: ' . ($b['drive_status'] === 'terkirim' ? 'terkirim' : ($b['drive_status'] === 'gagal' ? 'gagal' : 'antri')), $p['berkas']));
   }
   $csv = "\xEF\xBB\xBF" . implode("\r\n", array_map(fn($r) => implode(';', array_map(fn($x) => '"' . str_replace('"', '""', (string)$x) . '"', $r)), $rows));
   return ['nama' => preg_replace('#[\\\\/:*?"<>|]#', '-', 'Rekap Berkas ' . $batch['kode_batch'] . '.csv'), 'data' => base64_encode($csv)];

@@ -984,6 +984,7 @@ async function loadBerkas() {
     const grup = k => d.item.map((x, i) => [x, i]).filter(([x]) => x.kategori === k);
     const kartu = (judul, list) => list.length ? `<div class="card"><h2>${judul}</h2>${list.map(([x, i]) => {
       const b = x.berkas;
+      if (x.maks_file > 1) return berkasMultiHtml(x, i);
       return `<div class="dok-item">
         <div class="row"><div class="grow"><b>${esc(x.nama)}</b> ${x.wajib ? '<span class="badge b-belum">wajib</span>' : '<span class="badge b-none">opsional</span>'}
           <div class="small muted">${esc(x.format.join(', ').toUpperCase())} · maks. ${x.maks_mb} MB${x.batas ? ' · batas ' + esc(fmtTanggal(x.batas)) : ''}${x.keterangan ? ' · ' + esc(x.keterangan) : ''}</div></div>
@@ -1002,6 +1003,68 @@ async function loadBerkas() {
   } catch (e) {
     $('#tab-body').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>';
   }
+}
+
+function ukuranFile(n) { return n >= 1048576 ? (n / 1048576).toFixed(1).replace('.', ',') + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+
+/** Berkas asesmen banyak file: daftar file, tambah beberapa file sekaligus (bertahap boleh), hapus file selama belum diterima. */
+function berkasMultiHtml(x, i) {
+  const b = x.berkas, files = b && b.files ? b.files : [];
+  const sisa = x.maks_file - files.length;
+  return `<div class="dok-item">
+    <div class="row"><div class="grow"><b>${esc(x.nama)}</b> ${x.wajib ? '<span class="badge b-belum">wajib</span>' : '<span class="badge b-none">opsional</span>'}
+      <div class="small muted">${esc(x.format.join(', ').toUpperCase())} · maks. ${x.maks_mb} MB per file · maks. ${x.maks_file} file${x.batas ? ' · batas ' + esc(fmtTanggal(x.batas)) : ''}${x.keterangan ? ' · ' + esc(x.keterangan) : ''}</div></div>
+      ${b ? `<span class="badge ${STATUS_BERKAS_PS[b.status][0]}">${STATUS_BERKAS_PS[b.status][1]}</span>` : '<span class="badge b-none">Belum diupload</span>'}</div>
+    ${files.length ? `<div class="file-list">${files.map(f => `<div class="file-row">
+        <span class="grow">📎 ${esc(f.nama_file)} <span class="small muted">· ${ukuranFile(f.ukuran)}</span></span>
+        <button class="btn sm" onclick="unduhFileBerkas(this, '${esc(f.id_file)}')">Lihat</button>
+        ${x.boleh_upload ? `<button class="btn sm danger" title="Hapus file" onclick="hapusFileBerkas(this, '${esc(f.id_file)}', '${esc(f.nama_file).replace(/'/g, '&#39;')}')">🗑</button>` : ''}
+      </div>`).join('')}<div class="small muted">${files.length} dari ${x.maks_file} file</div></div>` : ''}
+    ${b && b.status === 'revisi' && b.catatan ? `<div class="alert bad small mt">Catatan PIC: ${esc(b.catatan)}</div>` : ''}
+    ${x.boleh_upload && sisa > 0 ? `<label class="btn ${files.length ? '' : 'primary'} mt" style="display:inline-block">⬆ ${files.length ? 'Tambah file' : 'Pilih file'} (bisa beberapa, sisa ${sisa})
+        <input type="file" class="hidden" multiple accept="${x.format.map(f => '.' + f).join(',')}" onchange="uploadBerkasMulti(this, ${i})"></label>`
+      : x.boleh_upload ? '<div class="small muted mt">Jumlah file sudah maksimal. Hapus file yang salah untuk menggantinya.</div>'
+      : x.lewat && !b ? '<div class="small merah mt">Batas waktu sudah lewat. Hubungi PIC.</div>' : ''}
+  </div>`;
+}
+
+/** Kirim file satu per satu (aman untuk sinyal lemah & batas server), dengan progres. */
+async function uploadBerkasMulti(input, i) {
+  const x = P.berkas[i];
+  const sudah = x.berkas && x.berkas.files ? x.berkas.files.length : 0;
+  let files = Array.from(input.files || []);
+  if (!files.length) return;
+  const salah = files.filter(f => x.format.indexOf((f.name.split('.').pop() || '').toLowerCase()) < 0);
+  if (salah.length) { input.value = ''; return toast('Format harus: ' + x.format.join(', ').toUpperCase() + '. Tidak sesuai: ' + salah.map(f => f.name).join(', '), 'error'); }
+  const besar = files.filter(f => f.size > x.maks_mb * 1024 * 1024 && !/\.(jpe?g|png)$/i.test(f.name));
+  if (besar.length) { input.value = ''; return toast('Ukuran per file maks. ' + x.maks_mb + ' MB. Terlalu besar: ' + besar.map(f => f.name).join(', '), 'error'); }
+  if (sudah + files.length > x.maks_file) {
+    toast('Maksimal ' + x.maks_file + ' file. Hanya ' + (x.maks_file - sudah) + ' file pertama yang diupload.', 'error');
+    files = files.slice(0, x.maks_file - sudah);
+  }
+  const label = input.closest('label');
+  let ok = 0;
+  const gagal = [];
+  for (let k = 0; k < files.length; k++) {
+    label.firstChild.textContent = `⏳ Mengupload ${k + 1}/${files.length}… `;
+    try {
+      const f = await siapkanBerkas(files[k], x);
+      if (f.data.length * 0.75 > x.maks_mb * 1024 * 1024) throw new Error('lebih dari ' + x.maks_mb + ' MB');
+      await call('berkasUpload', { id_item: x.id_item, file: f });
+      ok++;
+    } catch (e) { gagal.push(files[k].name + ' (' + e.message + ')'); }
+  }
+  toast(ok ? '✅ ' + ok + ' file terupload.' + (gagal.length ? ' Gagal: ' + gagal.join('; ') : '') : 'Gagal: ' + gagal.join('; '), gagal.length ? 'error' : 'ok');
+  loadBerkas();
+}
+
+function hapusFileBerkas(btn, id, nama) {
+  if (!confirm('Hapus file "' + nama + '"?')) return;
+  busy(btn, async () => { await call('berkasHapusFile', { id_file: id }); toast('File dihapus.', 'ok'); loadBerkas(); }, '…');
+}
+
+function unduhFileBerkas(btn, id) {
+  busy(btn, async () => { const f = await call('berkasUnduh', { id_file: id }); simpanFile(f.nama, f.data, f.mime); }, '…');
 }
 
 /** Foto dari kamera HP (biasanya besar) diperkecil tanpa membuat tulisan sulit dibaca. */

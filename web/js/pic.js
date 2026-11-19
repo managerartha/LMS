@@ -3179,6 +3179,7 @@ async function muatPustakaBerkas(v) {
             <div><label>Format (pisahkan koma)</label><input name="format" value="pdf, jpg, png"></div>
             <div><label>Ukuran maks. (MB, ≤ 25)</label><input name="maks_mb" type="number" min="1" max="25" value="10"></div>
             <div><label>Urutan</label><input name="urutan" type="number" min="1" value="1"></div>
+            <div><label>Maks. jumlah file (khusus Asesmen, 1–10)</label><input name="maks_file" type="number" min="1" max="10" value="1"></div>
           </div>
           <label>Keterangan untuk peserta (opsional)</label><input name="keterangan" placeholder="mis. Scan berwarna, terbaca jelas">
           <label class="check mt"><input type="checkbox" name="wajib" checked> Wajib</label>
@@ -3189,7 +3190,7 @@ async function muatPustakaBerkas(v) {
             <div class="materi-ikon">${it.kategori === 'asesmen' ? '📝' : '🪪'}</div>
             <div class="grow"><b>${esc(it.nama)}</b> <span class="badge ${it.wajib === 'ya' ? 'b-belum' : 'b-none'}">${it.wajib === 'ya' ? 'wajib' : 'opsional'}</span>
               ${it.aktif === 'tidak' ? '<span class="badge b-none">nonaktif</span>' : ''}
-              <div class="small muted">${KATEGORI_BERKAS[it.kategori]} · ${esc(it.format)} · maks. ${esc(it.maks_mb)} MB${it.keterangan ? ' · ' + esc(it.keterangan) : ''}</div></div>
+              <div class="small muted">${KATEGORI_BERKAS[it.kategori]} · ${esc(it.format)} · maks. ${esc(it.maks_mb)} MB${it.kategori === 'asesmen' && Number(it.maks_file) > 1 ? ' per file · maks. ' + esc(it.maks_file) + ' file' : ''}${it.keterangan ? ' · ' + esc(it.keterangan) : ''}</div></div>
             <button class="btn sm" onclick="dialogItemBerkas(${i})">✏️ Ubah</button>
             <button class="btn sm danger" onclick="hapusItemBerkas(${i}, this)" title="Hapus">🗑</button></div>`).join('')}`).join('')}
       </div>`;
@@ -3216,7 +3217,7 @@ function simpanItemBerkas(form, id) {
   busy(form.querySelector('button.primary'), async () => {
     await call('berkasItemSimpan', { id_item: id, id_program: form.id_program.value, kategori: form.kategori.value, nama: form.nama.value,
       format: form.format.value, maks_mb: form.maks_mb.value, urutan: form.urutan.value, keterangan: form.keterangan.value,
-      wajib: form.wajib.checked, aktif: form.aktif ? form.aktif.checked : true });
+      wajib: form.wajib.checked, aktif: form.aktif ? form.aktif.checked : true, maks_file: form.maks_file ? form.maks_file.value : 1 });
     closeModal(); toast('Daftar berkas disimpan.', 'ok'); muatPustakaBerkas(C.view);
   });
 }
@@ -3242,6 +3243,7 @@ function dialogItemBerkas(i) {
         <div><label>Format</label><input name="format" value="${esc(it.format)}"></div>
         <div><label>Ukuran maks. (MB)</label><input name="maks_mb" type="number" min="1" max="25" value="${esc(it.maks_mb)}"></div>
         <div><label>Urutan</label><input name="urutan" type="number" min="1" value="${esc(it.urutan)}"></div>
+        <div><label>Maks. jumlah file (khusus Asesmen, 1–10)</label><input name="maks_file" type="number" min="1" max="10" value="${esc(it.maks_file || 1)}"></div>
       </div>
       <label>Keterangan</label><input name="keterangan" value="${esc(it.keterangan)}">
       <label class="check mt"><input type="checkbox" name="wajib" ${it.wajib === 'ya' ? 'checked' : ''}> Wajib</label>
@@ -3300,7 +3302,7 @@ function renderBerkas(v) {
       <table><thead><tr><th>No</th><th>Nama</th>${d.item.map(it => `<th>${esc(it.nama)}${it.wajib ? ' *' : ''}</th>`).join('')}</tr></thead>
         <tbody>${d.peserta.map((p, i) => `<tr><td>${esc(p.no_absen)}</td><td>${esc(p.nama)}</td>
           ${p.berkas.map((b, j) => `<td class="clickable" ${b ? `onclick="dialogBerkasPic(${i}, ${j})"` : ''}>${b
-            ? `<span class="badge ${IKON_STATUS_BERKAS[b.status][0]}">${IKON_STATUS_BERKAS[b.status][1]}</span><div class="small muted" title="${esc(b.drive_error || '')}">${IKON_DRIVE[b.drive_status] || ''}</div>`
+            ? `<span class="badge ${IKON_STATUS_BERKAS[b.status][0]}">${IKON_STATUS_BERKAS[b.status][1]}</span><div class="small muted" title="${esc(b.drive_error || '')}">${IKON_DRIVE[b.drive_status] || ''}${b.jumlah_file !== undefined ? ' · ' + b.jumlah_file + ' file' : ''}</div>`
             : '<span class="badge b-none">Belum</span>'}</td>`).join('')}</tr>`).join('')}</tbody></table>
       <p class="small muted">Klik sel untuk melihat berkas dan menandai <b>Diterima</b> / <b>Perlu revisi</b>. ☁️✓ terkirim ke Drive · ☁️… antre · ☁️✗ gagal (arahkan kursor untuk alasannya).</p>
     </div>`);
@@ -3347,6 +3349,7 @@ function rekapBerkas(btn) {
 
 async function dialogBerkasPic(i, j) {
   const p = C.bk.peserta[i], it = C.bk.item[j], b = p.berkas[j];
+  if (b.files) return dialogBerkasMulti(p, it, b);
   openModal(`
     <h2>${esc(it.nama)} — ${esc(p.nama)}</h2>
     <div class="small muted">${esc(b.nama_file)} · ${(b.ukuran / 1048576).toFixed(2)} MB · diupload ${esc(b.diupload_pada.slice(0, 16))}</div>
@@ -3368,6 +3371,31 @@ async function dialogBerkasPic(i, j) {
       `<div class="mt"><button class="btn sm" onclick="simpanFile('${esc(f.nama)}', C.bkFile, '${esc(f.mime)}')">⬇ Unduh / buka berkas</button></div>`;
     C.bkFile = f.data;
   } catch (e) { const el = $('#bk-preview'); if (el) el.innerHTML = '<div class="alert bad small">' + esc(e.message) + '</div>'; }
+}
+
+/** Berkas banyak file: PIC melihat daftar file (buka satu-satu bila perlu), lalu verifikasi semua file sekaligus. */
+function dialogBerkasMulti(p, it, b) {
+  C.bkFiles = b.files;
+  const drive = f => f.drive_status === 'terkirim' ? (f.drive_url ? `<a href="${esc(f.drive_url)}" target="_blank" rel="noopener" title="Buka di Drive">☁️✓</a>` : '☁️✓')
+    : f.drive_status === 'gagal' ? `<span class="merah" title="${esc(f.drive_error)}">☁️✗</span>` : '☁️…';
+  openModal(`
+    <h2>${esc(it.nama)} — ${esc(p.nama)}</h2>
+    <div class="small muted">${b.files.length} file · ${(b.ukuran / 1048576).toFixed(2)} MB · terakhir diupload ${esc(b.diupload_pada.slice(0, 16))}
+      · Drive: folder Asesmen/${esc(it.nama)}</div>
+    <div class="file-list mt">${b.files.map((f, k) => `<div class="file-row">
+      <span class="grow">📎 ${esc(f.nama_file)} <span class="small muted">· ${(f.ukuran / 1048576).toFixed(2)} MB</span></span>
+      <span class="small">${drive(f)}</span>
+      <button class="btn sm" onclick="unduhFileBerkasPic(this, ${k})">⬇ Buka</button></div>`).join('') || '<div class="muted small">Belum ada file.</div>'}</div>
+    <label>Catatan untuk peserta</label><input id="bk-catatan" value="${esc(b.catatan)}" placeholder="wajib diisi jika perlu revisi, mis. Lampiran tugas 3 belum ada">
+    <div class="row mt">
+      <button class="btn danger grow" onclick="verifikasiBerkas(this, '${esc(b.id_berkas)}', 'revisi')">🔁 Perlu revisi</button>
+      <button class="btn primary grow" onclick="verifikasiBerkas(this, '${esc(b.id_berkas)}', 'diterima')">✅ Terima semua file</button>
+    </div>
+    <button class="btn block mt" onclick="closeModal()">Tutup</button>`);
+}
+
+function unduhFileBerkasPic(btn, k) {
+  busy(btn, async () => { const f = await call('berkasUnduh', { id_file: C.bkFiles[k].id_file }); simpanFile(f.nama, f.data, f.mime); }, '…');
 }
 
 function verifikasiBerkas(btn, id, status) {

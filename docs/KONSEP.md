@@ -544,3 +544,13 @@ Hanya tampilan; data dan fitur tidak berubah (server hanya menambah `lokasi` & n
 - **Geser (mm)** kanan/bawah (−20…20, minus = kiri/atas) dan pilihan **garis di bawah nama direktur** disimpan di `pengaturan.skl_cetak` dan berlaku untuk semua cetakan.
 - Cetak **yang dipilih** (centang di tabel peserta) atau **semua SKL terbit**; hanya SKL berstatus terbit. Cetak dengan skala 100% (ukuran sebenarnya).
 - PDF SKL untuk peserta (dengan latar) tidak berubah.
+
+## 30. Berkas asesmen banyak file
+
+Skema versi 12: kolom `berkas_item.maks_file` dan tabel baru `berkas_file` (daftar file per berkas). Berkas persyaratan tetap 1 file.
+
+- **Admin (Pustaka → Daftar berkas)**: isian *Maks. jumlah file* (1–10) khusus kategori Asesmen; ukuran maks. berlaku **per file** (mis. 10 MB). Batas tidak bisa diturunkan di bawah jumlah file yang sudah diupload peserta (dan kategori tidak bisa diubah ke Persyaratan).
+- **Peserta (Berkas Saya)**: pilih beberapa file sekaligus (sisa kuota), dikirim **satu per satu** dengan progres; boleh bertahap; daftar file + Lihat + 🗑 hapus selama belum *Diterima* (atau saat revisi / sebelum batas waktu). Nama file asli dipertahankan, nama kembar diberi "(2)". Setiap perubahan → status kembali *Menunggu verifikasi*. Semua file dihapus = kembali "belum upload" (kecuali sedang revisi).
+- **Drive**: `<Nama Peserta>/Asesmen/<Nama berkas>/<nama file asli>`; file yang dihapus peserta dipindah ke sampah Drive. Butuh **Apps Script versi `jembatan-2`** (aksi `sub2` & `trash`); dengan versi lama file tetap terkirim ke folder Asesmen dan file yang dihapus tidak ikut terhapus di Drive.
+- **PIC**: tabel kelengkapan menampilkan jumlah file; dialog berisi daftar file (buka satu-satu bila perlu) dan **Terima semua file / Perlu revisi** sekaligus. Rekap CSV menyertakan jumlah file.
+- **Data lama**: berkas yang sudah ada tetap; bila jenis berkasnya diubah menjadi banyak file, file lama otomatis menjadi file pertama (dipindah pencatatannya ke `berkas_file`, isi tidak berubah).

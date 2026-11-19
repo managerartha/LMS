@@ -27,7 +27,7 @@ const ROUTES = [
   'invGudang' => 'pic', 'invBarangSimpan' => 'gudang', 'invStokTambah' => 'gudang', 'invMutasiList' => 'gudang', 'invVerifikasi' => 'gudang',
   'invBatch' => 'pic', 'invBatchSimpan' => 'pic', 'invBatchHapus' => 'pic', 'invPesertaSet' => 'pic', 'invPesertaMassal' => 'pic',
   'invTransaksi' => 'pic', 'invTransaksiHapus' => 'pic', 'invTutup' => 'pic', 'invBuka' => 'pic', 'invTtdPic' => 'pic', 'invPdf' => 'pic',
-  'berkasSaya' => 'user', 'berkasUpload' => 'user', 'berkasUnduh' => 'user',
+  'berkasSaya' => 'user', 'berkasUpload' => 'user', 'berkasUnduh' => 'user', 'berkasHapusFile' => 'user',
   'berkasBatch' => 'pic', 'berkasDriveSimpan' => 'pic', 'berkasDriveCek' => 'pic', 'berkasBuatFolder' => 'pic', 'berkasVerifikasi' => 'pic',
   'berkasKirimUlang' => 'pic', 'berkasRekap' => 'pic',
   'berkasItemList' => 'admin', 'berkasItemSimpan' => 'admin', 'berkasItemHapus' => 'admin', 'jembatanSimpan' => 'admin', 'jembatanCek' => 'admin', 'lokasiDariTeks' => 'pic', 'pesertaList' => 'pic', 'pesertaTambah' => 'pic', 'pesertaUbah' => 'pic',

@@ -10,11 +10,15 @@
  *   4. Salin URL aplikasi web (…/exec) → tempel di LMS → Simpan → Cek jembatan.
  *
  * Struktur folder di Drive lembaga:  <link lembaga>/<Nama Peserta>/Persyaratan  dan  /Asesmen
+ * Berkas asesmen yang berisi banyak file masuk ke subfolder:  /Asesmen/<Nama berkas>/  (mis. /Asesmen/Portofolio/).
+ *
+ * MEMPERBARUI dari versi sebelumnya: tempel ulang seluruh file ini (RAHASIA tetap sama), lalu
+ *   Terapkan → Kelola deployment → ✏️ Edit → Versi: Versi baru → Terapkan.  URL /exec tidak berubah.
  * Folder yang sudah dibuat PIC dipakai (nama dicocokkan tanpa membedakan huruf besar/kecil); yang belum ada dibuat otomatis.
  */
 const RAHASIA = 'TEMPEL-KODE-RAHASIA-DARI-LMS';
 const SUB_FOLDER = ['Persyaratan', 'Asesmen'];
-const VERSI = 'jembatan-1';
+const VERSI = 'jembatan-2';
 
 function doPost(e) {
   try {
@@ -24,6 +28,7 @@ function doPost(e) {
     if (q.action === 'cek') return jawab(cekFolder(q.root));
     if (q.action === 'folders') return jawab(buatFolder(q.root, q.names || []));
     if (q.action === 'upload') return jawab(upload(q));
+    if (q.action === 'trash') return jawab(buang(q.id));
     return jawab({ ok: false, error: 'Aksi tidak dikenal: ' + q.action });
   } catch (err) {
     return jawab({ ok: false, error: pesanError(err) });
@@ -64,13 +69,20 @@ function buatFolder(rootId, names) {
 function upload(q) {
   const root = DriveApp.getFolderById(q.root);
   const folder = folderPeserta(root, q.folder);
-  const sub = subFolder(folder, q.sub || 'Persyaratan');
+  let sub = subFolder(folder, q.sub || 'Persyaratan');
+  if (q.sub2) sub = subFolder(sub, String(q.sub2).trim()); // berkas banyak file: Asesmen/<Nama berkas>
   if (q.replace) {
     try { DriveApp.getFileById(q.replace).setTrashed(true); } catch (e) { /* file lama sudah tidak ada / bukan milik akun ini */ }
   }
   const blob = Utilities.newBlob(Utilities.base64Decode(q.data), q.mime || 'application/octet-stream', q.name);
   const file = sub.createFile(blob);
   return { ok: true, id: file.getId(), url: file.getUrl() };
+}
+
+/** Pindahkan file ke sampah (peserta menghapus salah satu file berkasnya). */
+function buang(id) {
+  try { DriveApp.getFileById(id).setTrashed(true); } catch (e) { /* sudah tidak ada */ }
+  return { ok: true };
 }
 
 /** Folder "<Nama Peserta>" di dalam folder lembaga, beserta subfolder Persyaratan & Asesmen. */
