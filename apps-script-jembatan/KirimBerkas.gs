@@ -1,6 +1,7 @@
 /**
  * Jembatan Google Drive untuk LMS Artha Safety Indonesia.
- * HANYA untuk mengirim berkas peserta (persyaratan & asesmen) ke folder Google Drive lembaga/LSP.
+ * HANYA untuk mengirim file ke Google Drive: berkas peserta ke folder lembaga/LSP, serta materi, laporan, dan foto
+ * dokumentasi ke folder "LMS Artha" di Drive akun Artha (agar penyimpanan hosting tetap lega).
  * Proses LMS lain tetap berjalan di Hostinger.
  *
  * Pasang dengan akun Google Artha (info.arthasafetyindonesia@gmail.com):
@@ -18,7 +19,7 @@
  */
 const RAHASIA = 'TEMPEL-KODE-RAHASIA-DARI-LMS';
 const SUB_FOLDER = ['Persyaratan', 'Asesmen'];
-const VERSI = 'jembatan-2';
+const VERSI = 'jembatan-3';
 
 function doPost(e) {
   try {
@@ -29,6 +30,7 @@ function doPost(e) {
     if (q.action === 'folders') return jawab(buatFolder(q.root, q.names || []));
     if (q.action === 'upload') return jawab(upload(q));
     if (q.action === 'trash') return jawab(buang(q.id));
+    if (q.action === 'simpan') return jawab(simpan(q));
     return jawab({ ok: false, error: 'Aksi tidak dikenal: ' + q.action });
   } catch (err) {
     return jawab({ ok: false, error: pesanError(err) });
@@ -76,6 +78,19 @@ function upload(q) {
   }
   const blob = Utilities.newBlob(Utilities.base64Decode(q.data), q.mime || 'application/octet-stream', q.name);
   const file = sub.createFile(blob);
+  return { ok: true, id: file.getId(), url: file.getUrl() };
+}
+
+/**
+ * Simpan file ke Drive akun Artha: My Drive/<path...>/<name>. publik = siapa saja yang punya link bisa melihat
+ * (materi & foto dokumentasi untuk peserta); laporan tidak dibagikan (hanya akun Artha).
+ */
+function simpan(q) {
+  let folder = DriveApp.getRootFolder();
+  (q.path || []).forEach(function (n) { folder = subFolder(folder, String(n).trim()); });
+  const blob = Utilities.newBlob(Utilities.base64Decode(q.data), q.mime || 'application/octet-stream', q.name);
+  const file = folder.createFile(blob);
+  if (q.publik) file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
   return { ok: true, id: file.getId(), url: file.getUrl() };
 }
 

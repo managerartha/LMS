@@ -77,6 +77,25 @@ function closeModal() {
 document.addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
 
 /** Menjalankan aksi async sambil menonaktifkan tombol; error ditampilkan sebagai toast. */
+/** Ambil file dari server lalu simpan; bila file tersimpan di Google Drive (jawaban {url}), buka di tab baru. */
+async function bukaFileServer(btn, aksi, data, diDrive) {
+  const w = diDrive ? window.open('', '_blank') : null; // dibuka saat klik agar tidak diblokir browser
+  await busy(btn, async () => {
+    try {
+      const f = await call(aksi, data);
+      if (f.url) {
+        if (w) { w.location.href = f.url; return; }
+        openModal(`<h2>${esc(f.nama || 'Berkas')}</h2><p class="muted small">Berkas tersimpan di Google Drive.</p>
+          <a class="btn primary block" href="${esc(f.url)}" target="_blank" rel="noopener" onclick="closeModal()">☁️ Buka di Google Drive</a>
+          <button class="btn block mt" onclick="closeModal()">Tutup</button>`);
+        return;
+      }
+      if (w) w.close();
+      simpanFile(f.nama, f.data, f.mime);
+    } catch (e) { if (w) w.close(); throw e; }
+  }, '…');
+}
+
 async function busy(btn, fn, label) {
   const old = btn ? btn.innerHTML : '';
   if (btn) { btn.disabled = true; btn.innerHTML = label || 'Memproses…'; }

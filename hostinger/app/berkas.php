@@ -45,12 +45,13 @@ function multi_item(array $it): bool { return maks_file($it) > 1; }
  * dipindahkan menjadi file pertama — isinya tetap sama, hanya pencatatannya pindah ke tabel berkas_file.
  */
 function files_berkas(array $b): array {
-  if ($b['file_id'] !== '') {
+  // berkas lama 1 file (punya tipe file) yang belum punya daftar file → dijadikan file pertama
+  if ($b['tipe'] !== '' && ($b['file_id'] !== '' || $b['drive_file'] !== '') && !row('SELECT id_file FROM berkas_file WHERE id_berkas = ? LIMIT 1', [$b['id_berkas']])) {
     insert('berkas_file', ['id_file' => new_id('x'), 'id_berkas' => $b['id_berkas'], 'id_batch' => $b['id_batch'], 'id_user' => $b['id_user'],
       'file_id' => $b['file_id'], 'nama_file' => $b['nama_file'], 'tipe' => $b['tipe'], 'ukuran' => $b['ukuran'], 'diupload_pada' => $b['diupload_pada'],
       'drive_status' => $b['drive_status'], 'drive_file' => $b['drive_file'], 'drive_url' => $b['drive_url'], 'drive_root' => $b['drive_root'],
       'drive_error' => $b['drive_error'], 'drive_waktu' => $b['drive_waktu']]);
-    update('berkas', $b, ['file_id' => '']);
+    update('berkas', $b, ['file_id' => '', 'tipe' => '']);
   }
   return rows('SELECT * FROM berkas_file WHERE id_berkas = ? ORDER BY diupload_pada, id_file', [$b['id_berkas']]);
 }
@@ -328,9 +329,11 @@ function berkasUnduh(array $data, array $user): array {
   if (!empty($data['id_file']) && !$file) throw new LmsError('File tidak ditemukan.');
   $b = row('SELECT * FROM berkas WHERE id_berkas = ?', [$file ? $file['id_berkas'] : (string)($data['id_berkas'] ?? '')]);
   if (!$b) throw new LmsError('Berkas tidak ditemukan.');
-  if ($file) $b = array_merge($b, ['file_id' => $file['file_id'], 'nama_file' => $file['nama_file'], 'tipe' => $file['tipe']]);
+  if ($file) $b = array_merge($b, ['file_id' => $file['file_id'], 'nama_file' => $file['nama_file'], 'tipe' => $file['tipe'], 'drive_url' => $file['drive_url']]);
   if ($user['role'] === 'peserta' ? $b['id_user'] !== $user['id_user'] : !can_access_batch($user, get_batch($b['id_batch']))) throw new LmsError('Anda tidak berhak membuka berkas ini.');
   $f = ROOT . '/' . $b['file_id'];
+  // salinan di hosting sudah dihapus setelah terkirim → dibuka langsung dari Google Drive lembaga
+  if (($b['file_id'] === '' || !is_file($f)) && $b['drive_url'] !== '') return ['nama' => $b['nama_file'], 'url' => $b['drive_url']];
   if ($b['file_id'] === '' || str_contains($b['file_id'], '..') || !is_file($f)) throw new LmsError('File tidak ditemukan di server.');
   return ['nama' => $b['nama_file'], 'mime' => MIME_BERKAS[$b['tipe']] ?? 'application/octet-stream', 'data' => base64_encode((string)file_get_contents($f))];
 }
@@ -361,6 +364,7 @@ function kirim_berkas(string $idBerkas): bool {
       // file lama di Drive diganti hanya jika masih di folder lembaga yang sama
       'replace' => $b['drive_root'] === $set['drive_root'] ? $b['drive_file'] : ''], 120);
     $catat(['drive_status' => 'terkirim', 'drive_file' => (string)($j['id'] ?? ''), 'drive_url' => (string)($j['url'] ?? ''), 'drive_root' => $set['drive_root'], 'drive_error' => '']);
+    if (!empty($j['id'])) hapus_salinan_berkas($b['id_berkas']); // sudah ada di Drive lembaga → salinan di hosting dihapus
     return true;
   } catch (Throwable $e) {
     $catat(['drive_status' => 'gagal', 'drive_error' => mb_substr($e->getMessage(), 0, 300)]);
@@ -389,6 +393,7 @@ function kirim_file(string $idFile, bool $rangkum = true): bool {
       'sub2' => trim(preg_replace('/[\\\\\/:*?"<>|]+/', ' ', $it['nama'])), 'name' => $x['nama_file'],
       'mime' => MIME_BERKAS[$x['tipe']] ?? 'application/octet-stream', 'data' => base64_encode((string)file_get_contents($f)), 'replace' => ''], 120);
     $catat(['drive_status' => 'terkirim', 'drive_file' => (string)($j['id'] ?? ''), 'drive_url' => (string)($j['url'] ?? ''), 'drive_root' => $set['drive_root'], 'drive_error' => '']);
+    if (!empty($j['id'])) hapus_salinan_file($x['id_file']);
     return true;
   } catch (Throwable $e) {
     $catat(['drive_status' => 'gagal', 'drive_error' => mb_substr($e->getMessage(), 0, 300)]);

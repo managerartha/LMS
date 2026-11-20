@@ -666,8 +666,60 @@ async function tabBatch() {
                 <button class="btn sm danger" onclick="dialogHapusBatch(${i})">🗑 Hapus</button></td>
             </tr>`).join('')}
           </tbody></table>
-      </div>` : ''}`);
+      </div>` : ''}
+      <div class="card" id="penyimpanan"><h2>💾 Penyimpanan LMS</h2>
+        <p class="small muted">Materi, laporan, foto dokumentasi (batch selesai), dan salinan berkas peserta bisa dipindah ke Google Drive
+          agar hosting tetap lega. File di hosting baru dihapus setelah dipastikan tersimpan di Drive.</p>
+        <button class="btn" onclick="muatPenyimpanan(this)">📊 Hitung penyimpanan</button></div>`);
   } catch (e) { errBox(v, e); }
+}
+
+function ukuranTeks(n) { return n >= 1073741824 ? (n / 1073741824).toFixed(2) + ' GB' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB'; }
+
+function muatPenyimpanan(btn) {
+  busy(btn, async () => {
+    C.simpan = await call('penyimpananInfo');
+    renderPenyimpanan();
+  }, 'Menghitung…');
+}
+
+function renderPenyimpanan() {
+  const d = C.simpan, el = $('#penyimpanan');
+  if (!el) return;
+  const label = { berkas: 'salinan berkas', berkas_file: 'salinan file asesmen', materi: 'materi', laporan: 'laporan', dok: 'foto dokumentasi' };
+  el.innerHTML = `<h2>💾 Penyimpanan LMS</h2>
+    <p class="small muted">Total di hosting: <b>${ukuranTeks(d.storage + d.uploads)}</b> (data privat ${ukuranTeks(d.storage)} · file publik ${ukuranTeks(d.uploads)}).
+      Program LMS sendiri ±13 MB. Foto absen & tanda tangan tetap di hosting (kecil, dibutuhkan cepat).</p>
+    ${d.jembatan ? '' : '<div class="alert warn small">Jembatan Google Drive belum dipasang (Pustaka Pelatihan).</div>'}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Batch</th><th>Ukuran di hosting</th><th>Bisa dipindah ke Drive</th><th></th></tr></thead>
+      <tbody>${d.batch.map((b, i) => `<tr>
+        <td><b>${esc(b.kode_batch)}</b> ${b.status === 'arsip' ? '<span class="badge b-none">arsip</span>' : b.selesai ? '<span class="badge b-none">selesai</span>' : '<span class="badge b-hadir">berjalan</span>'}
+          <div class="small muted">${esc(b.nama_pelatihan)}</div></td>
+        <td>${ukuranTeks(b.ukuran)}</td>
+        <td class="small">${b.total_antrean ? Object.keys(b.antrean).filter(k => b.antrean[k]).map(k => b.antrean[k] + ' ' + label[k]).join(', ') : '<span class="muted">—</span>'}
+          ${!b.selesai ? '<div class="muted">Foto dokumentasi dipindah setelah batch selesai.</div>' : ''}</td>
+        <td>${b.total_antrean && d.jembatan ? `<button class="btn sm" onclick="pindahKeDrive(this, ${i})">☁️ Pindahkan ke Drive</button>` : ''}</td>
+      </tr>`).join('')}</tbody></table></div>`;
+}
+
+function pindahKeDrive(btn, i) {
+  const b = C.simpan.batch[i];
+  if (!confirm('Pindahkan ' + b.total_antrean + ' file batch ' + b.kode_batch + ' ke Google Drive? LMS tetap bisa dipakai selama proses berjalan.')) return;
+  busy(btn, async () => {
+    let r = { sisa: 1, lewati: [] }, total = 0, gagal = 0;
+    while (r.sisa > 0) {
+      r = await call('penyimpananPindah', { id_batch: b.id_batch, lewati: r.lewati });
+      total += r.dipindah; gagal = r.lewati.length;
+      btn.textContent = '☁️ ' + total + ' dipindah, sisa ' + r.sisa + '…';
+      if (!r.dipindah && r.sisa > 0) break; // tidak ada kemajuan
+    }
+    b.ukuran = r.ukuran;
+    b.total_antrean = r.sisa;
+    toast(total + ' file dipindah ke Drive.' + (gagal ? ' ' + gagal + ' file gagal dikirim (tetap aman di hosting) — periksa jembatan Google Drive lalu coba lagi.' : ''), gagal ? 'error' : 'ok');
+    C.simpan = await call('penyimpananInfo');
+    renderPenyimpanan();
+  }, 'Memindahkan…');
 }
 
 function picCheckboxes(selected) {
@@ -1268,11 +1320,13 @@ async function tabLaporan() {
             <div class="materi-ikon">📕</div>
             <div class="grow"><b>${esc(l.nama)}</b><div class="small muted">${esc(l.dibuat_pada)} · ${esc(l.dibuat_oleh)}</div></div>
             <div class="row">
-              <button class="btn sm" onclick="unduhLaporan(this, ${i})">⬇ Unduh</button>
-              ${l.drive ? `<a class="btn sm" href="${esc(l.drive)}" target="_blank" rel="noopener">Drive</a>` : ''}
+              ${l.lokal ? `<button class="btn sm" onclick="unduhLaporan(this, ${i})">⬇ Unduh</button>` : ''}
+              ${l.drive ? (S.user.role === 'admin' ? `<a class="btn sm" href="${esc(l.drive)}" target="_blank" rel="noopener">☁️ Buka di Drive</a>`
+                : '<span class="badge b-none" title="Dibuka Admin dengan akun Google Artha">☁️ di Drive Admin</span>') : ''}
             </div>
           </div>`).join('') : '<div class="muted small">Belum ada laporan.</div>'}
-        <p class="small muted">Semua laporan juga tersimpan di server LMS dan bisa diunduh ulang kapan saja.</p>
+        <p class="small muted">Salinan laporan disimpan di Google Drive akun Artha (folder LMS Artha) agar penyimpanan hosting tetap lega.
+          Laporan terbaru selalu bisa dibuat ulang kapan saja.</p>
       </div>`);
     lapJenis('resmi');
   } catch (e) { errBox(v, e); }
@@ -3366,6 +3420,10 @@ async function dialogBerkasPic(i, j) {
     const f = await call('berkasUnduh', { id_berkas: b.id_berkas });
     const el = $('#bk-preview');
     if (!el) return;
+    if (f.url) { // salinan di hosting sudah dihapus setelah terkirim → buka dari Drive lembaga
+      el.innerHTML = `<a class="btn sm" href="${esc(f.url)}" target="_blank" rel="noopener">☁️ Buka berkas di Google Drive</a>`;
+      return;
+    }
     const url = 'data:' + f.mime + ';base64,' + f.data;
     el.innerHTML = (f.mime.startsWith('image/') ? `<img class="thumb" src="${url}" alt="" style="max-height:320px">` : '') +
       `<div class="mt"><button class="btn sm" onclick="simpanFile('${esc(f.nama)}', C.bkFile, '${esc(f.mime)}')">⬇ Unduh / buka berkas</button></div>`;
@@ -3395,7 +3453,7 @@ function dialogBerkasMulti(p, it, b) {
 }
 
 function unduhFileBerkasPic(btn, k) {
-  busy(btn, async () => { const f = await call('berkasUnduh', { id_file: C.bkFiles[k].id_file }); simpanFile(f.nama, f.data, f.mime); }, '…');
+  bukaFileServer(btn, 'berkasUnduh', { id_file: C.bkFiles[k].id_file }, C.bkFiles[k].drive_status === 'terkirim');
 }
 
 function verifikasiBerkas(btn, id, status) {

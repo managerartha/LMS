@@ -6,6 +6,10 @@ try {
   $m = isset($_GET['dp'])
     ? row('SELECT judul, file_id, tipe_file FROM dokumen_program WHERE id_dp = ?', [(string)$_GET['dp']])
     : row('SELECT * FROM materi WHERE id_materi = ?', [(string)($_GET['id'] ?? '')]);
+  if ($m && ($m['drive_id'] ?? '') !== '') {
+    header('Location: https://drive.google.com/uc?export=download&id=' . rawurlencode($m['drive_id']));
+    exit;
+  }
   $f = $m && $m['file_id'] !== '' && !str_contains($m['file_id'], '..') ? ROOT . '/' . $m['file_id'] : '';
   if (!$f || !is_file($f)) throw new LmsError('File tidak ditemukan.');
   $nama = preg_replace('/[^A-Za-z0-9 ._()-]+/', '-', $m['judul']) . '.' . $m['tipe_file'];

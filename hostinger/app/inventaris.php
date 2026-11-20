@@ -481,8 +481,10 @@ function invPdf(array $data, array $user): array {
   $nama = preg_replace('#[\\\\/:*?"<>|]#', '-', 'Berita Acara Inventaris ' . $batch['kode_batch'] . ' - ' . $batch['nama_pelatihan'] . '.pdf');
   $pdf = html_ke_pdf($html);
   $rel = simpan_bytes('storage/' . $batch['folder'] . '/laporan', $pdf, $nama);
-  insert('laporan', ['id_laporan' => new_id('l'), 'id_batch' => $batch['id_batch'], 'jenis' => 'inventaris', 'id_hari' => '', 'file_id' => $rel,
+  $lap = insert('laporan', ['id_laporan' => new_id('l'), 'id_batch' => $batch['id_batch'], 'jenis' => 'inventaris', 'id_hari' => '', 'file_id' => $rel,
     'dibuat_oleh' => $user['nama'], 'dibuat_pada' => now_()['stamp'], 'nama_file' => $nama]);
+  $idL = $lap['id_laporan'];
+  setelah_respon(fn() => pindah_laporan($idL));
   log_($user, 'inv_pdf', $nama);
   return ['nama' => $nama, 'data' => base64_encode($pdf)];
 }

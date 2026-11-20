@@ -16,10 +16,10 @@ const SCHEMA = [
   'rundown' => ['id_rundown', 'id_batch', 'id_hari', 'urutan', 'jam_mulai', 'jam_selesai', 'kegiatan',
     'pemateri', 'keterangan', 'status', 'instansi'],
   'materi' => ['id_materi', 'id_batch', 'id_hari', 'judul', 'kategori', 'file_id', 'tipe_file', 'link',
-    'tampil_mulai', 'diupload_oleh', 'diupload_pada'],
+    'tampil_mulai', 'diupload_oleh', 'diupload_pada', 'drive_id', 'drive_url'],
   'dokumentasi' => ['id_dok', 'id_batch', 'id_hari', 'id_rundown', 'file_id', 'keterangan', 'masuk_laporan',
-    'diupload_oleh', 'diupload_pada', 'file_kecil_id'],
-  'laporan' => ['id_laporan', 'id_batch', 'jenis', 'id_hari', 'file_id', 'dibuat_oleh', 'dibuat_pada', 'nama_file'],
+    'diupload_oleh', 'diupload_pada', 'file_kecil_id', 'drive_id', 'drive_url'],
+  'laporan' => ['id_laporan', 'id_batch', 'jenis', 'id_hari', 'file_id', 'dibuat_oleh', 'dibuat_pada', 'nama_file', 'drive_id', 'drive_url'],
   'skl' => ['id_skl', 'id_batch', 'id_user', 'nomor', 'urut', 'tahun', 'status', 'tgl_terbit', 'diubah_oleh', 'diubah_pada'],
   'absen_narasumber' => ['id_an', 'id_batch', 'id_hari', 'id_rundown', 'nama', 'instansi', 'materi', 'jam_mulai', 'jam_selesai',
     'ttd_id', 'waktu_server', 'dibuat_oleh'],
@@ -61,7 +61,7 @@ const SCHEMA = [
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '12';
+const SCHEMA_VERSI = '13';
 
 const SCHEMA_TEXT = ['komponen', 'catatan_rekap', 'isi_nilai', 'isi_materi', 'setelan', 'daftar_nomor', 'batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 

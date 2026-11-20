@@ -990,7 +990,7 @@ async function loadBerkas() {
           <div class="small muted">${esc(x.format.join(', ').toUpperCase())} · maks. ${x.maks_mb} MB${x.batas ? ' · batas ' + esc(fmtTanggal(x.batas)) : ''}${x.keterangan ? ' · ' + esc(x.keterangan) : ''}</div></div>
           ${b ? `<span class="badge ${STATUS_BERKAS_PS[b.status][0]}">${STATUS_BERKAS_PS[b.status][1]}</span>` : '<span class="badge b-none">Belum diupload</span>'}</div>
         ${b ? `<div class="small mt">📎 ${esc(b.nama_file)} · ${esc(b.diupload_pada.slice(0, 16))}
-          <button class="btn sm" onclick="unduhBerkasSaya(this, '${esc(b.id_berkas)}')">Lihat</button></div>` : ''}
+          <button class="btn sm" onclick="unduhBerkasSaya(this, '${esc(b.id_berkas)}', ${b.drive_status === 'terkirim'})">Lihat</button></div>` : ''}
         ${b && b.status === 'revisi' && b.catatan ? `<div class="alert bad small mt">Catatan PIC: ${esc(b.catatan)}</div>` : ''}
         ${x.boleh_upload ? `<label class="btn ${b ? '' : 'primary'} mt" style="display:inline-block">${b ? '🔁 Ganti berkas' : '⬆ Upload'}
             <input type="file" class="hidden" accept="${x.format.map(f => '.' + f).join(',')}" onchange="uploadBerkas(this, ${i})"></label>`
@@ -1017,7 +1017,7 @@ function berkasMultiHtml(x, i) {
       ${b ? `<span class="badge ${STATUS_BERKAS_PS[b.status][0]}">${STATUS_BERKAS_PS[b.status][1]}</span>` : '<span class="badge b-none">Belum diupload</span>'}</div>
     ${files.length ? `<div class="file-list">${files.map(f => `<div class="file-row">
         <span class="grow">📎 ${esc(f.nama_file)} <span class="small muted">· ${ukuranFile(f.ukuran)}</span></span>
-        <button class="btn sm" onclick="unduhFileBerkas(this, '${esc(f.id_file)}')">Lihat</button>
+        <button class="btn sm" onclick="unduhFileBerkas(this, '${esc(f.id_file)}', ${f.drive_status === 'terkirim'})">Lihat</button>
         ${x.boleh_upload ? `<button class="btn sm danger" title="Hapus file" onclick="hapusFileBerkas(this, '${esc(f.id_file)}', '${esc(f.nama_file).replace(/'/g, '&#39;')}')">🗑</button>` : ''}
       </div>`).join('')}<div class="small muted">${files.length} dari ${x.maks_file} file</div></div>` : ''}
     ${b && b.status === 'revisi' && b.catatan ? `<div class="alert bad small mt">Catatan PIC: ${esc(b.catatan)}</div>` : ''}
@@ -1063,8 +1063,8 @@ function hapusFileBerkas(btn, id, nama) {
   busy(btn, async () => { await call('berkasHapusFile', { id_file: id }); toast('File dihapus.', 'ok'); loadBerkas(); }, '…');
 }
 
-function unduhFileBerkas(btn, id) {
-  busy(btn, async () => { const f = await call('berkasUnduh', { id_file: id }); simpanFile(f.nama, f.data, f.mime); }, '…');
+function unduhFileBerkas(btn, id, diDrive) {
+  bukaFileServer(btn, 'berkasUnduh', { id_file: id }, diDrive);
 }
 
 /** Foto dari kamera HP (biasanya besar) diperkecil tanpa membuat tulisan sulit dibaca. */
@@ -1091,6 +1091,6 @@ function uploadBerkas(input, i) {
   }, 'Mengupload…');
 }
 
-function unduhBerkasSaya(btn, id) {
-  busy(btn, async () => { const f = await call('berkasUnduh', { id_berkas: id }); simpanFile(f.nama, f.data, f.mime); }, '…');
+function unduhBerkasSaya(btn, id, diDrive) {
+  bukaFileServer(btn, 'berkasUnduh', { id_berkas: id }, diDrive);
 }

@@ -224,7 +224,8 @@ function batchDuplikat(array $data, array $user): array {
           }
           insert('materi', ['id_materi' => new_id('m'), 'id_batch' => $b['id_batch'], 'id_hari' => $hb['id_hari'], 'judul' => $m['judul'],
             'kategori' => $m['kategori'], 'file_id' => $fileId, 'tipe_file' => $m['tipe_file'], 'link' => $m['link'],
-            'tampil_mulai' => $m['tampil_mulai'], 'diupload_oleh' => $user['nama'], 'diupload_pada' => now_()['stamp']]);
+            'tampil_mulai' => $m['tampil_mulai'], 'diupload_oleh' => $user['nama'], 'diupload_pada' => now_()['stamp'],
+            'drive_id' => $fileId === '' ? (string)($m['drive_id'] ?? '') : '', 'drive_url' => $fileId === '' ? (string)($m['drive_url'] ?? '') : '']);
           $n['materi']++;
         }
       }

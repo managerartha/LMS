@@ -97,6 +97,11 @@ function rundownSalin(array $data, array $user): array {
 // ---------------------------------------------------------------- Materi
 
 function materi_view(array $m): array {
+  if (($m['drive_id'] ?? '') !== '') { // tersimpan di Google Drive: dibuka dengan pratinjau Drive (cepat, server Google)
+    return ['id_materi' => $m['id_materi'], 'judul' => $m['judul'], 'kategori' => $m['kategori'], 'tipe_file' => $m['tipe_file'],
+      'tampil_mulai' => $m['tampil_mulai'], 'buka' => 'https://drive.google.com/file/d/' . rawurlencode($m['drive_id']) . '/view',
+      'unduh' => 'https://drive.google.com/uc?export=download&id=' . rawurlencode($m['drive_id'])];
+  }
   $file = $m['file_id'] !== '';
   $url = $file ? url_publik($m['file_id']) : $m['link'];
   // Dokumen Office dibuka lewat penampil online Microsoft agar bisa dilihat di HP tanpa aplikasi.
@@ -161,6 +166,7 @@ function materiTambah(array $data, array $user): array {
     'kategori' => $kategori, 'file_id' => $fileId, 'tipe_file' => $tipe, 'link' => $link, 'tampil_mulai' => $tampil,
     'diupload_oleh' => $user['nama'], 'diupload_pada' => now_()['stamp']]);
   log_($user, 'materi_tambah', 'hari ' . $hari['hari_ke'] . ': ' . $judul);
+  if ($fileId !== '') { $id = $m['id_materi']; setelah_respon(fn() => pindah_materi($id)); } // ke Google Drive di belakang layar
   return materi_view($m);
 }
 
@@ -179,7 +185,8 @@ function materiHapus(array $data, array $user): bool {
 function dok_view(array $d): array {
   return ['id_dok' => $d['id_dok'], 'id_rundown' => $d['id_rundown'], 'keterangan' => $d['keterangan'],
     'masuk_laporan' => $d['masuk_laporan'] === 'ya',
-    'thumb' => url_publik($d['file_kecil_id'] !== '' ? $d['file_kecil_id'] : $d['file_id']), 'buka' => url_publik($d['file_id'])];
+    'thumb' => url_publik($d['file_kecil_id'] !== '' ? $d['file_kecil_id'] : $d['file_id']),
+    'buka' => ($d['drive_id'] ?? '') !== '' ? 'https://drive.google.com/file/d/' . rawurlencode($d['drive_id']) . '/view' : url_publik($d['file_id'])];
 }
 
 function dok_hari(string $idHari): array {

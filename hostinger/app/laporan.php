@@ -128,7 +128,7 @@ function ttdSayaSimpan(array $data, array $user): bool {
 
 function laporan_view(array $r): array {
   return ['id_laporan' => $r['id_laporan'], 'jenis' => $r['jenis'], 'id_hari' => $r['id_hari'], 'nama' => $r['nama_file'] ?: 'Laporan.pdf',
-    'dibuat_oleh' => $r['dibuat_oleh'], 'dibuat_pada' => $r['dibuat_pada'], 'drive' => ''];
+    'dibuat_oleh' => $r['dibuat_oleh'], 'dibuat_pada' => $r['dibuat_pada'], 'drive' => (string)($r['drive_url'] ?? ''), 'lokal' => $r['file_id'] !== ''];
 }
 
 function laporanList(array $data, array $user): array {
@@ -141,6 +141,7 @@ function laporanUnduh(array $data, array $user): array {
   if (!$r) throw new LmsError('Laporan tidak ditemukan.');
   batch_for_pic($user, $r['id_batch']);
   $f = ROOT . '/' . $r['file_id'];
+  if ($r['file_id'] === '' && ($r['drive_url'] ?? '') !== '') throw new LmsError('Laporan ini sudah dipindah ke Google Drive akun Artha (dibuka oleh Admin). Buat laporan baru untuk mengunduh versi terbaru.');
   if (!is_file($f)) throw new LmsError('File laporan tidak ditemukan di server.');
   return ['nama' => laporan_view($r)['nama'], 'data' => base64_encode((string)file_get_contents($f))];
 }
@@ -193,6 +194,8 @@ function laporanBuat(array $data, array $user): array {
     'id_hari' => $jenis === 'harian' ? $hariList[0]['id_hari'] : '', 'file_id' => $rel, 'dibuat_oleh' => $user['nama'],
     'dibuat_pada' => now_()['stamp'], 'nama_file' => $nama]);
   log_($user, 'laporan_' . $jenis, $nama);
+  $idL = $rec['id_laporan'];
+  setelah_respon(fn() => pindah_laporan($idL)); // salinan disimpan di Google Drive akun Artha, bukan di hosting
   return ['laporan' => laporan_view($rec), 'nama' => $nama, 'data' => base64_encode($pdf)];
 }
 

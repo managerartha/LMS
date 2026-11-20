@@ -554,3 +554,14 @@ Skema versi 12: kolom `berkas_item.maks_file` dan tabel baru `berkas_file` (daft
 - **Drive**: `<Nama Peserta>/Asesmen/<Nama berkas>/<nama file asli>`; file yang dihapus peserta dipindah ke sampah Drive. Butuh **Apps Script versi `jembatan-2`** (aksi `sub2` & `trash`); dengan versi lama file tetap terkirim ke folder Asesmen dan file yang dihapus tidak ikut terhapus di Drive.
 - **PIC**: tabel kelengkapan menampilkan jumlah file; dialog berisi daftar file (buka satu-satu bila perlu) dan **Terima semua file / Perlu revisi** sekaligus. Rekap CSV menyertakan jumlah file.
 - **Data lama**: berkas yang sudah ada tetap; bila jenis berkasnya diubah menjadi banyak file, file lama otomatis menjadi file pertama (dipindah pencatatannya ke `berkas_file`, isi tidak berubah).
+
+## 31. File besar disimpan di Google Drive (hemat penyimpanan hosting)
+
+Skema versi 13: kolom `drive_id`, `drive_url` pada `materi`, `dokumentasi`, `laporan`. Butuh **Apps Script `jembatan-3`** (aksi `simpan`: menyimpan ke Drive akun Artha `My Drive/LMS Artha/<Kode batch - Nama pelatihan>/…`, opsi publik-dengan-link). Akun Artha: Google One 2 TB.
+
+- **Materi** (baru): setelah upload, dikirim ke `…/Materi/Hari-N/` (siapa saja dengan link bisa melihat), lalu salinan hosting dihapus. Peserta & PIC membuka lewat pratinjau Google Drive; tombol unduh & `api/unduh.php` diarahkan ke unduhan Drive. Duplikat batch memakai file Drive yang sama.
+- **Laporan PDF** (baru, termasuk berita acara inventaris): langsung diunduh seperti biasa, salinannya dikirim ke `…/Laporan/` (tidak dibagikan, dibuka Admin dengan akun Artha), lalu salinan hosting dihapus. Riwayat laporan: Admin melihat tombol "Buka di Drive", PIC melihat tanda "di Drive Admin"; laporan terbaru selalu bisa dibuat ulang.
+- **Berkas peserta**: salinan di hosting dihapus otomatis segera setelah berhasil terkirim ke Drive lembaga (berkas 1 file maupun file asesmen). Peserta/PIC membuka berkas dari Drive lembaga (tab baru); selama belum terkirim, salinan tetap di hosting.
+- **Foto dokumentasi**: tetap di hosting selama batch berjalan; setelah batch selesai, foto besar dipindah ke `…/Dokumentasi/Hari-N/` (publik dengan link) lewat tombol Admin. Versi kecil tetap di hosting untuk galeri & laporan (laporan resmi tetap lengkap fotonya).
+- **Foto absen & tanda tangan**: tetap di hosting (kecil, dibutuhkan cepat untuk monitor dan laporan).
+- **Menu Batch → Penyimpanan LMS** (Admin): ukuran di hosting per batch, jumlah file yang bisa dipindah, tombol **Pindahkan ke Drive** (bertahap ±20 detik per langkah, LMS tetap bisa dipakai). File hosting baru dihapus setelah dipastikan tersimpan di Drive; gagal kirim (mis. Apps Script belum diperbarui) → file tetap di hosting.
