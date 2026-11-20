@@ -565,3 +565,7 @@ Skema versi 13: kolom `drive_id`, `drive_url` pada `materi`, `dokumentasi`, `lap
 - **Foto dokumentasi**: tetap di hosting selama batch berjalan; setelah batch selesai, foto besar dipindah ke `…/Dokumentasi/Hari-N/` (publik dengan link) lewat tombol Admin. Versi kecil tetap di hosting untuk galeri & laporan (laporan resmi tetap lengkap fotonya).
 - **Foto absen & tanda tangan**: tetap di hosting (kecil, dibutuhkan cepat untuk monitor dan laporan).
 - **Menu Batch → Penyimpanan LMS** (Admin): ukuran di hosting per batch, jumlah file yang bisa dipindah, tombol **Pindahkan ke Drive** (bertahap ±20 detik per langkah, LMS tetap bisa dipakai). File hosting baru dihapus setelah dipastikan tersimpan di Drive; gagal kirim (mis. Apps Script belum diperbarui) → file tetap di hosting.
+
+## 32. Absensi narasumber: foto / screenshot Zoom
+
+Skema versi 14 (kolom `absen_narasumber.jenis_bukti`). Bukti kehadiran narasumber kini tiga pilihan: **TTD langsung**, **TTD digital (file → PNG transparan)**, atau **Foto / SS Zoom** (untuk narasumber online yang tidak memberikan tanda tangan; dikecilkan di browser maks. 1600 px, disimpan JPG ≤ 3 MB). Di daftar absensi tampil gambar kecil (klik untuk memperbesar). Di laporan resmi & harian: gambar kecil di kolom tanda tangan bertuliskan "Foto/SS Zoom", ditambah **lampiran foto ukuran besar** di bawah daftar hadir narasumber. Data tanda tangan lama tidak berubah.

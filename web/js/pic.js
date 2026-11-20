@@ -2362,7 +2362,8 @@ async function tabNarasumber() {
     setBody(v, `
       <div class="card">
         <div class="row">${hariSelect('tabNarasumber')}</div>
-        <p class="small muted mt">Setiap narasumber menandatangani daftar hadir di HP/laptop PIC pada sesinya (tanpa foto).
+        <p class="small muted mt">Setiap narasumber menandatangani daftar hadir di HP/laptop PIC pada sesinya. Narasumber online tanpa tanda tangan
+          bisa dicatat dengan <b>foto / screenshot Zoom</b>.
           Daftar diambil dari <b>Rundown</b> (kegiatan yang mencantumkan pemateri) dan otomatis masuk ke laporan resmi &amp; laporan harian.</p>
       </div>
       <div class="card">
@@ -2376,8 +2377,10 @@ async function tabNarasumber() {
               <td class="small">${esc(x.jam_mulai)}–${esc(x.jam_selesai)}</td>
               <td>${esc(x.materi)}</td>
               <td>${esc(x.nama)}<div class="small muted">${esc(x.instansi)}</div></td>
-              <td>${x.absen ? `<img src="${x.absen.ttd}" alt="Tanda tangan" style="height:46px;background:#fff">
-                  <div class="small muted">${esc(jamSaja(x.absen.waktu))} WIB · ${esc(x.absen.oleh)}</div>`
+              <td>${x.absen ? (x.absen.jenis === 'foto'
+                  ? `<a href="${x.absen.ttd}" target="_blank" rel="noopener"><img src="${x.absen.ttd}" alt="Foto / SS Zoom" style="height:56px;border-radius:6px"></a><div class="small muted">📷 Foto/SS Zoom</div>`
+                  : `<img src="${x.absen.ttd}" alt="Tanda tangan" style="height:46px;background:#fff">`) +
+                  `<div class="small muted">${esc(jamSaja(x.absen.waktu))} WIB · ${esc(x.absen.oleh)}</div>`
                 : '<span class="badge b-belum">Belum</span>'}</td>
               <td>${x.absen ? `<button class="btn sm danger" onclick="hapusNarasumber(this, ${i})">Ulangi</button>`
                 : nanti ? '' : `<button class="btn sm primary" onclick="dialogNarasumber(${i})">✍️ Tanda tangan</button>`}</td>
@@ -2402,10 +2405,11 @@ function dialogNarasumber(i) {
       </div>`}
     <label>Nama narasumber</label><input id="ns-nama" value="${esc(x ? x.nama : '')}">
     <label>Instansi</label><input id="ns-instansi" value="${esc(x ? x.instansi : '')}" placeholder="mis. Disnakertrans Prov. DIY / Praktisi K3">
-    <label class="mt">Tanda tangan narasumber</label>
-    <div class="seg">
-      <button type="button" id="ns-m-pad" class="active" onclick="modeTtdNs(false)">✍️ Tanda tangan langsung</button>
-      <button type="button" id="ns-m-file" onclick="modeTtdNs(true)">📁 Upload file</button>
+    <label class="mt">Bukti kehadiran narasumber</label>
+    <div class="seg seg3">
+      <button type="button" id="ns-m-pad" class="active" onclick="modeTtdNs('pad')">✍️ TTD langsung</button>
+      <button type="button" id="ns-m-file" onclick="modeTtdNs('file')">📁 TTD digital (file)</button>
+      <button type="button" id="ns-m-foto" onclick="modeTtdNs('foto')">📷 Foto / SS Zoom</button>
     </div>
     <div id="ns-pad">
       <canvas id="sigpad" class="sigpad"></canvas>
@@ -2416,6 +2420,12 @@ function dialogNarasumber(i) {
       <p class="small muted">Foto/scan tanda tangan di kertas putih (JPG/PNG). Latar otomatis dibuang menjadi transparan (PNG) agar rapi di laporan.</p>
       <div id="ns-ttd-preview"></div>
     </div>
+    <div id="ns-foto" class="hidden">
+      <input type="file" id="ns-foto-file" accept="image/*" onchange="pilihFotoNs(this)">
+      <p class="small muted">Untuk narasumber online yang tidak memberikan tanda tangan: upload <b>screenshot Zoom</b> (wajah & nama narasumber terlihat)
+        atau foto kehadiran. Masuk ke laporan sebagai bukti kehadiran.</p>
+      <div id="ns-foto-preview"></div>
+    </div>
     <div class="row mt">
       <button class="btn" id="ns-hapus" onclick="C.pad.clear()">Hapus</button>
       <button class="btn" onclick="closeModal()">Batal</button>
@@ -2423,16 +2433,30 @@ function dialogNarasumber(i) {
     </div>`);
   C.pad = signaturePad($('#sigpad'));
   C.nsFile = null;
-  C.nsModeFile = false;
+  C.nsFoto = null;
+  C.nsMode = 'pad';
 }
 
-function modeTtdNs(file) {
-  C.nsModeFile = file;
-  $('#ns-m-pad').classList.toggle('active', !file);
-  $('#ns-m-file').classList.toggle('active', file);
-  $('#ns-pad').classList.toggle('hidden', file);
-  $('#ns-file').classList.toggle('hidden', !file);
-  $('#ns-hapus').classList.toggle('hidden', file);
+/** mode: 'pad' (tanda tangan langsung), 'file' (TTD digital → PNG transparan), 'foto' (foto / screenshot Zoom). */
+function modeTtdNs(mode) {
+  C.nsMode = mode;
+  ['pad', 'file', 'foto'].forEach(m => {
+    $('#ns-m-' + m).classList.toggle('active', m === mode);
+    $('#ns-' + m).classList.toggle('hidden', m !== mode);
+  });
+  $('#ns-hapus').classList.toggle('hidden', mode !== 'pad');
+}
+
+async function pilihFotoNs(input) {
+  const file = input.files[0];
+  C.nsFoto = null;
+  $('#ns-foto-preview').innerHTML = '';
+  if (!file) return;
+  if (!/^image\//.test(file.type)) { input.value = ''; return toast('Pilih file gambar (JPG/PNG).', 'error'); }
+  try {
+    C.nsFoto = await kompresGambar(file, 1600, 0.8);
+    $('#ns-foto-preview').innerHTML = `<img src="${C.nsFoto}" alt="Foto narasumber" style="max-width:100%;max-height:220px;border-radius:10px;margin-top:8px">`;
+  } catch (e) { toast('Gambar tidak terbaca.', 'error'); input.value = ''; }
 }
 
 async function pilihTtdNs(input) {
@@ -2503,9 +2527,13 @@ function ttdTransparan(file) {
 }
 
 function simpanNarasumber(btn, i) {
-  if (C.nsModeFile ? !C.nsFile : C.pad.isEmpty()) return toast(C.nsModeFile ? 'Pilih file gambar tanda tangan.' : 'Tanda tangan masih kosong.', 'error');
+  const mode = C.nsMode || 'pad';
+  if (mode === 'pad' && C.pad.isEmpty()) return toast('Tanda tangan masih kosong.', 'error');
+  if (mode === 'file' && !C.nsFile) return toast('Pilih file gambar tanda tangan.', 'error');
+  if (mode === 'foto' && !C.nsFoto) return toast('Pilih foto / screenshot Zoom narasumber.', 'error');
   const x = i >= 0 ? C.ns[i] : null;
-  const data = { id_hari: C.idHari, nama: $('#ns-nama').value, instansi: $('#ns-instansi').value, ttd: C.nsModeFile ? C.nsFile : C.pad.toDataURL() };
+  const data = { id_hari: C.idHari, nama: $('#ns-nama').value, instansi: $('#ns-instansi').value,
+    ttd: mode === 'foto' ? C.nsFoto : mode === 'file' ? C.nsFile : C.pad.toDataURL(), jenis: mode === 'foto' ? 'foto' : 'ttd' };
   if (x) data.id_rundown = x.id_rundown;
   else Object.assign(data, { materi: $('#ns-materi').value, jam_mulai: $('#ns-mulai').value, jam_selesai: $('#ns-selesai').value });
   busy(btn, async () => {
@@ -2516,7 +2544,7 @@ function simpanNarasumber(btn, i) {
 
 function hapusNarasumber(btn, i) {
   const x = C.ns[i];
-  if (!confirm('Hapus tanda tangan ' + x.nama + ' agar bisa diulang?')) return;
+  if (!confirm('Hapus absensi ' + x.nama + ' agar bisa diulang?')) return;
   busy(btn, async () => { await call('narasumberHapus', { id_an: x.absen.id_an }); toast('Tanda tangan dihapus.', 'ok'); tabNarasumber(); });
 }
 

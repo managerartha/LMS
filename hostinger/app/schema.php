@@ -22,7 +22,7 @@ const SCHEMA = [
   'laporan' => ['id_laporan', 'id_batch', 'jenis', 'id_hari', 'file_id', 'dibuat_oleh', 'dibuat_pada', 'nama_file', 'drive_id', 'drive_url'],
   'skl' => ['id_skl', 'id_batch', 'id_user', 'nomor', 'urut', 'tahun', 'status', 'tgl_terbit', 'diubah_oleh', 'diubah_pada'],
   'absen_narasumber' => ['id_an', 'id_batch', 'id_hari', 'id_rundown', 'nama', 'instansi', 'materi', 'jam_mulai', 'jam_selesai',
-    'ttd_id', 'waktu_server', 'dibuat_oleh'],
+    'ttd_id', 'waktu_server', 'dibuat_oleh', 'jenis_bukti'],
   'program' => ['id_program', 'nama', 'aktif', 'dibuat_pada'],
   'dokumen_program' => ['id_dp', 'id_program', 'skema', 'jenis', 'judul', 'file_id', 'tipe_file', 'link', 'diunggah_pada', 'diunggah_oleh'],
   'persetujuan' => ['id_setuju', 'id_user', 'id_dp', 'waktu'],
@@ -61,7 +61,7 @@ const SCHEMA = [
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '13';
+const SCHEMA_VERSI = '14';
 
 const SCHEMA_TEXT = ['komponen', 'catatan_rekap', 'isi_nilai', 'isi_materi', 'setelan', 'daftar_nomor', 'batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 
