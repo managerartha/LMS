@@ -192,7 +192,11 @@ body.login-mode .topbar { display: none; }
 @media (min-width: 900px) {
   .shell { display: grid; grid-template-columns: 240px 1fr; gap: 24px; align-items: start; }
   .sidenav { flex-direction: column; margin: 0; padding: 12px; position: sticky; top: 72px; background: #fff;
-    border: 1px solid var(--line); border-radius: var(--radius); }
+    border: 1px solid var(--line); border-radius: var(--radius);
+    /* menu bisa digulir sendiri bila lebih tinggi dari layar (mis. menu Admin) */
+    max-height: calc(100vh - 88px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+  .sidenav::-webkit-scrollbar { display: block; width: 6px; }
+  .sidenav::-webkit-scrollbar-thumb { background: #d5dae3; border-radius: 99px; }
   .navlink { border: 0; border-radius: 10px; padding: 12px 14px; justify-content: flex-start; }
   .navlink.active { box-shadow: inset -3px 0 0 var(--hero-1); }
 }

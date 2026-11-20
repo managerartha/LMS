@@ -67,6 +67,8 @@ function picTab(tab) {
   // Batch arsip disembunyikan dari pilihan, kecuali sedang dibuka dari tab Batch.
   const pilihan = C.batches.filter(b => b.status !== 'arsip' || (C.batch && b.id_batch === C.batch.id_batch));
   let grup = '';
+  const navLama = $('.sidenav');
+  const gulirMenu = navLama ? navLama.scrollTop : 0; // posisi gulir menu samping dipertahankan saat pindah menu
   render(`
     <div class="shell">
       <nav class="sidenav">
@@ -92,6 +94,8 @@ function picTab(tab) {
     </div>
     <nav class="bnav">${BNAV_PIC.map(n => `<button class="${tab === n[0] ? 'on' : ''}" onclick="picTab('${n[0]}')"><span>${n[1]}</span>${n[2]}</button>`).join('')}
       <button class="${BNAV_PIC.some(n => n[0] === tab) ? '' : 'on'}" onclick="menuLainPic()"><span>☰</span>Lainnya</button></nav>`);
+  const navBaru = $('.sidenav');
+  if (navBaru && gulirMenu) navBaru.scrollTop = gulirMenu;
   if (butuhBatch && !C.batch) {
     $('#tab-body').innerHTML = '<div class="card center muted">' +
       (admin ? 'Belum ada batch. Buat batch baru di menu <b>Batch</b>.' : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.') + '</div>';
