@@ -213,7 +213,7 @@ function dokTambah(array $data, array $user): array {
   $fileId = simpan_data_url($dir, (string)($data['foto'] ?? ''), $nama);
   $kecil = !empty($data['foto_kecil']) ? simpan_data_url($dir . '/kecil', (string)$data['foto_kecil'], $nama) : '';
   $d = insert('dokumentasi', ['id_dok' => new_id('d'), 'id_batch' => $hari['id_batch'], 'id_hari' => $hari['id_hari'], 'id_rundown' => $idRundown,
-    'file_id' => $fileId, 'keterangan' => trim((string)($data['keterangan'] ?? '')), 'masuk_laporan' => 'ya',
+    'file_id' => $fileId, 'keterangan' => trim((string)($data['keterangan'] ?? '')), 'masuk_laporan' => array_key_exists('masuk_laporan', $data) && !$data['masuk_laporan'] ? 'tidak' : 'ya',
     'diupload_oleh' => $user['nama'], 'diupload_pada' => now_()['stamp'], 'file_kecil_id' => $kecil]);
   return dok_view($d);
 }
@@ -232,6 +232,21 @@ function dokUbah(array $data, array $user): array {
   if (array_key_exists('masuk_laporan', $data)) $changes['masuk_laporan'] = $data['masuk_laporan'] ? 'ya' : 'tidak';
   if (array_key_exists('id_rundown', $data)) $changes['id_rundown'] = (string)$data['id_rundown'];
   return dok_view(update('dokumentasi', $d, $changes));
+}
+
+/** Pilih foto dokumentasi satu hari yang masuk laporan PDF: id di daftar → 'ya', lainnya → 'tidak'. */
+function dokPilihLaporan(array $data, array $user): array {
+  $hari = hari_for_user($user, (string)($data['id_hari'] ?? ''));
+  batch_for_pic($user, $hari['id_batch']);
+  $pilih = array_flip(array_map('strval', (array)($data['pilih'] ?? [])));
+  $n = 0;
+  foreach (dok_hari($hari['id_hari']) as $d) {
+    $v = isset($pilih[$d['id_dok']]) ? 'ya' : 'tidak';
+    if ($d['masuk_laporan'] !== $v) update('dokumentasi', $d, ['masuk_laporan' => $v]);
+    if ($v === 'ya') $n++;
+  }
+  log_($user, 'dok_pilih_laporan', 'hari ' . $hari['hari_ke'] . ': ' . $n . ' foto');
+  return array_map('dok_view', dok_hari($hari['id_hari']));
 }
 
 function dokHapus(array $data, array $user): bool {

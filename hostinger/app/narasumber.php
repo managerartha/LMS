@@ -100,17 +100,7 @@ function daftar_hadir_narasumber(array $hariList): string {
     implode('', array_map(fn($b, $i) => '<tr style="page-break-inside:avoid"><td style="text-align:center">' . ($i + 1) . '</td><td>' .
       h_(tgl_panjang($b[0]['tanggal'])) . '</td><td>' . h_($b[1]['jam_mulai']) . '–' . h_($b[1]['jam_selesai']) . '</td><td>' . h_($b[1]['materi']) .
       '</td><td>' . h_($b[1]['nama']) . '</td><td>' . h_($b[1]['instansi']) . '</td><td style="text-align:center">' . ttd_narasumber($b[1]['absen']) .
-      '</td></tr>', $baris, array_keys($baris))) . '</table>' . lampiran_foto_narasumber(array_map(fn($b) => [$b[0], $b[1]], $baris));
-}
-
-/** Lampiran foto / screenshot Zoom narasumber (ukuran besar) di bawah daftar hadir. */
-function lampiran_foto_narasumber(array $baris): string {
-  $foto = array_values(array_filter($baris, fn($b) => $b[1]['absen'] && ($b[1]['absen']['jenis_bukti'] ?? '') === 'foto'));
-  if (!$foto) return '';
-  return '<div style="margin-top:14px;font-weight:bold">Lampiran bukti kehadiran narasumber (foto / screenshot Zoom)</div>' .
-    implode('', array_map(fn($b) => '<div style="margin-top:8px;page-break-inside:avoid">' . img_(file_data_url($b[1]['absen']['ttd_id']), 'style="width:420px;border:1px solid #ccc"') .
-      '<br><span style="font-size:9pt">' . h_($b[1]['nama']) . ' — ' . h_($b[1]['materi']) . ' · ' . h_(tgl_panjang($b[0]['tanggal'])) . ', ' .
-      h_($b[1]['jam_mulai']) . '–' . h_($b[1]['jam_selesai']) . ' · tercatat ' . h_(substr($b[1]['absen']['waktu_server'], 11, 5)) . ' WIB</span></div>', $foto));
+      '</td></tr>', $baris, array_keys($baris))) . '</table>';
 }
 
 function ttd_narasumber(?array $a): string {
@@ -128,5 +118,5 @@ function narasumber_harian(array $hari): string {
   return '<h3>Daftar Hadir Narasumber</h3><table class="data"><tr><th style="width:85px">Waktu</th><th>Materi</th><th>Narasumber</th><th>Instansi</th>' .
     '<th style="width:110px">Tanda Tangan</th></tr>' . implode('', array_map(fn($x) => '<tr><td>' . h_($x['jam_mulai']) . '–' . h_($x['jam_selesai']) .
     '</td><td>' . h_($x['materi']) . '</td><td>' . h_($x['nama']) . '</td><td>' . h_($x['instansi']) . '</td><td class="center">' .
-    ttd_narasumber($x['absen']) . '</td></tr>', $list)) . '</table>' . lampiran_foto_narasumber(array_map(fn($x) => [$hari, $x], $list));
+    ttd_narasumber($x['absen']) . '</td></tr>', $list)) . '</table>';
 }

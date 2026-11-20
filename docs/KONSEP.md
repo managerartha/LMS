@@ -568,4 +568,13 @@ Skema versi 13: kolom `drive_id`, `drive_url` pada `materi`, `dokumentasi`, `lap
 
 ## 32. Absensi narasumber: foto / screenshot Zoom
 
-Skema versi 14 (kolom `absen_narasumber.jenis_bukti`). Bukti kehadiran narasumber kini tiga pilihan: **TTD langsung**, **TTD digital (file → PNG transparan)**, atau **Foto / SS Zoom** (untuk narasumber online yang tidak memberikan tanda tangan; dikecilkan di browser maks. 1600 px, disimpan JPG ≤ 3 MB). Di daftar absensi tampil gambar kecil (klik untuk memperbesar). Di laporan resmi & harian: gambar kecil di kolom tanda tangan bertuliskan "Foto/SS Zoom", ditambah **lampiran foto ukuran besar** di bawah daftar hadir narasumber. Data tanda tangan lama tidak berubah.
+Skema versi 14 (kolom `absen_narasumber.jenis_bukti`). Bukti kehadiran narasumber kini tiga pilihan: **TTD langsung**, **TTD digital (file → PNG transparan)**, atau **Foto / SS Zoom** (untuk narasumber online yang tidak memberikan tanda tangan; dikecilkan di browser maks. 1600 px, disimpan JPG ≤ 3 MB). Di daftar absensi tampil gambar kecil (klik untuk memperbesar). Di laporan resmi & harian: gambar kecil di kolom tanda tangan bertuliskan "Foto/SS Zoom", (lampiran foto ukuran besar dihapus di revisi 33). Data tanda tangan lama tidak berubah.
+
+## 33. Revisi laporan PDF: jadwal rapi, pilih foto dokumentasi, pratinjau
+
+Tanpa perubahan skema.
+
+- **Jadwal Kegiatan** (laporan resmi): lebar kolom tetap dan sama di setiap hari (Waktu 15%, Kegiatan 40%, Pemateri 25%, Keterangan 20%), tidak lagi mengikuti panjang teks.
+- **Daftar hadir narasumber**: lampiran foto/SS Zoom ukuran besar dihapus. Bukti cukup gambar kecil di kolom tanda tangan (laporan resmi & harian).
+- **Dokumentasi → pilih foto untuk laporan**: tombol *☑ Pilih foto untuk laporan* membuka mode pilih. PIC mengetuk foto untuk mencentang/melepas (foto tidak terpilih tampil redup), ada *Pilih semua / Kosongkan / Batal*, lalu *Simpan pilihan* (aksi `dokPilihLaporan`, per hari). Hanya foto bercentang ✓ yang masuk laporan resmi & harian. Form upload punya centang *Masukkan foto ini ke laporan PDF* (bawaan tercentang, sama seperti sebelumnya). Pilihan foto lama tidak berubah.
+- **Pratinjau laporan**: tombol *👁 Pratinjau laporan* menyusun PDF lalu menampilkannya di LMS (pdf.js 3.11.174 dari cdnjs, halaman digambar saat digulir, berjalan juga di HP). Pratinjau **belum masuk riwayat**. PDF disimpan sementara di `storage/tmp/pratinjau` (dibuang otomatis setelah 1 hari). *Simpan & unduh PDF* mencatatnya ke riwayat dan mengunduh tanpa menyusun ulang (`laporanSimpanPratinjau`, lalu salinan dikirim ke Drive seperti biasa). *Tutup (belum oke)* membuang pratinjau. Tombol *Langsung buat & unduh PDF* tetap tersedia.

@@ -189,14 +189,48 @@ function laporanBuat(array $data, array $user): array {
   $nama = preg_replace('#[\\\\/:*?"<>|]#', '-', $nama);
   $pdf = html_ke_pdf($html);
   if (!empty(config()['uji'])) file_put_contents(STORAGE . '/laporan-terakhir.html', $html);
+  $idHari = $jenis === 'harian' ? $hariList[0]['id_hari'] : '';
+  if (!empty($data['pratinjau'])) { // pratinjau: belum dicatat di riwayat; disimpan sementara sampai PIC menekan "Simpan & unduh"
+    $dir = pratinjau_dir();
+    foreach (glob($dir . '/*') ?: [] as $f) if (filemtime($f) < time() - 86400) @unlink($f); // pratinjau lama (> 1 hari) dibuang
+    $token = bin2hex(random_bytes(16));
+    file_put_contents($dir . '/' . $token . '.pdf', $pdf);
+    file_put_contents($dir . '/' . $token . '.json', json_encode(['id_batch' => $batch['id_batch'], 'jenis' => $jenis, 'id_hari' => $idHari, 'nama' => $nama]));
+    return ['kode_pratinjau' => $token, 'nama' => $nama, 'data' => base64_encode($pdf)];
+  }
+  return simpan_laporan($batch, $jenis, $idHari, $nama, $pdf, $user);
+}
+
+function pratinjau_dir(): string {
+  $dir = STORAGE . '/tmp/pratinjau';
+  pastikan_folder($dir);
+  return $dir;
+}
+
+function simpan_laporan(array $batch, string $jenis, string $idHari, string $nama, string $pdf, array $user): array {
   $rel = simpan_bytes('storage/' . $batch['folder'] . '/laporan', $pdf, $nama);
   $rec = insert('laporan', ['id_laporan' => new_id('l'), 'id_batch' => $batch['id_batch'], 'jenis' => $jenis,
-    'id_hari' => $jenis === 'harian' ? $hariList[0]['id_hari'] : '', 'file_id' => $rel, 'dibuat_oleh' => $user['nama'],
+    'id_hari' => $idHari, 'file_id' => $rel, 'dibuat_oleh' => $user['nama'],
     'dibuat_pada' => now_()['stamp'], 'nama_file' => $nama]);
   log_($user, 'laporan_' . $jenis, $nama);
   $idL = $rec['id_laporan'];
   setelah_respon(fn() => pindah_laporan($idL)); // salinan disimpan di Google Drive akun Artha, bukan di hosting
   return ['laporan' => laporan_view($rec), 'nama' => $nama, 'data' => base64_encode($pdf)];
+}
+
+/** Pratinjau sudah oke → dicatat di riwayat laporan (tanpa menyusun ulang PDF). Isi PDF tidak dikirim ulang (sudah ada di browser). */
+function laporanSimpanPratinjau(array $data, array $user): array {
+  $token = (string)($data['kode_pratinjau'] ?? '');
+  if (!preg_match('/^[a-f0-9]{32}$/', $token)) throw new LmsError('Pratinjau tidak valid.');
+  $dir = pratinjau_dir();
+  $meta = json_decode((string)@file_get_contents($dir . '/' . $token . '.json'), true);
+  if (!$meta || !is_file($dir . '/' . $token . '.pdf')) throw new LmsError('Pratinjau sudah kedaluwarsa. Buat pratinjau lagi.');
+  $batch = batch_for_pic($user, $meta['id_batch']);
+  $r = simpan_laporan($batch, $meta['jenis'], $meta['id_hari'], $meta['nama'], (string)file_get_contents($dir . '/' . $token . '.pdf'), $user);
+  @unlink($dir . '/' . $token . '.pdf');
+  @unlink($dir . '/' . $token . '.json');
+  unset($r['data']);
+  return $r;
 }
 
 // ================================================================ Laporan harian (internal)
@@ -532,7 +566,9 @@ function jadwal_kegiatan(array $hariList): string {
     $rd = rundown_hari($h['id_hari']);
     if (!$rd) continue;
     $out[] = '<div class="bag">Hari ke-' . h_($h['hari_ke']) . ' — ' . h_(tgl_panjang($h['tanggal'])) . '</div>';
-    $out[] = '<table class="garis"><tr><th style="width:95px">Waktu</th><th>Kegiatan</th><th>Pemateri</th><th>Keterangan</th></tr>' .
+    // lebar kolom tetap (bukan mengikuti panjang teks) agar tabel semua hari seragam
+    $out[] = '<table class="garis" style="width:100%;table-layout:fixed"><tr><th style="width:15%">Waktu</th><th style="width:40%">Kegiatan</th>' .
+      '<th style="width:25%">Pemateri</th><th style="width:20%">Keterangan</th></tr>' .
       implode('', array_map(fn($x) => '<tr><td>' . h_($x['jam_mulai']) . '–' . h_($x['jam_selesai']) . '</td><td>' . h_($x['kegiatan']) . '</td><td>' .
         h_($x['pemateri']) . '</td><td>' . h_($x['keterangan']) . '</td></tr>', $rd)) . '</table>';
   }

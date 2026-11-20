@@ -1209,19 +1209,79 @@ async function tabDok() {
         ${kegiatanSelect('dok-rundown', '')}
         <label>Keterangan (opsional, berlaku untuk semua foto yang dipilih)</label>
         <input id="dok-ket" placeholder="mis. Praktik penggunaan APAR">
+        <label class="check mt"><input type="checkbox" id="dok-lap" checked> Masukkan foto ini ke laporan PDF</label>
         <div id="dok-progress" class="mt hidden"><div class="progress"><span></span></div><div class="small muted mt" id="dok-progress-text"></div></div>
         <button class="btn primary mt" onclick="uploadDok(this)">Upload</button>
       </div>
       <div class="card">
         <h2>Foto hari ini (${list.length})</h2>
-        ${list.length ? `<p class="small muted">${nLaporan} foto ditandai masuk laporan (✓). Klik foto untuk mengubah keterangan, kegiatan, atau menghapus.</p>
-        <div class="gallery">${list.map((d, i) => `
-          <button class="gallery-item" onclick="dialogDok(${i})">
+        ${list.length ? `<div id="dok-bar"></div>
+        <div class="gallery" id="dok-galeri">${list.map((d, i) => `
+          <button class="gallery-item" id="dok-g${i}" onclick="klikDok(${i})">
             <img src="${esc(d.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="fotoGagal(this)">
-            ${d.masuk_laporan ? '<span class="tag badge b-hadir">✓</span>' : ''}
+            <span class="tag badge b-hadir ${d.masuk_laporan ? '' : 'hidden'}">✓</span>
           </button>`).join('')}</div>` : '<div class="muted small">Belum ada foto.</div>'}
       </div>`);
+    C.dokPilih = null;
+    if (list.length) barDok();
   } catch (e) { errBox(v, e); }
+}
+
+/** Mode pilih: PIC mencentang foto mana saja yang masuk laporan PDF, lalu disimpan sekaligus. */
+function barDok() {
+  const el = $('#dok-bar');
+  if (!el) return;
+  if (!C.dokPilih) {
+    const n = C.dok.filter(d => d.masuk_laporan).length;
+    el.innerHTML = `<p class="small muted"><b>${n} dari ${C.dok.length}</b> foto masuk laporan PDF (✓). Klik foto untuk mengubah keterangan, kegiatan, atau menghapus.</p>
+      <button class="btn sm mb" onclick="mulaiPilihDok()">☑ Pilih foto untuk laporan</button>`;
+  } else {
+    el.innerHTML = `<div class="alert info small">Ketuk foto untuk mencentang / melepas. Hanya foto bercentang ✓ yang masuk laporan PDF.
+        Terpilih: <b>${C.dokPilih.size}</b> dari ${C.dok.length}.</div>
+      <div class="row mb">
+        <button class="btn sm" onclick="pilihSemuaDok(true)">Pilih semua</button>
+        <button class="btn sm" onclick="pilihSemuaDok(false)">Kosongkan</button>
+        <button class="btn sm" onclick="C.dokPilih = null; tandaiDok(); barDok()">Batal</button>
+        <button class="btn sm primary grow" onclick="simpanPilihDok(this)">💾 Simpan pilihan</button>
+      </div>`;
+  }
+}
+
+function tandaiDok() {
+  C.dok.forEach((d, i) => {
+    const g = $('#dok-g' + i);
+    if (!g) return;
+    const on = C.dokPilih ? C.dokPilih.has(d.id_dok) : d.masuk_laporan;
+    g.querySelector('.tag').classList.toggle('hidden', !on);
+    g.classList.toggle('pilih', !!C.dokPilih);
+    g.classList.toggle('redup', !!C.dokPilih && !on);
+  });
+}
+
+function mulaiPilihDok() {
+  C.dokPilih = new Set(C.dok.filter(d => d.masuk_laporan).map(d => d.id_dok));
+  tandaiDok(); barDok();
+}
+
+function klikDok(i) {
+  if (!C.dokPilih) return dialogDok(i);
+  const id = C.dok[i].id_dok;
+  if (C.dokPilih.has(id)) C.dokPilih.delete(id); else C.dokPilih.add(id);
+  tandaiDok(); barDok();
+}
+
+function pilihSemuaDok(semua) {
+  C.dokPilih = new Set(semua ? C.dok.map(d => d.id_dok) : []);
+  tandaiDok(); barDok();
+}
+
+function simpanPilihDok(btn) {
+  busy(btn, async () => {
+    C.dok = await call('dokPilihLaporan', { id_hari: C.idHari, pilih: Array.from(C.dokPilih) });
+    C.dokPilih = null;
+    tandaiDok(); barDok();
+    toast('Pilihan foto laporan disimpan.', 'ok');
+  });
 }
 
 function kegiatanSelect(id, selected) {
@@ -1232,7 +1292,7 @@ function kegiatanSelect(id, selected) {
 async function uploadDok(btn) {
   const files = Array.from($('#dok-files').files || []);
   if (!files.length) return toast('Pilih foto terlebih dahulu.', 'error');
-  const idRundown = $('#dok-rundown').value, ket = $('#dok-ket').value;
+  const idRundown = $('#dok-rundown').value, ket = $('#dok-ket').value, masukLaporan = $('#dok-lap').checked;
   const bar = $('#dok-progress span'), txt = $('#dok-progress-text');
   $('#dok-progress').classList.remove('hidden');
   let ok = 0;
@@ -1244,7 +1304,7 @@ async function uploadDok(btn) {
         // Diperkecil agar hemat penyimpanan: versi tampilan 1280 px, versi laporan PDF 640 px.
         const foto = await kompresGambar(files[i], 1280, 0.7);
         const fotoKecil = await kompresGambar(files[i], 640, 0.62);
-        await call('dokTambah', { id_hari: C.idHari, id_rundown: idRundown, keterangan: ket, foto: foto, foto_kecil: fotoKecil });
+        await call('dokTambah', { id_hari: C.idHari, id_rundown: idRundown, keterangan: ket, foto: foto, foto_kecil: fotoKecil, masuk_laporan: masukLaporan });
         ok++;
       } catch (e) { gagal.push(files[i].name + ': ' + e.message); }
       bar.style.width = Math.round((i + 1) / files.length * 100) + '%';
@@ -1307,7 +1367,10 @@ async function tabLaporan() {
         </div>
         <p class="small muted" id="lap-ket"></p>
         <div id="lap-status" class="alert info hidden"></div>
-        <button class="btn accent block big" onclick="buatLaporan(this)">📄 Buat & unduh PDF</button>
+        <button class="btn accent block big" onclick="buatLaporan(this, true)">👁 Pratinjau laporan</button>
+        <button class="btn block mt" onclick="buatLaporan(this, false)">📄 Langsung buat & unduh PDF</button>
+        <p class="small muted mt">Pratinjau: laporan ditampilkan dulu untuk diperiksa. Jika sudah oke, tekan <b>Simpan & unduh</b>
+          (tidak perlu menyusun ulang). Jika belum, tutup pratinjau, perbaiki datanya, lalu buat pratinjau lagi.</p>
       </div>
       ${formInfoLaporan(inf)}
       ${inf.bisa_ubah_org ? formOrg(inf) : ''}
@@ -1471,7 +1534,7 @@ function simpanFile(nama, base64, mime) {
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-function buatLaporan(btn) {
+function buatLaporan(btn, pratinjau) {
   const jenis = $('#lap-jenis').value;
   const status = $('#lap-status');
   status.classList.remove('hidden');
@@ -1483,8 +1546,10 @@ function buatLaporan(btn) {
     try {
       const res = await call('laporanBuat', {
         id_batch: C.batch.id_batch, jenis: jenis, id_hari: C.idHari,
-        dari: $('#lap-dari').value, sampai: $('#lap-sampai').value,
+        dari: $('#lap-dari').value, sampai: $('#lap-sampai').value, pratinjau: !!pratinjau,
       });
+      status.classList.add('hidden');
+      if (res.kode_pratinjau) return pratinjauLaporan(res);
       simpanFile(res.nama, res.data, 'application/pdf');
       toast('Laporan dibuat: ' + res.nama, 'ok');
       tabLaporan();
@@ -1494,6 +1559,86 @@ function buatLaporan(btn) {
         ? ' — Jika waktu habis, buat "Laporan absensi" per rentang nomor absen.' : '');
     }
   }, 'Menyusun laporan…');
+}
+
+const PDFJS = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/';
+
+function muatPdfJs() {
+  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  return new Promise((ok, gagal) => {
+    const s = document.createElement('script');
+    s.src = PDFJS + 'pdf.min.js';
+    s.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS + 'pdf.worker.min.js'; ok(window.pdfjsLib); };
+    s.onerror = () => gagal(new Error('Penampil PDF tidak termuat (periksa koneksi internet).'));
+    document.head.appendChild(s);
+  });
+}
+
+/** Pratinjau PDF di dalam LMS (halaman digambar satu per satu; berfungsi juga di HP). */
+async function pratinjauLaporan(res) {
+  C.pratinjau = res;
+  openModal(`
+    <div class="pratinjau-kepala">
+      <div class="grow"><b>Pratinjau: ${esc(res.nama)}</b><div class="small muted" id="pv-info">Memuat…</div></div>
+    </div>
+    <div class="pratinjau" id="pv-hal"></div>
+    <div class="row mt">
+      <button class="btn" onclick="closeModal()">Tutup (belum oke)</button>
+      <button class="btn primary grow" onclick="simpanPratinjau(this)">⬇ Simpan & unduh PDF</button>
+    </div>`);
+  $('#modal-box').classList.add('lebar');
+  window.onModalClose = () => { const b = $('#modal-box'); if (b) b.classList.remove('lebar'); C.pdfPv = null; };
+  try {
+    const lib = await muatPdfJs();
+    const bytes = Uint8Array.from(atob(res.data), c => c.charCodeAt(0));
+    const doc = await lib.getDocument({ data: bytes }).promise;
+    C.pdfPv = doc;
+    const wadah = $('#pv-hal');
+    if (!wadah) return;
+    $('#pv-info').textContent = doc.numPages + ' halaman · periksa isi laporan sebelum disimpan';
+    // halaman digambar saat mendekati layar agar laporan tebal tetap ringan di HP
+    const amati = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting || e.target.dataset.ok) return;
+      e.target.dataset.ok = 1;
+      gambarHalaman(doc, Number(e.target.dataset.n), e.target);
+    }), { root: wadah, rootMargin: '600px 0px' });
+    for (let n = 1; n <= doc.numPages; n++) {
+      const h = document.createElement('div');
+      h.className = 'pv-halaman';
+      h.dataset.n = n;
+      h.innerHTML = `<div class="small muted">Halaman ${n}</div>`;
+      wadah.appendChild(h);
+      amati.observe(h);
+    }
+  } catch (e) {
+    const el = $('#pv-info');
+    if (el) el.innerHTML = esc(e.message) + ' — Anda tetap bisa menekan <b>Simpan & unduh</b> lalu memeriksa file PDF-nya.';
+  }
+}
+
+async function gambarHalaman(doc, n, el) {
+  if (C.pdfPv !== doc) return;
+  const page = await doc.getPage(n);
+  const lebar = Math.max(320, el.clientWidth || 600);
+  const vp0 = page.getViewport({ scale: 1 });
+  const skala = lebar / vp0.width * Math.min(2, window.devicePixelRatio || 1);
+  const vp = page.getViewport({ scale: skala });
+  const cv = document.createElement('canvas');
+  cv.width = vp.width; cv.height = vp.height;
+  await page.render({ canvasContext: cv.getContext('2d'), viewport: vp }).promise;
+  el.innerHTML = '';
+  el.appendChild(cv);
+}
+
+function simpanPratinjau(btn) {
+  const res = C.pratinjau;
+  busy(btn, async () => {
+    await call('laporanSimpanPratinjau', { kode_pratinjau: res.kode_pratinjau });
+    simpanFile(res.nama, res.data, 'application/pdf');
+    closeModal();
+    toast('Laporan disimpan: ' + res.nama, 'ok');
+    tabLaporan();
+  }, 'Menyimpan…');
 }
 
 function unduhLaporan(btn, i) {

@@ -395,3 +395,14 @@ tr.aktif-baris td { background: #f2f5ff; }
 .file-row .grow { min-width: 0; overflow-wrap: anywhere; }
 .seg.seg3 { grid-template-columns: repeat(3, 1fr); }
 .seg.seg3 button { font-size: 13px; padding: 10px 6px; }
+
+/* Dokumentasi: mode pilih foto laporan */
+.gallery-item.pilih { outline: 2px solid transparent; }
+.gallery-item.pilih:not(.redup) { outline-color: #1f9d55; }
+.gallery-item.redup img { opacity: .35; }
+.mb { margin-bottom: 8px; }
+/* Pratinjau laporan PDF */
+#modal-box.lebar { max-width: 900px; }
+.pratinjau { max-height: 68vh; overflow-y: auto; background: #5b6170; padding: 10px; border-radius: 10px; margin-top: 8px; }
+.pv-halaman { background: #fff; margin: 0 auto 10px; min-height: 300px; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.pv-halaman canvas { width: 100%; height: auto; display: block; }
