@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Opening Pelatihan · Artha Safety Indonesia</title>
+<link rel="icon" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="opening.css?v=1">
+</head>
+<body class="memuat">
+<div class="panggung"></div>
+
+<header class="kepala"><img src="assets/logo.png" alt="PT Artha Safety Indonesia"></header>
+<img class="orang kiri" src="assets/petugas-kiri.webp" alt="">
+<img class="orang kanan" src="assets/petugas-kanan.webp" alt="">
+
+<!-- 1. Layar siaga -->
+<section class="slide" data-langkah="0">
+  <div class="alis">Upacara Pembukaan Pelatihan</div>
+  <h1 class="judul isi-judul"></h1>
+  <div class="isi-kapsul"></div>
+  <div class="isi-inhouse"></div>
+  <button class="mulai" id="tombol-mulai">MULAI<small>klik untuk memulai</small></button>
+</section>
+
+<!-- 2. Pembukaan -->
+<section class="slide" data-langkah="1">
+  <div class="sapa">Selamat datang di pelatihan</div>
+  <h1 class="judul sedang isi-judul"></h1>
+  <div class="isi-kapsul"></div>
+  <div class="isi-inhouse"></div>
+  <div class="acara">
+    <div class="kartu"><div class="no">01</div><div class="nm">Safety Induction</div><div class="ket" id="ket-si"></div></div>
+    <div class="kartu"><div class="no">02</div><div class="nm">Lagu Indonesia Raya</div><div class="ket">Hadirin dimohon berdiri</div></div>
+    <div class="kartu"><div class="no">03</div><div class="nm">Sambutan Direktur</div><div class="ket">PT Artha Safety Indonesia</div></div>
+  </div>
+</section>
+
+<!-- 3. Safety Induction (online: video) -->
+<section class="slide vid" data-langkah="2" data-kelas="online">
+  <div class="baris-judul"><div class="alis">Acara Pertama</div><h1 class="judul">Safety Induction</h1></div>
+  <div class="video" data-video="safety_induction" data-nama="Safety Induction"></div>
+</section>
+<!-- 3. Safety Induction (offline: disampaikan langsung) -->
+<section class="slide" data-langkah="2" data-kelas="offline" data-musik-kecil="1">
+  <div class="alis">Acara Pertama</div>
+  <h1 class="judul sedang">Safety Induction</h1>
+  <div class="helm"><div class="cincin"></div><div class="cincin b"></div>
+    <svg viewBox="0 0 120 100" aria-hidden="true">
+      <defs><linearGradient id="g-helm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd166"/><stop offset="1" stop-color="#f59e0b"/></linearGradient></defs>
+      <path d="M18 70 C18 36 38 16 60 16 C82 16 102 36 102 70 Z" fill="url(#g-helm)"/>
+      <path d="M52 17 h16 v53 h-16z" fill="#fde68a" opacity=".8"/>
+      <rect x="6" y="68" width="108" height="14" rx="7" fill="#f59e0b"/>
+      <rect x="6" y="68" width="108" height="5" rx="2.5" fill="#fff" opacity=".35"/>
+      <path d="M30 44 C34 32 42 26 50 24" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" opacity=".55"/>
+    </svg></div>
+  <div class="langsung">Disampaikan langsung oleh pihak tempat pelatihan</div>
+</section>
+
+<!-- 4. Indonesia Raya -->
+<section class="slide vid" data-langkah="3">
+  <div class="baris-judul"><div class="alis">Lagu Kebangsaan</div><h1 class="judul">Indonesia Raya</h1><span class="inhouse">🧍 Hadirin dimohon berdiri</span></div>
+  <div class="video merah-putih" data-video="indonesia_raya" data-nama="Indonesia Raya"></div>
+</section>
+
+<!-- 5. Sambutan Direktur -->
+<section class="slide vid" data-langkah="4">
+  <div class="baris-judul"><div class="alis">Acara Ketiga</div><h1 class="judul">Sambutan Direktur</h1></div>
+  <div class="video" data-video="sambutan_direktur" data-nama="Sambutan Direktur"></div>
+</section>
+
+<!-- 6. Penutup -->
+<section class="slide" data-langkah="5">
+  <div class="centang"><svg viewBox="0 0 52 52" width="55%"><path d="M14 27 l8 8 l16 -17" stroke="#06281c" stroke-width="5.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+  <div class="alis">Upacara Pembukaan Telah Selesai</div>
+  <div class="besar">Selamat Mengikuti <span>Pelatihan</span></div>
+  <div class="sub-judul isi-judul"></div>
+  <div class="isi-kapsul"></div>
+  <div class="isi-inhouse"></div>
+  <div class="catatan">Acara dilanjutkan dengan doa, perkenalan trainer, dan agenda kelas lainnya.</div>
+</section>
+
+<footer class="kaki" id="kaki"></footer>
+<nav class="bar sembunyi" id="bar">
+  <button class="tbl" id="tombol-musik" title="Musik latar: menyala / pelan / mati (tombol M)">
+    <span class="eq" id="eq"><i></i><i></i><i></i><i></i></span><span id="txt-musik">Musik</span></button>
+  <div class="langkah" id="langkah"></div>
+  <button class="tbl" id="tombol-kembali" title="Kembali (← / PageUp)">‹</button>
+  <button class="tbl utama" id="tombol-lanjut" title="Lanjut (→ / PageDown / Spasi)">Lanjut ›</button>
+</nav>
+
+<!-- Pemutar video layar penuh -->
+<div class="penuh" id="penuh">
+  <div class="penuh-isi" id="penuh-isi"></div>
+  <div class="penuh-status" id="penuh-status"></div>
+  <button class="tbl tutup" id="tombol-tutup-video" title="Tutup video (Esc)">✕ Tutup video</button>
+</div>
+
+<!-- Pesan (memuat / error) -->
+<div class="pesan" id="pesan"><div class="pesan-kotak"><div class="pesan-ikon" id="pesan-ikon">⏳</div>
+  <h2 id="pesan-judul">Memuat opening…</h2><p id="pesan-teks">Menyiapkan data pelatihan.</p><div id="pesan-aksi"></div></div></div>
+
+<script src="opening.js?v=1"></script>
+</body>
+</html>

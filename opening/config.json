@@ -1,0 +1,27 @@
+{
+  "_petunjuk": "Ubah isian di bawah ini untuk mengganti video, musik, dan kontak. Video boleh file MP4 di folder assets/video/ ATAU link YouTube (unlisted). Simpan file ini dengan tanda kutip dan koma seperti contoh.",
+
+  "lms_api": "../api/index.php",
+  "lms_url": "../",
+
+  "video": {
+    "safety_induction": "assets/video/safety-induction.mp4",
+    "indonesia_raya": "assets/video/indonesia-raya.mp4",
+    "sambutan_direktur": "assets/video/sambutan-direktur.mp4"
+  },
+
+  "musik": {
+    "file": "assets/musik-latar.mp3",
+    "volume": 0.35,
+    "volume_pelan": 0.12,
+    "persen_saat_safety_offline": 0.2,
+    "lama_fade_detik": 1.5
+  },
+
+  "kontak": {
+    "instagram": "@arthasafety.id",
+    "tiktok": "@arthasafety",
+    "website": "www.arthasafetyindonesia.co.id",
+    "whatsapp": "+62 812-6363-6376 | +62 812-6363-6358"
+  }
+}

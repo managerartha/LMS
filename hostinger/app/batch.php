@@ -28,7 +28,7 @@ function batch_for_pic(array $user, string $idBatch): array {
 
 function batch_view(array $b): array {
   $out = [];
-  foreach (SCHEMA['batch'] as $k) $out[$k] = $b[$k];
+  foreach (SCHEMA['batch'] as $k) $out[$k] = $b[$k] ?? '';
   $out['jumlah_peserta'] = (int)row("SELECT COUNT(*) AS n FROM pengguna WHERE role = 'peserta' AND id_batch = ? AND aktif <> 'tidak'", [$b['id_batch']])['n'];
   $ids = pic_ids($b);
   $out['pic_nama'] = $ids ? array_column(rows('SELECT nama FROM pengguna WHERE id_user IN (' . implode(',', array_fill(0, count($ids), '?')) . ')', $ids), 'nama') : [];
@@ -108,6 +108,7 @@ function batchBuat(array $data, array $user): array {
     'id_program' => $d['id_program'] ?? '', 'jenis_pelatihan' => $d['jenis_pelatihan'] ?? '', 'tanggal_custom' => $d['tanggal_custom'] ?? '',
     // Batch baru berskema Online otomatis bebas lokasi (bisa diubah di Jadwal & Lokasi).
     'lokasi_bebas' => ($d['jenis_pelatihan'] ?? '') === 'Online' ? 'ya' : '',
+    'perusahaan_inhouse' => mb_substr(trim((string)($d['perusahaan_inhouse'] ?? '')), 0, 150),
   ]);
   sync_hari($b);
   log_($user, 'batch_buat', $kode);
@@ -124,9 +125,10 @@ function batchUbah(array $data, array $user): array {
   }
   $editable = ['sesi1_mulai', 'sesi1_selesai', 'sesi2_mulai', 'sesi2_selesai', 'lokasi_nama', 'lat', 'lng', 'radius_meter', 'lokasi_bebas'];
   if (array_key_exists('lokasi_bebas', $d)) $d['lokasi_bebas'] = $d['lokasi_bebas'] === 'ya' || $d['lokasi_bebas'] === true ? 'ya' : '';
-  if ($user['role'] === 'admin') array_push($editable, 'nama_pelatihan', 'tgl_mulai', 'tgl_selesai', 'status', 'id_program', 'jenis_pelatihan', 'tanggal_custom');
+  if ($user['role'] === 'admin') array_push($editable, 'nama_pelatihan', 'tgl_mulai', 'tgl_selesai', 'status', 'id_program', 'jenis_pelatihan', 'tanggal_custom', 'perusahaan_inhouse');
   $changes = [];
   foreach ($editable as $k) if (array_key_exists($k, $d)) $changes[$k] = str_val($d[$k]);
+  if (isset($changes['perusahaan_inhouse'])) $changes['perusahaan_inhouse'] = mb_substr(trim($changes['perusahaan_inhouse']), 0, 150);
   if ($user['role'] === 'admin' && isset($d['pic_ids']) && is_array($d['pic_ids'])) $changes['pic_ids'] = implode(',', $d['pic_ids']);
   if ($user['role'] === 'admin' && array_key_exists('lewati_weekend', $d)) $changes['lewati_weekend'] = $d['lewati_weekend'] ? 'ya' : '';
   if (isset($changes['status']) && !in_array($changes['status'], ['aktif', 'selesai', 'arsip'], true)) throw new LmsError('Status tidak valid.');

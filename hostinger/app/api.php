@@ -17,6 +17,7 @@ require_once __DIR__ . '/berkas.php';
 require_once __DIR__ . '/sertifikat.php';
 require_once __DIR__ . '/nilai.php';
 require_once __DIR__ . '/penyimpanan.php';
+require_once __DIR__ . '/opening.php';
 
 /** auth: '' = publik, 'user' = sudah login, 'pic' = PIC/Admin, 'admin' = Admin. */
 const ROUTES = [
@@ -35,7 +36,7 @@ const ROUTES = [
   'pesertaResetDevice' => 'pic', 'pesertaAktif' => 'pic', 'monitor' => 'pic', 'absenSetStatus' => 'pic', 'absenFoto' => 'pic',
   'rundownGet' => 'pic', 'rundownSimpan' => 'pic', 'rundownSalin' => 'pic', 'materiList' => 'pic', 'materiTambah' => 'pic',
   'materiHapus' => 'pic', 'dokList' => 'pic', 'dokTambah' => 'pic', 'dokUbah' => 'pic', 'dokPilihLaporan' => 'pic', 'dokHapus' => 'pic',
-  'ttdSaya' => 'pic', 'ttdSayaSimpan' => 'pic', 'laporanList' => 'pic', 'laporanBuat' => 'pic', 'laporanSimpanPratinjau' => 'pic', 'laporanUnduh' => 'pic',
+  'ttdSaya' => 'pic', 'ttdSayaSimpan' => 'pic', 'laporanList' => 'pic', 'laporanBuat' => 'pic', 'openingData' => 'pic', 'laporanSimpanPratinjau' => 'pic', 'laporanUnduh' => 'pic',
   'infoLaporanGet' => 'pic', 'infoLaporanSimpan' => 'pic',
   'sklSaya' => 'user', 'sklUnduh' => 'user', 'sklList' => 'pic', 'sklSimpanData' => 'pic', 'sklTerbitkan' => 'pic', 'sklTahan' => 'pic', 'sklUnduhSemua' => 'pic',
   'sklCetak' => 'admin', 'sklCetakAtur' => 'admin', 'penyimpananInfo' => 'admin', 'penyimpananPindah' => 'admin',

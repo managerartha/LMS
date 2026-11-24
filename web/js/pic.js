@@ -645,6 +645,7 @@ async function tabBatch() {
               <td class="small">${esc(b.pic_nama.join(', ') || '—')}</td>
               <td>${esc(b.jumlah_peserta)}</td>
               <td class="row"><button class="btn sm" onclick="dialogBatch(${i})">Ubah</button>
+                <a class="btn sm" href="${urlOpening(b.id_batch)}" target="_blank" rel="noopener">🎬 Buka Opening</a>
                 ${b.status === 'selesai' || b.tgl_selesai < wib(serverNow()).tanggal
                   ? `<button class="btn sm" onclick="arsipBatch(this, ${i}, true)">🗄 Arsipkan</button>` : ''}
                 ${b.folder_url ? `<a class="btn sm" href="${esc(b.folder_url)}" target="_blank">Drive</a>` : ''}
@@ -742,6 +743,7 @@ function buatBatch(form) {
     const b = await call('batchBuat', { batch: Object.assign({
       nama_pelatihan: form.nama_pelatihan.value, kode_batch: form.kode_batch.value,
       pic_ids: formPicIds(form), id_program: form.id_program.value, jenis_pelatihan: form.jenis_pelatihan.value,
+      perusahaan_inhouse: form.perusahaan_inhouse.value,
     }, tgl) });
     toast('Batch ' + b.kode_batch + ' dibuat.', 'ok');
     C.batches = await call('batchList');
@@ -778,7 +780,7 @@ function simpanBatch(form, id) {
   busy(form.querySelector('button.primary'), async () => {
     await call('batchUbah', { id_batch: id, batch: Object.assign({
       nama_pelatihan: form.nama_pelatihan.value, status: form.status.value, pic_ids: formPicIds(form),
-      id_program: form.id_program.value, jenis_pelatihan: form.jenis_pelatihan.value,
+      id_program: form.id_program.value, jenis_pelatihan: form.jenis_pelatihan.value, perusahaan_inhouse: form.perusahaan_inhouse.value,
     }, tgl) });
     closeModal(); toast('Batch disimpan.', 'ok');
     C.hariFor = null;
@@ -843,7 +845,7 @@ function duplikatBatch(form, i) {
   busy(form.querySelector('button.primary'), async () => {
     const res = await call('batchDuplikat', { id_batch: src.id_batch,
       batch: Object.assign({ nama_pelatihan: form.nama_pelatihan.value, kode_batch: form.kode_batch.value, pic_ids: formPicIds(form),
-        id_program: form.id_program.value, jenis_pelatihan: form.jenis_pelatihan.value }, tgl),
+        id_program: form.id_program.value, jenis_pelatihan: form.jenis_pelatihan.value, perusahaan_inhouse: form.perusahaan_inhouse.value }, tgl),
       opsi: { rundown: form.rundown.checked, kosongkan_pemateri: form.kosongkan_pemateri.checked, materi: form.materi.checked } });
     closeModal();
     const h = res.hasil;
@@ -2369,10 +2371,25 @@ function renderDasbor(v) {
         </div>
         <div>
           ${admin ? aksiCepatHtml(d) : ''}
+          ${openingDasborHtml(bs)}
           ${bs.length ? jadwalBatchHtml(d) : `<div class="card center muted">${admin ? 'Belum ada batch aktif. Buat batch baru di menu <b>Batch</b>.'
             : 'Anda belum ditugaskan ke batch mana pun. Hubungi Admin.'}</div>`}
         </div>
       </div>`);
+}
+
+/** Halaman Opening Pelatihan (modul terpisah /opening/), dibuka di tab baru dengan login yang sama. */
+function urlOpening(idBatch) { return 'opening/?batch=' + encodeURIComponent(idBatch); }
+
+/** Kartu cepat Opening di Dashboard: batch berjalan & akan datang. */
+function openingDasborHtml(bs) {
+  const list = bs.filter(b => b.fase !== 'selesai');
+  if (!list.length) return '';
+  return `<div class="card"><h2>🎬 Opening pelatihan</h2>
+    <p class="small muted">Tampilan upacara pembukaan untuk proyektor (video, musik latar, urutan acara). Terbuka di tab baru.</p>
+    ${list.map(b => `<div class="row mt"><span class="grow small"><b>${esc(b.kode_batch)}</b> · ${esc(b.nama_pelatihan)}<br><span class="muted">${esc(faseTeks(b))}</span></span>
+      <a class="btn sm primary" href="${urlOpening(b.id_batch)}" target="_blank" rel="noopener">Buka Opening</a></div>`).join('')}
+  </div>`;
 }
 
 function faseTeks(b) {
@@ -2398,6 +2415,7 @@ function hariIniBatchHtml(b, i) {
         <button class="btn sm" onclick="bukaBatchDasbor(${i}, 'monitor')">✅ Absensi</button>
         <button class="btn sm" onclick="bukaBatchDasbor(${i}, 'rundown')">🗓️ Rundown</button>
         <button class="btn sm" onclick="bukaBatchDasbor(${i}, 'dok')">📷 Dokumentasi</button>
+        <a class="btn sm" href="${urlOpening(b.id_batch)}" target="_blank" rel="noopener">🎬 Opening</a>
       </div>
     </div>`;
 }
@@ -2711,7 +2729,10 @@ function programSkemaHtml(b) {
           ${['Offline', 'Online', 'Blended'].map(j => `<option ${j === b.jenis_pelatihan ? 'selected' : ''}>${j}</option>`).join('')}</select></div>
     </div>
     <p class="small muted">Program & skema menentukan tata tertib dan guideline yang tampil ke peserta.
-      ${list.length ? '' : 'Belum ada program — tambahkan di menu <b>Pustaka Pelatihan</b>.'}</p>`;
+      ${list.length ? '' : 'Belum ada program — tambahkan di menu <b>Pustaka Pelatihan</b>.'}</p>
+    <label>Perusahaan (in-house) <span class="muted small">— opsional, kosongkan jika bukan kelas in-house</span></label>
+    <input name="perusahaan_inhouse" value="${esc(b.perusahaan_inhouse || '')}" placeholder="mis. PT Contoh Energi Nusantara" maxlength="150">
+    <p class="small muted">Tampil di halaman Opening sebagai "IN-HOUSE · nama perusahaan".</p>`;
 }
 
 /** Pilihan tanggal: rentang (mulai–selesai) atau tanggal pilihan yang tidak harus berurutan. */

@@ -1,0 +1,13 @@
+Folder video Opening Pelatihan
+==============================
+
+Upload 3 file video ke folder ini (public_html/opening/assets/video/) dengan nama PERSIS seperti berikut:
+
+  safety-induction.mp4    -> Safety Induction (hanya dipakai untuk kelas ONLINE)
+  indonesia-raya.mp4      -> Lagu Indonesia Raya
+  sambutan-direktur.mp4   -> Sambutan Direktur
+
+Format: MP4 (H.264 + AAC) agar bisa diputar di semua browser.
+Saran ukuran: 720p (1280x720), sekitar 20-60 MB per video, supaya cepat dimuat.
+
+Mau pakai nama file lain atau link YouTube (unlisted)? Ubah bagian "video" di file opening/config.json.
