@@ -590,3 +590,13 @@ Modul statis terpisah di `opening/` (dipasang ke `public_html/opening/`), tidak 
 - **Musik latar**: Web Audio API (loop mulus, fade halus), mode Menyala/Pelan/Mati (tombol bar bawah atau M). Musik bawaan `musik-latar.mp3` instrumental buatan sendiri (bebas royalti).
 - **Kontrol**: → / PageDown / Spasi / Enter = lanjut, ← / PageUp = kembali, F = layar penuh, Esc = tutup video, Home = siaga; langkah di bar bawah bisa diklik. Saat video diputar, tombol clicker diabaikan. Kursor disembunyikan saat diam 3 detik.
 - **Error ramah**: link tidak lengkap, belum login, batch tidak ditemukan, LMS tidak terhubung. Mode latihan tanpa LMS: `?demo=online|offline|inhouse`.
+
+## 35. Opening gabungan (kelas beberapa batch digabung)
+
+Untuk kelas yang digabung (mis. BNSP Ahli K3 Umum + Pengawas K3 Migas) tetapi batchnya dipisah di LMS karena dokumennya berbeda.
+Tidak ada perubahan database; absensi, berkas, nilai, SKL, dan laporan tetap per batch.
+
+- **LMS**: tombol **🔗 Opening gabungan** di kartu Opening Dashboard (batch berjalan & akan datang) dan di menu Batch (semua batch kecuali arsip).
+  Dialog: centang 2–6 batch, **Judul opening** terisi otomatis dari nama pelatihan (boleh dirapikan), **Jenis kelas** otomatis / offline / online.
+- **Opening**: `opening/?batch=<id1>,<id2>&judul=…&kelas=…`. `openingData` menerima beberapa id: periode sama → satu periode,
+  berbeda → mulai paling awal s.d. selesai paling akhir; kelas berbeda → offline (kecuali dipilih PIC); in-house digabung dengan " & ".

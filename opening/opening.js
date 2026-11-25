@@ -78,6 +78,11 @@
     } catch (e) {
       throw { judul: 'Tidak dapat terhubung ke LMS', teks: 'Periksa koneksi internet, lalu muat ulang halaman ini (tekan <b>F5</b>).' };
     }
+    if (res && res.ok) { // opening gabungan: judul & jenis kelas bisa ditentukan PIC dari dialog di LMS
+      const judul = (q.get('judul') || '').trim(), kelas = q.get('kelas');
+      if (judul) res.data.judul = judul.slice(0, 200);
+      if (kelas === 'online' || kelas === 'offline') res.data.kelas = kelas;
+    }
     if (!res || !res.ok) {
       const m = (res && res.error) || 'Data batch tidak dapat dimuat.';
       if (/login|sesi|akses|izin/i.test(m)) throw { judul: 'Silakan login ke LMS dulu', teks: esc(m) + '<br>Masuk ke LMS sebagai <b>PIC/Admin</b>, lalu klik <b>🎬 Buka Opening</b> lagi.' };

@@ -633,7 +633,8 @@ async function tabBatch() {
         </form>
       </div>
       <div class="card table-wrap">
-        <h2>Semua batch</h2>
+        <div class="row mb"><h2 class="grow">Semua batch</h2>
+          ${C.batches.filter(b => b.status !== 'arsip').length > 1 ? `<button class="btn sm" onclick="dialogOpeningGabungan(C.batches.filter(b => b.status !== 'arsip'))">🔗 Opening gabungan</button>` : ''}</div>
         ${C.batches.some(b => b.status !== 'arsip') ? `<table>
           <thead><tr><th>Batch</th><th>Tanggal</th><th>PIC</th><th>Peserta</th><th></th></tr></thead>
           <tbody>${C.batches.map((b, i) => b.status === 'arsip' ? '' : `
@@ -2385,11 +2386,54 @@ function urlOpening(idBatch) { return 'opening/?batch=' + encodeURIComponent(idB
 function openingDasborHtml(bs) {
   const list = bs.filter(b => b.fase !== 'selesai');
   if (!list.length) return '';
+  C.opDasbor = list;
   return `<div class="card"><h2>🎬 Opening pelatihan</h2>
     <p class="small muted">Tampilan upacara pembukaan untuk proyektor (video, musik latar, urutan acara). Terbuka di tab baru.</p>
     ${list.map(b => `<div class="row mt"><span class="grow small"><b>${esc(b.kode_batch)}</b> · ${esc(b.nama_pelatihan)}<br><span class="muted">${esc(faseTeks(b))}</span></span>
       <a class="btn sm primary" href="${urlOpening(b.id_batch)}" target="_blank" rel="noopener">Buka Opening</a></div>`).join('')}
+    ${list.length > 1 ? `<button class="btn block mt" onclick="dialogOpeningGabungan(C.opDasbor)">🔗 Opening gabungan (kelas digabung)</button>` : ''}
   </div>`;
+}
+
+/**
+ * Opening gabungan: beberapa batch (mis. Ahli K3 Umum + Pengawas K3 Migas) yang kelasnya digabung tampil sebagai satu opening.
+ * Batch tetap terpisah di LMS; hanya tampilan opening yang digabung. Judul & jenis kelas bisa diatur PIC.
+ */
+function dialogOpeningGabungan(list) {
+  C.ogList = list;
+  C.ogUbahJudul = false;
+  openModal(`
+    <h2>🔗 Opening gabungan</h2>
+    <p class="small muted">Centang batch yang kelasnya digabung. Batch tetap terpisah di LMS (absensi, berkas, nilai, SKL, laporan);
+      hanya tampilan opening yang menjadi satu.</p>
+    <div class="file-list">${list.map((b, i) => `<label class="check"><input type="checkbox" class="og-b" value="${i}" onchange="ogJudulOtomatis()">
+      <span><b>${esc(b.kode_batch)}</b> · ${esc(b.nama_pelatihan)} <span class="small muted">(mulai ${esc(b.tgl_mulai)})</span></span></label>`).join('')}</div>
+    <label>Judul opening</label>
+    <input id="og-judul" maxlength="200" placeholder="mis. Ahli K3 Umum & Pengawas K3 Migas" oninput="C.ogUbahJudul = this.value.trim() !== ''">
+    <p class="small muted">Terisi otomatis dari nama pelatihan; boleh dirapikan, mis. "Ahli K3 Umum & Pengawas K3 Industri Minyak dan Gas Bumi".</p>
+    <label>Jenis kelas</label>
+    <select id="og-kelas"><option value="">Otomatis (ikut batch; jika berbeda dianggap offline)</option>
+      <option value="offline">Kelas Offline</option><option value="online">Kelas Online</option></select>
+    <p class="small muted">Periode: jika tanggal batch sama tampil satu periode, jika berbeda dari tanggal mulai paling awal sampai selesai paling akhir.</p>
+    <div class="row mt"><button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn primary grow" onclick="bukaOpeningGabungan()">🎬 Buka Opening gabungan</button></div>`);
+}
+
+function ogJudulOtomatis() {
+  if (C.ogUbahJudul) return;
+  const nama = [];
+  $$('.og-b:checked').forEach(x => { const n = C.ogList[x.value].nama_pelatihan; if (nama.indexOf(n) < 0) nama.push(n); });
+  $('#og-judul').value = nama.join(' & ');
+}
+
+function bukaOpeningGabungan() {
+  const pilih = $$('.og-b:checked').map(x => C.ogList[x.value]);
+  if (pilih.length < 2) return toast('Centang minimal 2 batch yang digabung.', 'error');
+  if (pilih.length > 6) return toast('Opening gabungan maksimal 6 batch.', 'error');
+  const judul = $('#og-judul').value.trim(), kelas = $('#og-kelas').value;
+  const url = urlOpening(pilih.map(b => b.id_batch).join(',')) + (judul ? '&judul=' + encodeURIComponent(judul) : '') + (kelas ? '&kelas=' + kelas : '');
+  window.open(url, '_blank', 'noopener');
+  closeModal();
 }
 
 function faseTeks(b) {
