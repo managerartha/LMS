@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Formulir Keluhan · Artha Safety Indonesia</title>
+<link rel="icon" href="img/ikon.png">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css?v=15">
+<style>
+  .halaman { max-width: 520px; margin: 0 auto; padding: 18px 16px 40px; }
+  .logo { text-align: center; padding: 6px 0 14px; } .logo img { height: 36px; }
+  .jebakan { position: absolute; left: -9999px; }
+  textarea { width: 100%; min-height: 110px; }
+</style>
+</head>
+<body>
+<main class="halaman">
+  <div class="logo"><img src="img/logo.png" alt="PT Artha Safety Indonesia"></div>
+  <div id="isi"><div class="card center muted">Memuat…</div></div>
+</main>
+<script src="js/config.js?v=11"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  async function api(action, data) {
+    const r = await fetch(window.LMS_CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action, data: data }) });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'Terjadi kesalahan.');
+    return j.data;
+  }
+  async function mulai() {
+    let d;
+    try { d = await api('keluhanPublikInfo', {}); }
+    catch (e) { $('#isi').innerHTML = '<div class="alert bad">' + esc(e.message) + '</div>'; return; }
+    const kat = d.kategori;
+    $('#isi').innerHTML = `<div class="card">
+      <span class="chip" style="background:var(--bad-bg);color:var(--bad)">Keluhan</span>
+      <h2 style="margin:8px 0 2px">Sampaikan keluhan</h2>
+      <p class="small muted" style="margin:0 0 10px">Setiap keluhan mendapat nomor tiket dan ditindaklanjuti tim kami.</p>
+      <label>Kode kelas / batch (opsional)</label><input id="kode" maxlength="40" placeholder="mis. B42 — kosongkan bila tidak tahu">
+      <label>Kategori</label>
+      <select id="kategori"><option value="">— pilih —</option>${Object.keys(kat).map(k => `<option value="${esc(k)}">${esc(kat[k])}</option>`).join('')}</select>
+      <label>Uraian keluhan</label><textarea id="uraian" maxlength="3000" placeholder="Ceritakan apa yang terjadi, kapan, dan di mana."></textarea>
+      <label>Kontak untuk tindak lanjut (hanya untuk tim kami, tidak dibagikan)</label>
+      <input id="nama" maxlength="150" placeholder="Nama"><input id="kontak" class="mt" maxlength="150" placeholder="No. HP / email">
+      <input id="situs" class="jebakan" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn primary block mt" id="kirim">Kirim keluhan</button></div>`;
+    $('#kirim').addEventListener('click', async () => {
+      const btn = $('#kirim'); btn.disabled = true; btn.textContent = 'Mengirim…';
+      try {
+        const r = await api('keluhanPublikKirim', { kode_batch: $('#kode').value, kategori: $('#kategori').value, uraian: $('#uraian').value,
+          nama: $('#nama').value, kontak: $('#kontak').value, situs: $('#situs').value });
+        $('#isi').innerHTML = `<div class="card center"><div style="font-size:46px">✅</div><h2>Keluhan terkirim</h2>
+          <p>Nomor tiket Anda: <b>${esc(r.id_keluhan)}</b></p><p class="small muted">Simpan nomor ini untuk menanyakan tindak lanjut.</p></div>`;
+      } catch (e) { alert(e.message); btn.disabled = false; btn.textContent = 'Kirim keluhan'; }
+    });
+  }
+  mulai();
+})();
+</script>
+</body>
+</html>

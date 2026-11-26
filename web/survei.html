@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Evaluasi Klien · Artha Safety Indonesia</title>
+<link rel="icon" href="img/ikon.png">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css?v=15">
+<style>
+  .halaman { max-width: 520px; margin: 0 auto; padding: 18px 16px 40px; }
+  .logo { text-align: center; padding: 6px 0 14px; } .logo img { height: 36px; }
+  .jebakan { position: absolute; left: -9999px; }
+</style>
+</head>
+<body>
+<main class="halaman">
+  <div class="logo"><img src="img/logo.png" alt="PT Artha Safety Indonesia"></div>
+  <div id="isi"><div class="card center muted">Memuat…</div></div>
+</main>
+<script src="js/config.js?v=11"></script>
+<script>
+(function () {
+  'use strict';
+  const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const kode = new URLSearchParams(location.search).get('k') || '';
+  const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+  const tgl = s => { const [y, m, d] = s.split('-').map(Number); return d + ' ' + BULAN[m - 1] + ' ' + y; };
+
+  async function api(action, data) {
+    const r = await fetch(window.LMS_CONFIG.API_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action, data: data }) });
+    const j = await r.json();
+    if (!j.ok) throw new Error(j.error || 'Terjadi kesalahan.');
+    return j.data;
+  }
+  function pesan(ikon, judul, teks) {
+    $('#isi').innerHTML = `<div class="card center"><div style="font-size:46px">${ikon}</div><h2>${esc(judul)}</h2><p class="muted">${teks}</p></div>`;
+  }
+
+  async function mulai() {
+    let d;
+    try { d = await api('surveiKlienInfo', { k: kode }); }
+    catch (e) { return pesan('⚠️', 'Link tidak valid', esc(e.message)); }
+    if (!d.buka) return pesan('🗓️', 'Evaluasi belum dibuka', 'Evaluasi pelatihan <b>' + esc(d.judul) + '</b> dapat diisi mulai <b>' + esc(tgl(d.mulai)) + '</b> (hari terakhir pelatihan).');
+    const label = ['Sangat kurang', 'Kurang', 'Cukup', 'Baik', 'Sangat baik'];
+    $('#isi').innerHTML = `<div class="card">
+      <span class="chip chip-blue">Evaluasi klien</span>
+      <h2 style="margin:8px 0 2px">${esc(d.judul)}</h2>
+      <p class="small muted" style="margin:0 0 4px">Batch ${esc(d.kode_batch)} · ${esc(d.periode)}${d.inhouse ? ' · In-house ' + esc(d.inhouse) : ''}</p>
+      <p class="small muted" style="margin:0 0 12px">Penilaian dari perusahaan/klien atas penyelenggaraan pelatihan. 1 = sangat kurang · 5 = sangat baik.</p>
+      ${d.pertanyaan.map(p => `<div class="aspek">${esc(p.teks)}${p.ket ? '<span>' + esc(p.ket) + '</span>' : ''}</div>
+        <div class="skala" data-kode="${esc(p.kode)}">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}">${n}<small>${label[n - 1]}</small></button>`).join('')}</div>`).join('')}
+      <label>Komentar / saran</label><textarea id="komentar" maxlength="2000" placeholder="Masukan untuk PT Artha Safety Indonesia"></textarea>
+      <label>Nama & jabatan pengisi (hanya disimpan di LMS, tidak dibagikan)</label><input id="pengisi" maxlength="150" placeholder="mis. Budi — HSE Manager">
+      <input id="situs" class="jebakan" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <button class="btn primary block mt" id="kirim">Kirim evaluasi</button></div>`;
+    $$('.skala button').forEach(b => b.addEventListener('click', () => {
+      b.parentNode.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b));
+      b.parentNode.dataset.nilai = b.dataset.n;
+    }));
+    $('#kirim').addEventListener('click', async () => {
+      const jawaban = {};
+      for (const x of $$('.skala')) {
+        if (!x.dataset.nilai) { alert('Mohon beri nilai untuk: ' + x.previousElementSibling.firstChild.textContent); return; }
+        jawaban[x.dataset.kode] = Number(x.dataset.nilai);
+      }
+      const btn = $('#kirim'); btn.disabled = true; btn.textContent = 'Mengirim…';
+      try {
+        await api('surveiKlienKirim', { k: kode, jawaban: jawaban, komentar: $('#komentar').value, pengisi: $('#pengisi').value, situs: $('#situs').value });
+        pesan('✅', 'Terima kasih!', 'Evaluasi Anda sudah kami terima dan sangat berarti untuk peningkatan mutu pelatihan PT Artha Safety Indonesia.');
+      } catch (e) { alert(e.message); btn.disabled = false; btn.textContent = 'Kirim evaluasi'; }
+    });
+  }
+  mulai();
+})();
+</script>
+</body>
+</html>

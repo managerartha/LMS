@@ -30,3 +30,5 @@ dist/update-narasumber-foto/
 dist/update-laporan-revisi/
 dist/update-opening/
 dist/update-opening-gabung/
+hostinger/app/.env
+dist/update-survei/

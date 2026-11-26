@@ -56,17 +56,23 @@ const SCHEMA = [
   'nilai' => ['id_nilai', 'id_batch', 'id_user', 'isi_nilai', 'tidak_ikut', 'keterangan', 'diubah_oleh', 'diubah_pada'],
   'log' => ['id_log', 'waktu', 'id_user', 'nama', 'aksi', 'detail'],
   'pengaturan' => ['kunci', 'nilai'],
+  'survei' => ['id_respons', 'id_batch', 'kode_batch', 'jenis', 'id_hari', 'trainer', 'jawaban', 'skor', 'komentar', 'tanggal', 'waktu', 'sumber', 'pengisi'],
+  'survei_isi' => ['id_isi', 'id_user', 'id_batch', 'jenis', 'kunci', 'waktu'],
+  'keluhan' => ['id_keluhan', 'id_batch', 'kode_batch', 'kategori', 'uraian', 'tanggal', 'waktu', 'sumber', 'id_user', 'nama_pelapor', 'kontak_pelapor'],
   'geo_cache' => ['kunci', 'alamat'],
 ];
 
 /** Kolom berisi teks panjang (TEXT); kolom lain VARCHAR(191). */
 /** Naikkan setiap kali SCHEMA berubah: tabel/kolom baru ditambahkan otomatis tanpa memasang ulang. */
-const SCHEMA_VERSI = '15';
+const SCHEMA_VERSI = '16';
 
-const SCHEMA_TEXT = ['komponen', 'catatan_rekap', 'isi_nilai', 'isi_materi', 'setelan', 'daftar_nomor', 'batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
+const SCHEMA_TEXT = ['jawaban', 'komentar', 'uraian', 'komponen', 'catatan_rekap', 'isi_nilai', 'isi_materi', 'setelan', 'daftar_nomor', 'batas', 'riwayat_link', 'drive_error', 'drive_url', 'catatan_pic', 'rincian', 'tanggal_custom', 'url', 'info_laporan', 'alamat', 'keterangan', 'detail', 'nilai', 'link', 'kegiatan', 'judul', 'pic_ids'];
 
 /** Index tambahan agar pencarian cepat. */
 const SCHEMA_INDEX = [
+  'survei' => [['id_batch'], ['tanggal']],
+  'survei_isi' => [['id_user']],
+  'keluhan' => [['id_batch'], ['tanggal']],
   'pengguna' => [['id_batch'], ['kode_login']],
   'token' => [['id_user']],
   'hari' => [['id_batch', 'tanggal']],

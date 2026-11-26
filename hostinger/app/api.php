@@ -18,10 +18,13 @@ require_once __DIR__ . '/sertifikat.php';
 require_once __DIR__ . '/nilai.php';
 require_once __DIR__ . '/penyimpanan.php';
 require_once __DIR__ . '/opening.php';
+require_once __DIR__ . '/survei.php';
 
 /** auth: '' = publik, 'user' = sudah login, 'pic' = PIC/Admin, 'admin' = Admin. */
 const ROUTES = [
-  'waktu' => '', 'batchAktif' => '', 'batchLink' => '', 'linkBatch' => 'pic', 'loginPeserta' => '', 'loginPic' => '',
+  'waktu' => '', 'surveiKlienInfo' => '', 'surveiKlienKirim' => '', 'keluhanPublikInfo' => '', 'keluhanPublikKirim' => '',
+  'surveiSaya' => 'user', 'surveiKirim' => 'user', 'keluhanKirim' => 'user', 'surveiRekap' => 'pic',
+  'surveiPertanyaanGet' => 'pic', 'surveiPertanyaanSimpan' => 'admin', 'batchAktif' => '', 'batchLink' => '', 'linkBatch' => 'pic', 'loginPeserta' => '', 'loginPic' => '',
   'me' => 'user', 'beranda' => 'user', 'logout' => 'user', 'setuju' => 'user',
   'statusHariIni' => 'user', 'absen' => 'user', 'riwayat' => 'user', 'kontenPeserta' => 'user',
   'gantiPin' => 'pic', 'batchList' => 'pic', 'batchUbah' => 'pic', 'hariList' => 'pic', 'hariSetLokasi' => 'pic',

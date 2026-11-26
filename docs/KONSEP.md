@@ -600,3 +600,22 @@ Tidak ada perubahan database; absensi, berkas, nilai, SKL, dan laporan tetap per
   Dialog: centang 2–6 batch, **Judul opening** terisi otomatis dari nama pelatihan (boleh dirapikan), **Jenis kelas** otomatis / offline / online.
 - **Opening**: `opening/?batch=<id1>,<id2>&judul=…&kelas=…`. `openingData` menerima beberapa id: periode sama → satu periode,
   berbeda → mulai paling awal s.d. selesai paling akhir; kelas berbeda → offline (kecuali dipilih PIC); in-house digabung dengan " & ".
+
+## 36. Survei/feedback, keluhan, dan API untuk aplikasi SMM
+
+Skema versi 16: tabel baru `survei`, `survei_isi`, `keluhan` (data lama tidak tersentuh). Pengaturan baru `survei_pertanyaan`, `survei_mulai`, `survei_rahasia`.
+
+- **Pertanyaan dinamis** (skala 1–5): Admin mengatur per jenis di menu **Survei & Feedback** → *Pertanyaan survei*. Bawaan 4 pertanyaan per jenis.
+  Kode pertanyaan dibuat dari teksnya dan tidak berubah (menjadi `aspek_<kode>` di API); pertanyaan yang dihapus hanya dinonaktifkan.
+- **kepuasan_peserta**: kartu Survei di Dashboard peserta mulai hari terakhir batch; **wajib sebelum unduh SKL** untuk batch yang
+  hari terakhirnya ≥ tanggal fitur dipasang (`survei_mulai`, otomatis = hari pertama dipakai). Halaman SKL menampilkan "Isi survei sekarang".
+- **evaluasi_trainer**: per trainer per hari (nama pemateri dari rundown yang terbit), dibuka setiap hari setelah sesi 2 dimulai; tidak wajib.
+- **evaluasi_klien**: link `survei.html?k=<kode>` per batch (kode HMAC, tidak bisa ditebak), dibuka mulai hari terakhir, tanpa login,
+  bisa diisi lebih dari satu orang; nama & jabatan pengisi hanya di LMS.
+- **Anonim**: `survei` tidak menyimpan id peserta; `survei_isi` hanya mencatat bahwa peserta sudah mengisi (mencegah dobel).
+- **Keluhan**: peserta kapan saja dari Dashboard (kontak dari akun), klien/umum lewat `keluhan.html` (nama & kontak wajib). Nomor tiket `KLH-…`.
+  Isi keluhan **tidak ditampilkan di LMS**; PIC hanya melihat jumlahnya (pengingat Dashboard & menu Survei). Tindak lanjut di aplikasi SMM.
+- **Formulir publik**: isian jebakan robot + maks. 10 kiriman/jam per IP.
+- **API SMM** (`api/smm.php`, alamat `/api/smm/kelas|survei|keluhan?sejak=`, aturan di `api/.htaccess`): GET saja, `Authorization: Bearer`
+  dengan token `SMM_API_TOKEN` di `app/.env` (folder app tertutup dari browser). Tanpa data pribadi; komentar & uraian disamarkan
+  (HP, email, NIK, nomor ≥ 10 digit, nama peserta batch, nama pelapor). Dokumentasi: `docs/API-SMM.md`.

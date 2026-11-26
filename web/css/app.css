@@ -406,3 +406,22 @@ tr.aktif-baris td { background: #f2f5ff; }
 .pratinjau { max-height: 68vh; overflow-y: auto; background: #5b6170; padding: 10px; border-radius: 10px; margin-top: 8px; }
 .pv-halaman { background: #fff; margin: 0 auto 10px; min-height: 300px; display: grid; place-items: center; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
 .pv-halaman canvas { width: 100%; height: auto; display: block; }
+
+/* Survei & keluhan */
+.skala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 6px 0 14px; }
+.skala button { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 8px 0 6px; font: inherit; font-weight: 800; color: var(--navy); font-size: 16px; cursor: pointer; }
+.skala button small { display: block; font-size: 9.5px; font-weight: 600; color: var(--muted); line-height: 1.2; }
+.skala button.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.skala button.on small { color: #cfd3ff; }
+.aspek { font-weight: 700; font-size: 14px; }
+.aspek span { font-weight: 400; color: var(--muted); font-size: 12.5px; display: block; }
+.rem-list { display: grid; gap: 6px; }
+.trainer-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.trainer-row:last-of-type { border-bottom: 0; }
+.ava { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; background: #e8edff; color: var(--hero-1); font-weight: 800; flex: none; font-size: 13px; }
+.rekap-aspek { display: grid; grid-template-columns: minmax(120px, 200px) 1fr 44px; gap: 10px; align-items: center; font-size: 14px; margin: 7px 0; }
+.rekap-aspek b { text-align: right; color: var(--navy); }
+.kom { background: #f6f7fb; border-radius: 10px; padding: 10px 12px; margin: 8px 0; font-size: 14px; }
+.kom .meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.tanya-row { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; align-items: center; margin: 6px 0; }
+@media (max-width: 640px) { .tanya-row { grid-template-columns: 1fr auto auto; } .tanya-row .ket { grid-column: 1 / -1; } }

@@ -1,0 +1,11 @@
+# Alamat API SMM: /api/smm/kelas | /api/smm/survei | /api/smm/keluhan  →  smm.php
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  # tetap wajib HTTPS (aturan folder utama tidak berlaku di folder yang punya RewriteEngine sendiri)
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+  # header Authorization diteruskan ke PHP (sebagian hosting menghapusnya)
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+  RewriteRule ^smm/(kelas|survei|keluhan)/?$ smm.php?r=$1 [L,QSA]
+</IfModule>

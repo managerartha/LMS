@@ -35,12 +35,12 @@ const NAV_PIC = [
   ['peserta', '👥', 'Peserta', 'Persiapan'], ['lokasi', '📍', 'Jadwal & Lokasi', 'Persiapan'],
   ['kepatuhan', '📘', 'Tata Tertib & Video', 'Persiapan'], ['inventaris', '📦', 'Inventaris', 'Persiapan'],
   ['berkas', '📂', 'Berkas Peserta', 'Persiapan'],
-  ['laporan', '📄', 'Laporan', 'Akhir pelatihan'], ['skl', '🎓', 'SKL', 'Akhir pelatihan'],
+  ['laporan', '📄', 'Laporan', 'Akhir pelatihan'], ['skl', '🎓', 'SKL', 'Akhir pelatihan'], ['survei', '⭐', 'Survei & Feedback', 'Akhir pelatihan'],
   ['nilai', '📝', 'Nilai Ujian', 'Akhir pelatihan'], ['sertifikat', '📜', 'Sertifikat', 'Akhir pelatihan'],
   ['gudang', '🏬', 'Gudang Inventaris', 'Gudang'],
   ['batch', '🗂️', 'Batch', 'Admin'], ['pustaka', '📚', 'Pustaka Pelatihan', 'Admin'], ['pic', '🔑', 'Akun PIC', 'Admin'],
 ];
-const TAB_BATCH = ['monitor', 'narasumber', 'kepatuhan', 'inventaris', 'berkas', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'sertifikat', 'nilai', 'peserta', 'lokasi'];
+const TAB_BATCH = ['survei', 'monitor', 'narasumber', 'kepatuhan', 'inventaris', 'berkas', 'rundown', 'materi', 'dok', 'laporan', 'skl', 'sertifikat', 'nilai', 'peserta', 'lokasi'];
 
 /** Menu tetap di bawah layar (HP). */
 const BNAV_PIC = [['dashboard', '🏠', 'Dashboard'], ['monitor', '✅', 'Absensi'], ['rundown', '🗓️', 'Rundown'], ['dok', '📷', 'Dokumentasi']];
@@ -102,7 +102,7 @@ function picTab(tab) {
     return;
   }
   ({ dashboard: tabDashboard, monitor: tabMonitor, narasumber: tabNarasumber, rundown: tabRundown, materi: tabMateri, dok: tabDok, laporan: tabLaporan, skl: tabSkl,
-    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka, inventaris: tabInventaris, gudang: tabGudang, berkas: tabBerkas, sertifikat: tabSertifikat, nilai: tabNilai })[aktif[0]]();
+    peserta: tabPeserta, lokasi: tabLokasi, batch: tabBatch, pic: tabPicAkun, kepatuhan: tabKepatuhan, pustaka: tabPustaka, inventaris: tabInventaris, gudang: tabGudang, berkas: tabBerkas, sertifikat: tabSertifikat, nilai: tabNilai, survei: tabSurvei })[aktif[0]]();
 }
 
 /** Mengisi isi tab, hanya jika pengguna belum berpindah tab sejak data mulai dimuat. */
@@ -3702,5 +3702,90 @@ function verifikasiBerkas(btn, id, status) {
   busy(btn, async () => {
     C.bk = await call('berkasVerifikasi', { id_berkas: id, status: status, catatan: $('#bk-catatan').value });
     closeModal(); toast(status === 'diterima' ? 'Berkas diterima.' : 'Peserta diminta merevisi berkas.', 'ok'); renderBerkas(C.view);
+  });
+}
+
+// ----------------------------------------------------- Tab: Survei & Feedback
+/** Rekap survei per batch (kepuasan peserta, evaluasi trainer, evaluasi klien) + link klien; Admin mengatur pertanyaan.
+ *  Keluhan hanya ditampilkan jumlahnya — isi & tindak lanjut di aplikasi SMM. */
+async function tabSurvei() {
+  const v = C.view;
+  try {
+    const admin = S.user.role === 'admin';
+    const [r, p] = await Promise.all([call('surveiRekap', { id_batch: C.batch.id_batch }), admin ? call('surveiPertanyaanGet') : null]);
+    C.svRekap = r;
+    if (p) C.svTanya = p;
+    const angka = x => x === null || x === undefined ? '–' : String(x).replace('.', ',');
+    const aspek = list => list.length ? list.map(a => `<div class="rekap-aspek"><span>${esc(a.teks)}</span>
+      <div class="bar"><span style="width:${a.rata ? a.rata / 5 * 100 : 0}%"></span></div><b>${angka(a.rata)}</b></div>`).join('') : '';
+    const linkKlien = location.origin + location.pathname.replace(/[^/]*$/, '') + 'survei.html?k=' + r.klien.kode;
+    const linkKeluhan = location.origin + location.pathname.replace(/[^/]*$/, '') + 'keluhan.html';
+    const label = { kepuasan_peserta: 'Kepuasan', evaluasi_trainer: 'Trainer', evaluasi_klien: 'Klien' };
+    setBody(v, `
+      <div class="kpi-strip">
+        <div><span>Kepuasan peserta</span><b>${angka(r.kepuasan.rata)}</b><small>${r.kepuasan.n} dari ${r.peserta} peserta mengisi</small></div>
+        <div><span>Evaluasi trainer</span><b>${angka(r.trainer.rata)}</b><small>${r.trainer.n} penilaian · ${r.trainer.list.length} trainer</small></div>
+        <div><span>Evaluasi klien</span><b>${angka(r.klien.rata)}</b><small>${r.klien.n} respons</small></div>
+        <div class="${r.keluhan ? 'merah' : ''}"><span>Keluhan batch ini</span><b>${r.keluhan}</b><small>detail di aplikasi SMM</small></div>
+      </div>
+      <div class="alert info small">Survei kepuasan & evaluasi klien dibuka mulai hari terakhir (${esc(fmtTanggal(r.buka_mulai))}).
+        Evaluasi trainer muncul setiap hari setelah sesi 2 dimulai. ${r.wajib_skl ? 'Peserta <b>wajib</b> mengisi survei kepuasan sebelum mengunduh SKL.' : ''}
+        Jawaban peserta anonim. Skala 1–5.</div>
+      <div class="grid2 split">
+        <div class="card"><h2>Kepuasan peserta</h2>${aspek(r.kepuasan.aspek) || '<div class="muted small">Belum ada respons.</div>'}</div>
+        <div class="card"><h2>Evaluasi trainer</h2>
+          ${r.trainer.list.length ? `<div class="table-wrap"><table><thead><tr><th>Trainer</th><th>Penilaian</th><th>Rata-rata</th></tr></thead><tbody>
+            ${r.trainer.list.map(t => `<tr><td>${esc(t.nama)}</td><td>${t.n}</td><td><b>${angka(t.rata)}</b></td></tr>`).join('')}</tbody></table></div>`
+            : '<div class="muted small">Belum ada trainer di rundown batch ini.</div>'}</div>
+      </div>
+      <div class="grid2 split">
+        <div class="card"><h2>Evaluasi klien</h2>
+          <p class="small muted">Kirim link ini ke perwakilan perusahaan/klien (mis. lewat WhatsApp). Tanpa login; bisa diisi lebih dari satu orang.</p>
+          <div class="row"><input id="link-url" value="${esc(linkKlien)}" readonly class="grow"><button class="btn sm" onclick="salinLink()">📋 Salin</button></div>
+          ${aspek(r.klien.aspek)}</div>
+        <div class="card"><h2>Komentar (${r.komentar.length})</h2>
+          ${r.komentar.length ? r.komentar.slice(0, 50).map(k => `<div class="kom">${esc(k.komentar)}<div class="meta">${esc(label[k.jenis] || '')}${k.trainer ? ' · ' + esc(k.trainer) : ''}
+            · ${esc(fmtTanggal(k.tanggal))}${k.pengisi ? ' · ' + esc(k.pengisi) : ' · anonim'}</div></div>`).join('') : '<div class="muted small">Belum ada komentar.</div>'}</div>
+      </div>
+      <div class="card"><h2>📣 Formulir keluhan publik</h2>
+        <p class="small muted">Untuk klien/pihak luar (peserta bisa langsung dari Dashboard LMS). Isi keluhan & kontak pelapor tidak ditampilkan di LMS;
+          tindak lanjut ditangani Admin SMM.</p>
+        <div class="row"><input id="link-keluhan" value="${esc(linkKeluhan)}" readonly class="grow">
+          <button class="btn sm" onclick="navigator.clipboard && navigator.clipboard.writeText($('#link-keluhan').value).then(() => toast('Link disalin.', 'ok'))">📋 Salin</button></div></div>
+      ${admin ? `<div class="card" id="sv-tanya"></div>` : ''}`);
+    if (admin) renderPertanyaan('kepuasan_peserta');
+  } catch (e) { errBox(v, e); }
+}
+
+/** Admin: atur pertanyaan survei (skala 1–5). Pertanyaan yang dihapus hanya dinonaktifkan agar data lama tetap terbaca. */
+function renderPertanyaan(jenis) {
+  C.svJenis = jenis;
+  const el = $('#sv-tanya');
+  if (!el) return;
+  const d = C.svTanya, list = d.pertanyaan[jenis];
+  el.innerHTML = `<h2>⚙️ Pertanyaan survei (Admin)</h2>
+    <p class="small muted">Berlaku untuk semua batch. Skala jawaban 1–5. Nonaktifkan (jangan dihapus) pertanyaan lama agar rekap sebelumnya tetap terbaca.
+      Setiap pertanyaan menjadi kolom <code>aspek_&lt;kode&gt;</code> di aplikasi SMM.</p>
+    <div class="seg seg3">${Object.keys(d.jenis).map(j => `<button class="${j === jenis ? 'active' : ''}" onclick="renderPertanyaan('${j}')">${esc(d.jenis[j])}</button>`).join('')}</div>
+    <div id="tanya-list">${list.map(tanyaRowHtml).join('')}</div>
+    <div class="row mt"><button class="btn sm" onclick="$('#tanya-list').insertAdjacentHTML('beforeend', tanyaRowHtml({ kode: '', teks: '', ket: '', aktif: true }))">＋ Tambah pertanyaan</button>
+      <span class="grow"></span><button class="btn primary" onclick="simpanPertanyaan(this)">Simpan pertanyaan</button></div>`;
+}
+
+function tanyaRowHtml(p) {
+  return `<div class="tanya-row" data-kode="${esc(p.kode)}">
+    <input class="teks" value="${esc(p.teks)}" placeholder="Pertanyaan / aspek, mis. Kebersihan ruang kelas" maxlength="120">
+    <input class="ket" value="${esc(p.ket)}" placeholder="Keterangan singkat (opsional)" maxlength="200">
+    <label class="check small"><input type="checkbox" class="aktif" ${p.aktif ? 'checked' : ''}> Aktif</label>
+    <span class="small muted">${p.kode ? esc(p.kode) : 'baru'}</span></div>`;
+}
+
+function simpanPertanyaan(btn) {
+  const list = $$('#tanya-list .tanya-row').map(r => ({ kode: r.dataset.kode, teks: $('.teks', r).value, ket: $('.ket', r).value, aktif: $('.aktif', r).checked }));
+  busy(btn, async () => {
+    const d = await call('surveiPertanyaanSimpan', { jenis: C.svJenis, list: list });
+    C.svTanya.pertanyaan = d.pertanyaan;
+    renderPertanyaan(C.svJenis);
+    toast('Pertanyaan survei disimpan.', 'ok');
   });
 }

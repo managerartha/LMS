@@ -93,11 +93,127 @@ function tampilBeranda(b) {
         ${h && h.dok.length ? `<div class="card o7"><h2>📷 Dokumentasi hari ini</h2>${galeriHtml(h, 6)}</div>` : ''}
       </div>
       <div class="dps-kol">
+        <div id="survei-slot" class="o3"></div>
         ${tugasPesertaHtml(b)}
         ${dokumenPesertaHtml(b)}
         ${h ? `<div class="card o6"><h2>📚 Materi hari ini</h2>${materiHtml(h.materi)}</div>` : ''}
       </div>
     </div>`;
+  muatSurveiSlot();
+}
+
+// ----------------------------------------------------- Survei & keluhan
+/** Kartu survei: kepuasan (hari terakhir, wajib sebelum unduh SKL), evaluasi trainer (setiap hari), dan tombol keluhan (kapan saja). */
+async function muatSurveiSlot() {
+  try {
+    P.sv = await call('surveiSaya');
+  } catch (e) { return; }
+  const el = $('#survei-slot');
+  if (!el) return;
+  const sv = P.sv, kp = sv.kepuasan;
+  const tr = sv.trainer.filter(t => t.buka);
+  const trBelum = tr.filter(t => !t.sudah).length;
+  const baris = [];
+  if (kp.buka) baris.push(`<button class="rem ${kp.sudah ? '' : 'r-warn'}" onclick="${kp.sudah ? '' : 'formSurvei(\'kepuasan_peserta\')'}">
+    <span class="badge ${kp.sudah ? 'b-hadir' : 'b-belum'}">${kp.sudah ? '✓ Sudah' : 'Belum'}</span>
+    <span class="grow">Survei kepuasan pelatihan${sv.wajib_skl ? ' <b>(wajib sebelum unduh SKL)</b>' : ''}</span>${kp.sudah ? '' : '<span class="panah">›</span>'}</button>`);
+  if (tr.length) baris.push(`<button class="rem ${trBelum ? 'r-warn' : ''}" onclick="daftarTrainer()">
+    <span class="badge ${trBelum ? 'b-belum' : 'b-hadir'}">${tr.length - trBelum}/${tr.length}</span>
+    <span class="grow">Evaluasi trainer${trBelum ? ' — ' + trBelum + ' belum dinilai' : ''}</span><span class="panah">›</span></button>`);
+  el.innerHTML = (baris.length ? `
+    <div class="card" style="border-left:5px solid var(--accent)">
+      <div class="row"><span class="chip chip-green">Survei</span><span class="grow"></span></div>
+      <h3 style="margin:8px 0 4px">Bantu kami jadi lebih baik 🙏</h3>
+      <p class="small muted" style="margin:0 0 10px">± 2 menit. Jawaban Anda <b>anonim</b> — tidak terhubung ke nama Anda.</p>
+      <div class="rem-list">${baris.join('')}</div>
+    </div>` : '') + `
+    <div class="card">
+      <h3 style="margin:0 0 4px">📣 Ada keluhan atau masukan?</h3>
+      <p class="small muted" style="margin:0 0 10px">Sampaikan kapan saja selama & setelah pelatihan. Kami tindak lanjuti.</p>
+      <button class="btn block" onclick="formKeluhan()">Sampaikan keluhan</button>
+    </div>`;
+}
+
+function skalaHtml(p, i) {
+  const label = ['Sangat kurang', 'Kurang', 'Cukup', 'Baik', 'Sangat baik'];
+  return `<div class="aspek">${esc(p.teks)}${p.ket ? `<span>${esc(p.ket)}</span>` : ''}</div>
+    <div class="skala" data-kode="${esc(p.kode)}">${[1, 2, 3, 4, 5].map(n =>
+      `<button type="button" onclick="pilihSkala(this, ${n})">${n}<small>${label[n - 1]}</small></button>`).join('')}</div>`;
+}
+
+function pilihSkala(btn, n) {
+  btn.parentNode.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+  btn.parentNode.dataset.nilai = n;
+}
+
+/** Formulir survei (kepuasan_peserta atau evaluasi_trainer untuk satu trainer). */
+function formSurvei(jenis, k) {
+  const sv = P.sv, t = jenis === 'evaluasi_trainer' ? sv.trainer[k] : null;
+  const p = sv.pertanyaan[jenis] || [];
+  openModal(`
+    <span class="chip chip-blue">${jenis === 'kepuasan_peserta' ? 'Kepuasan peserta' : 'Evaluasi trainer'}</span>
+    <h2 style="margin:8px 0 2px">${t ? esc(t.nama) : esc(sv.kode_batch + ' · ' + sv.nama_pelatihan)}</h2>
+    <p class="small muted" style="margin:0 0 12px">${t ? 'Hari ke-' + esc(t.hari_ke) + (t.materi ? ' · ' + esc(t.materi) : '') + ' · ' : ''}1 = sangat kurang · 5 = sangat baik</p>
+    <div id="sv-form">${p.map(skalaHtml).join('')}</div>
+    <label>Komentar / saran (opsional)</label>
+    <textarea id="sv-komentar" maxlength="2000" placeholder="${t ? 'Masukan untuk trainer' : 'Apa yang sudah baik, apa yang perlu diperbaiki?'}"></textarea>
+    <p class="small muted">Mohon tidak menulis nama atau nomor HP.</p>
+    <div class="row mt"><button class="btn" onclick="closeModal()">Nanti</button>
+      <button class="btn primary grow" onclick="kirimSurvei(this, '${jenis}', ${t ? k : -1})">Kirim</button></div>`);
+}
+
+function kirimSurvei(btn, jenis, k) {
+  const jawaban = {};
+  let kurang = '';
+  $$('#sv-form .skala').forEach(x => { if (x.dataset.nilai) jawaban[x.dataset.kode] = Number(x.dataset.nilai); else if (!kurang) kurang = x.previousElementSibling.firstChild.textContent; });
+  if (kurang) return toast('Mohon beri nilai untuk: ' + kurang, 'error');
+  const t = k >= 0 ? P.sv.trainer[k] : null;
+  busy(btn, async () => {
+    await call('surveiKirim', { jenis: jenis, jawaban: jawaban, komentar: $('#sv-komentar').value, id_hari: t ? t.id_hari : '', trainer: t ? t.nama : '' });
+    closeModal();
+    toast('Terima kasih atas penilaian Anda! 🙏', 'ok');
+    await muatSurveiSlot();
+    if (jenis === 'evaluasi_trainer' && P.sv.trainer.some(x => x.buka && !x.sudah)) daftarTrainer();
+    if (P.tab === 'skl') loadSkl();
+  });
+}
+
+function daftarTrainer() {
+  const tr = P.sv.trainer;
+  const hari = [...new Set(tr.filter(t => t.buka).map(t => t.hari_ke))];
+  openModal(`
+    <span class="chip chip-blue">Evaluasi trainer</span>
+    <h2 style="margin:8px 0 2px">Nilai setiap trainer</h2>
+    <p class="small muted" style="margin:0 0 6px">Trainer diambil dari jadwal (rundown). Penilaian dibuka setiap hari setelah sesi 2 dimulai.</p>
+    ${hari.map(h => `<div class="menu-grup">Hari ke-${esc(h)}</div>` + tr.map((t, k) => t.buka && t.hari_ke === h ? `
+      <div class="trainer-row"><div class="ava">${esc(t.nama.replace(/^(ir|dr|drs|prof)\.?\s+/i, '').split(/\s+/).map(x => x[0]).slice(0, 2).join('').toUpperCase())}</div>
+        <div class="grow"><b>${esc(t.nama)}</b><div class="small muted">${esc(t.materi)}</div></div>
+        ${t.sudah ? '<span class="badge b-hadir">✓ Sudah</span>' : `<button class="btn sm primary" onclick="formSurvei('evaluasi_trainer', ${k})">Nilai</button>`}</div>` : '').join('')).join('')}
+    <button class="btn block mt" onclick="closeModal()">Tutup</button>`);
+}
+
+function formKeluhan() {
+  const kat = (P.sv && P.sv.kategori_keluhan) || {};
+  openModal(`
+    <span class="chip" style="background:var(--bad-bg);color:var(--bad)">Keluhan</span>
+    <h2 style="margin:8px 0 2px">Sampaikan keluhan</h2>
+    <p class="small muted" style="margin:0 0 10px">Setiap keluhan mendapat nomor tiket dan ditindaklanjuti tim kami.
+      Kontak Anda (dari akun LMS) hanya dipakai untuk tindak lanjut.</p>
+    <label>Kategori</label>
+    <select id="kl-kategori"><option value="">— pilih —</option>${Object.keys(kat).map(k => `<option value="${esc(k)}">${esc(kat[k])}</option>`).join('')}</select>
+    <label>Uraian keluhan</label>
+    <textarea id="kl-uraian" maxlength="3000" style="min-height:110px" placeholder="Ceritakan apa yang terjadi, kapan, dan di mana."></textarea>
+    <div class="row mt"><button class="btn" onclick="closeModal()">Batal</button>
+      <button class="btn primary grow" onclick="kirimKeluhan(this)">Kirim keluhan</button></div>`);
+}
+
+function kirimKeluhan(btn) {
+  busy(btn, async () => {
+    const r = await call('keluhanKirim', { kategori: $('#kl-kategori').value, uraian: $('#kl-uraian').value });
+    openModal(`<div class="center"><div style="font-size:44px">✅</div><h2>Keluhan terkirim</h2>
+      <p>Nomor tiket Anda: <b>${esc(r.id_keluhan)}</b></p><p class="small muted">Simpan nomor ini untuk menanyakan tindak lanjut.</p>
+      <button class="btn primary block" onclick="closeModal()">Tutup</button></div>`);
+  });
 }
 
 function namaDepan(nama) { return String(nama || '').trim().split(/\s+/)[0] || ''; }
@@ -670,8 +786,19 @@ function sklBannerHtml(skl) {
 
 async function loadSkl() {
   try {
-    const s = await call('sklSaya');
+    const [s, sv] = await Promise.all([call('sklSaya'), call('surveiSaya').catch(() => null)]);
     if (P.tab !== 'skl') return;
+    if (sv) P.sv = sv;
+    if (s.terbit && sv && sv.wajib_skl) {
+      $('#tab-body').innerHTML = `
+      <div class="card narrow center">
+        <div style="font-size:48px">📝</div>
+        <h2>Satu langkah lagi</h2>
+        <p class="muted">SKL Anda sudah terbit. Mohon isi <b>Survei Kepuasan Pelatihan</b> (± 2 menit) terlebih dahulu untuk mengunduh SKL.</p>
+        <button class="btn primary block big" onclick="formSurvei('kepuasan_peserta')">Isi survei sekarang</button>
+      </div>`;
+      return;
+    }
     $('#tab-body').innerHTML = s.terbit ? `
       <div class="card narrow center">
         <div style="font-size:48px">🎓</div>
@@ -691,6 +818,7 @@ async function loadSkl() {
 }
 
 function unduhSkl(btn) {
+  if (P.sv && P.sv.wajib_skl) return formSurvei('kepuasan_peserta');
   busy(btn, async () => {
     const res = await call('sklUnduh');
     simpanFile(res.nama, res.data, 'application/pdf');

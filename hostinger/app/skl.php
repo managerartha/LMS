@@ -89,6 +89,7 @@ function sklUnduh(array $data, array $user): array {
   if (!$s || $s['status'] !== 'terbit') {
     throw new LmsError($user['role'] === 'peserta' ? 'SKL Anda belum diterbitkan. Silakan hubungi PIC pelatihan.' : 'SKL peserta ini belum diterbitkan.');
   }
+  if (perlu_survei_skl($user)) throw new LmsError('Isi Survei Kepuasan Pelatihan terlebih dahulu (di Dashboard), lalu unduh SKL Anda.');
   $batch = get_batch($u['id_batch']);
   $nama = preg_replace('#[\\\\/:*?"<>|]#', '-', 'SKL ' . $u['kode_login'] . ' - ' . $u['nama'] . '.pdf');
   if ($user['role'] === 'peserta') log_($user, 'skl_unduh', $s['nomor']);
