@@ -620,12 +620,12 @@ Skema versi 16: tabel baru `survei`, `survei_isi`, `keluhan` (data lama tidak te
   dengan token `SMM_API_TOKEN` di `app/.env` (folder app tertutup dari browser). Tanpa data pribadi; komentar & uraian disamarkan
   (HP, email, NIK, nomor ≥ 10 digit, nama peserta batch, nama pelapor). Dokumentasi: `docs/API-SMM.md`.
 
-## 37. Sertifikat BST cetak di blanko & laporan tanpa absensi
+## 37. Sertifikat BST tanpa cap & laporan tanpa absensi
 
-- **BST cetak di blanko** (Admin, menu Sertifikat, seperti SKL): PDF A4 mendatar **tanpa desain latar**, hanya tulisan yang berbeda tiap
-  peserta (nomor, nama, tempat & tanggal Inggris/Indonesia) di posisi yang sama persis dengan PDF lengkap. Cetak uji (tanda + 10 mm dari tepi),
-  geser kanan/bawah (mm, disimpan di `pengaturan.bst_cetak`), pilihan lembar (semua / BFA / BFF / SCBA saja agar satu tumpuk blanko dicetak sekaligus),
-  cetak yang dicentang atau semua yang terbit. Aksi `sertifikatCetak`, `sertifikatCetakAtur`. PDF lengkap & unduhan peserta tidak berubah.
+- **BST tanpa cap** (Admin, menu Sertifikat): PDF sertifikat BST lengkap (desain, tanda tangan, nama & jabatan direktur) **tanpa cap
+  perusahaan**, untuk dicetak di kertas putih polos lalu dicap basah. Latar `sert-bfa|bff|scba-tanpacap.jpg` (cap = logo hijau & tulisan kecil
+  di belakang tanda tangan dihapus, tanda tangan direktur ditempel ulang di posisi semula). Unduh yang dicentang / semua yang terbit
+  (aksi `sertifikatCetak`). PDF untuk peserta tetap dengan cap.
 - **Laporan tanpa absensi**: menu Laporan → *Isi laporan*: **Semua (dengan absensi)** / **Tanpa absensi** (data `tanpa_absen`).
   Laporan resmi tanpa bagian laporan absensi peserta (foto, tanda tangan, lokasi); laporan harian tanpa lampiran foto & tanda tangan absen
   (tabel daftar hadir tetap). Nama file diberi akhiran "- tanpa absensi" / "- tanpa foto absen". Berlaku juga untuk pratinjau.

@@ -1974,39 +1974,24 @@ function renderSertifikat(v) {
     </div>` : '<div class="card muted small">Belum ada jenis sertifikat yang dicentang untuk batch ini.</div>'}
     ${admin && s.bst.aktif ? `
     <div class="card">
-      <h2>🖨 Sertifikat BST — cetak di blanko (hardcopy)</h2>
-      <p class="small muted">PDF <b>tanpa desain latar</b> — hanya tulisan yang berbeda tiap peserta (nomor, nama, tempat & tanggal), di posisi yang sama
-        persis dengan PDF lengkap, untuk dicetak di kertas blanko BST. Saat mencetak pilih ukuran <b>sebenarnya / 100%</b> dan kertas <b>A4 mendatar</b>.</p>
-      <ol class="small muted">
-        <li>Klik <b>Cetak uji</b>, cetak di kertas polos, tumpuk dengan blanko lalu terawang ke cahaya.</li>
-        <li>Bila tulisan kurang pas, isi geser (mm), simpan, cetak uji lagi sampai pas.</li>
-        <li>Pilih lembar (mis. hanya <b>First Aid</b> agar satu tumpuk blanko First Aid dicetak sekaligus), centang peserta di tabel atas,
-          lalu <b>Cetak yang dipilih</b> (atau cetak semua yang terbit).</li>
-      </ol>
-      <div class="grid2">
-        <div><label>Geser ke kanan (mm, minus = ke kiri)</label><input id="bst-dx" type="number" step="0.5" min="-20" max="20" value="${esc(d.bst_cetak.dx)}"></div>
-        <div><label>Geser ke bawah (mm, minus = ke atas)</label><input id="bst-dy" type="number" step="0.5" min="-20" max="20" value="${esc(d.bst_cetak.dy)}"></div>
-        <div><label>Lembar yang dicetak</label><select id="bst-lembar"><option value="">Semua lembar (3 per peserta)</option>
-          ${Object.keys(d.lembar_bst).map(k => `<option value="${esc(k)}">${esc(k)} — ${esc(d.lembar_bst[k])}</option>`).join('')}</select></div>
-      </div>
+      <h2>🖨 Sertifikat BST tanpa cap (untuk cap basah)</h2>
+      <p class="small muted">PDF sertifikat BST lengkap — desain, tanda tangan, nama & jabatan direktur — <b>tanpa cap perusahaan</b>,
+        untuk dicetak di kertas putih polos lalu <b>dicap basah</b>. 3 lembar per peserta (First Aid, Fire Fighting, SCBA).
+        Cetak di kertas <b>A4 mendatar</b>. Sertifikat yang diunduh peserta tetap dengan cap.</p>
       <div class="row mt" style="flex-wrap:wrap">
-        <button class="btn" onclick="bstCetak(this, 'atur')">💾 Simpan geser</button>
-        <button class="btn" onclick="bstCetak(this, 'uji')">🧪 Cetak uji</button>
-        <button class="btn primary" onclick="bstCetak(this, 'pilih')">🖨 Cetak yang dipilih</button>
-        <button class="btn" onclick="bstCetak(this, 'semua')">🖨 Cetak semua yang terbit</button>
+        <button class="btn primary" onclick="bstCetak(this, 'pilih')">🖨 Unduh yang dicentang</button>
+        <button class="btn" onclick="bstCetak(this, 'semua')">🖨 Unduh semua yang terbit</button>
       </div>
+      <p class="small muted">Centang peserta di tabel atas untuk "Unduh yang dicentang".</p>
     </div>` : ''}`);
 }
 
-/** Admin: sertifikat BST versi cetak di blanko (tanpa latar), cetak uji, dan pengaturan geser — seperti SKL. */
+/** Admin: sertifikat BST tanpa cap (untuk dicap basah), dicetak di kertas putih polos. */
 function bstCetak(btn, aksi) {
-  const atur = { dx: $('#bst-dx').value || 0, dy: $('#bst-dy').value || 0 };
   const ids = aksi === 'pilih' ? $$('.st-cb:checked').map(c => c.value) : [];
   if (aksi === 'pilih' && !ids.length) return toast('Centang peserta di tabel atas terlebih dahulu.', 'error');
   busy(btn, async () => {
-    C.sert.bst_cetak = await call('sertifikatCetakAtur', atur);
-    if (aksi === 'atur') return toast('Pengaturan cetak BST disimpan.', 'ok');
-    const r = await call('sertifikatCetak', { id_batch: C.batch.id_batch, id_users: ids, uji: aksi === 'uji', lembar: $('#bst-lembar').value });
+    const r = await call('sertifikatCetak', { id_batch: C.batch.id_batch, id_users: ids });
     simpanFile(r.nama, r.data, 'application/pdf');
   }, 'Menyiapkan…');
 }

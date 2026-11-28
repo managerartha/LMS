@@ -42,7 +42,7 @@ const ROUTES = [
   'ttdSaya' => 'pic', 'ttdSayaSimpan' => 'pic', 'laporanList' => 'pic', 'laporanBuat' => 'pic', 'openingData' => 'pic', 'laporanSimpanPratinjau' => 'pic', 'laporanUnduh' => 'pic',
   'infoLaporanGet' => 'pic', 'infoLaporanSimpan' => 'pic',
   'sklSaya' => 'user', 'sklUnduh' => 'user', 'sklList' => 'pic', 'sklSimpanData' => 'pic', 'sklTerbitkan' => 'pic', 'sklTahan' => 'pic', 'sklUnduhSemua' => 'pic',
-  'sklCetak' => 'admin', 'sklCetakAtur' => 'admin', 'sertifikatCetak' => 'admin', 'sertifikatCetakAtur' => 'admin', 'penyimpananInfo' => 'admin', 'penyimpananPindah' => 'admin',
+  'sklCetak' => 'admin', 'sklCetakAtur' => 'admin', 'sertifikatCetak' => 'admin', 'penyimpananInfo' => 'admin', 'penyimpananPindah' => 'admin',
   'sertifikatSaya' => 'user', 'sertifikatUnduh' => 'user', 'sertifikatData' => 'pic', 'sertifikatSimpan' => 'pic', 'sertifikatUnduhSemua' => 'pic',
   'sertifikatTerbitkan' => 'admin', 'sertifikatTahan' => 'admin', 'sertifikatBatal' => 'admin', 'sertifikatFormat' => 'admin', 'topikHseList' => 'admin', 'topikHseSimpan' => 'admin',
   'nilaiSaya' => 'user', 'nilaiUnduh' => 'user', 'nilaiData' => 'pic', 'nilaiAtur' => 'pic', 'nilaiSimpan' => 'pic', 'nilaiBnspUpload' => 'pic',
