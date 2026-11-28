@@ -155,7 +155,7 @@ function sertifikatData(array $data, array $user): array {
       'jumlah_materi' => count(array_filter(explode("\n", $t['isi_materi'])))], topik_hse(true)),
     'kurang' => array_map(fn($j) => kurang_sert($set, $j), array_combine(array_keys(JENIS_SERT), array_keys(JENIS_SERT))),
     'contoh_nomor' => $contoh, 'periode_batch' => tanggal_batch_teks($b), 'awal' => $awal, 'akhir' => $akhir,
-    'lembaga_skl' => lembaga_skl($b), 'admin' => $user['role'] === 'admin',
+    'lembaga_skl' => lembaga_skl($b), 'admin' => $user['role'] === 'admin', 'bst_cetak' => bst_cetak_atur(),
     'peserta' => array_map(fn($u) => ['id_user' => $u['id_user'], 'no_absen' => $u['no_absen'], 'nama' => $u['nama'], 'kode_login' => $u['kode_login'],
       'tempat_lahir' => $u['tempat_lahir'], 'tgl_lahir' => $u['tgl_lahir'],
       'sertifikat' => array_map(fn($j) => $punya[$u['id_user']][$j] ?? sert_view(null), array_combine(array_keys(JENIS_SERT), array_keys(JENIS_SERT)))], $peserta),
@@ -356,6 +356,55 @@ function sertifikatUnduhSemua(array $data, array $user): array {
   return ['selesai' => true, 'nama' => $judul . '.zip', 'tipe' => 'application/zip', 'data' => base64_encode($isi)];
 }
 
+// ---------------------------------------------------------------- BST versi cetak di blanko (Admin), seperti SKL
+
+/** Pengaturan cetak blanko BST: geser kanan (dx) & bawah (dy) dalam mm. */
+function bst_cetak_atur(): array {
+  $a = json_decode(pengaturan('bst_cetak') ?: '{}', true);
+  $a = is_array($a) ? $a : [];
+  return ['dx' => (float)($a['dx'] ?? 0), 'dy' => (float)($a['dy'] ?? 0)];
+}
+
+function sertifikatCetakAtur(array $data, array $user): array {
+  $n = fn($v) => max(-20, min(20, round((float)str_replace(',', '.', (string)$v), 1)));
+  $a = ['dx' => $n($data['dx'] ?? 0), 'dy' => $n($data['dy'] ?? 0)];
+  pengaturan_simpan('bst_cetak', json_encode($a));
+  log_($user, 'bst_cetak_atur', json_encode($a));
+  return $a;
+}
+
+/**
+ * Admin: PDF sertifikat BST untuk dicetak di kertas blanko (tanpa latar): nomor, nama, tempat & tanggal.
+ * lembar: '' = semua (BFA, BFF, SCBA per peserta) atau satu jenis lembar saja agar satu tumpuk blanko dicetak sekaligus.
+ * id_users kosong = semua BST terbit. uji = satu halaman contoh + tanda pojok untuk mencocokkan posisi.
+ */
+function sertifikatCetak(array $data, array $user): array {
+  $b = batch_for_pic($user, (string)($data['id_batch'] ?? ''));
+  $set = setelan_sert($b);
+  $lembar = (string)($data['lembar'] ?? '');
+  if ($lembar !== '' && !isset(LEMBAR_BST[$lembar])) throw new LmsError('Jenis lembar tidak dikenal.');
+  $c = bst_cetak_atur() + ['uji' => !empty($data['uji']), 'lembar' => $lembar];
+  $pilih = array_map('strval', (array)($data['id_users'] ?? []));
+  $list = [];
+  foreach (peserta_batch($b['id_batch'], false) as $u) {
+    if ($pilih && !in_array($u['id_user'], $pilih, true)) continue;
+    $s = sert_of($u['id_user'], 'bst');
+    if ($s && $s['status'] === 'terbit') $list[] = [$u, $s];
+  }
+  if ($c['uji']) {
+    if ($set['bst']['tanggal'] === '') throw new LmsError('Isi tanggal pelaksanaan BST terlebih dahulu.');
+    $peserta = peserta_batch($b['id_batch'], false);
+    $u = $list[0][0] ?? ($peserta[0] ?? ['nama' => 'Nama Peserta Contoh', 'no_absen' => '1']);
+    $s = $list[0][1] ?? ['daftar_nomor' => json_encode(nomor_sert($b, $set, 'bst', $u), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)];
+    $list = [[$u, $s]];
+    if ($c['lembar'] === '') $c['lembar'] = 'BFA';
+  }
+  if (!$list) throw new LmsError($pilih ? 'Peserta yang dipilih belum punya sertifikat BST terbit.' : 'Belum ada sertifikat BST yang terbit di batch ini.');
+  log_($user, 'bst_cetak', $b['kode_batch'] . ': ' . ($c['uji'] ? 'uji' : count($list) . ' peserta' . ($lembar !== '' ? ' ' . $lembar : '')));
+  $nama = preg_replace('#[\\\\/:*?"<>|]#', '-', ($c['uji'] ? 'CETAK UJI BST ' : 'BST cetak blanko ') . ($lembar !== '' ? $lembar . ' ' : '') . $b['kode_batch'] . '.pdf');
+  return ['nama' => $nama, 'data' => base64_encode(html_ke_pdf(sert_html($b, $set, 'bst', $list, false, $c), A4_DATAR))];
+}
+
 /** Daftar topik HSE (semua, termasuk nonaktif) beserta materinya — Admin. */
 function topikHseList(array $data, array $user): array {
   return array_map(fn($t) => $t + ['materi' => array_values(array_filter(explode("\n", $t['isi_materi']), fn($x) => trim($x) !== ''))], topik_hse());
@@ -477,7 +526,7 @@ function sert_latar(string $file): string {
 }
 
 /** $list = [[pengguna, sertifikat], ...] — satu peserta = 1 / 3 / N halaman. */
-function sert_html(array $b, array $set, string $jenis, array $list, bool $pratinjau = false): string {
+function sert_html(array $b, array $set, string $jenis, array $list, bool $pratinjau = false, ?array $cetak = null): string {
   $org = org_();
   $kertas = $jenis === 'bst' ? A4_DATAR : A4_TEGAK;
   [$W, $H] = [$kertas[2], $kertas[3]];
@@ -523,12 +572,13 @@ function sert_html(array $b, array $set, string $jenis, array $list, bool $prati
       [$y, $m, $d] = array_map('intval', explode('-', $c['tanggal']));
       $sans = 'font-family:Helvetica, Arial, sans-serif;';
       foreach (LEMBAR_BST as $k => $_) {
-        $hal[] = $img('sert-' . strtolower($k) . '.jpg') .
-          sert_teks(421.5, 162, 10.5, h_($nomor[$k] ?? ''), 'font-weight:bold;font-family:Helvetica, Arial, sans-serif;', 400, false) .
+        if ($cetak && $cetak['lembar'] !== '' && $cetak['lembar'] !== $k) continue; // cetak blanko per jenis lembar
+        $isi = sert_teks(421.5, 162, 10.5, h_($nomor[$k] ?? ''), 'font-weight:bold;font-family:Helvetica, Arial, sans-serif;', 400, false) .
           sert_teks(425.5, 280, 36, h_($u['nama']), 'font-weight:bold;color:#002060;', 700, false, 640) .
           sert_teks(422, 395, 10.5, 'Hold in ' . h_($c['tempat_en']) . ', ' . tgl_en($c['tanggal'], false), $sans, 560) .
-          sert_teks(422, 417, 10.5, 'Dilaksanakan di ' . h_($c['tempat_id']) . ', ' . sprintf('%02d', $d) . ' ' . BULAN_ID[$m - 1] . ' ' . $y, $sans, 560) .
-          $tanda;
+          sert_teks(422, 417, 10.5, 'Dilaksanakan di ' . h_($c['tempat_id']) . ', ' . sprintf('%02d', $d) . ' ' . BULAN_ID[$m - 1] . ' ' . $y, $sans, 560);
+        // versi blanko: tanpa latar desain, hanya tulisan (posisi sama persis, bisa digeser beberapa mm)
+        $hal[] = $cetak ? skl_cetak_buka($cetak, $W, $H) . $isi . '</div>' : $img('sert-' . strtolower($k) . '.jpg') . $isi . $tanda;
       }
     } else {
       $c = $set['hse'];

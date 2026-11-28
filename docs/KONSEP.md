@@ -619,3 +619,13 @@ Skema versi 16: tabel baru `survei`, `survei_isi`, `keluhan` (data lama tidak te
 - **API SMM** (`api/smm.php`, alamat `/api/smm/kelas|survei|keluhan?sejak=`, aturan di `api/.htaccess`): GET saja, `Authorization: Bearer`
   dengan token `SMM_API_TOKEN` di `app/.env` (folder app tertutup dari browser). Tanpa data pribadi; komentar & uraian disamarkan
   (HP, email, NIK, nomor ≥ 10 digit, nama peserta batch, nama pelapor). Dokumentasi: `docs/API-SMM.md`.
+
+## 37. Sertifikat BST cetak di blanko & laporan tanpa absensi
+
+- **BST cetak di blanko** (Admin, menu Sertifikat, seperti SKL): PDF A4 mendatar **tanpa desain latar**, hanya tulisan yang berbeda tiap
+  peserta (nomor, nama, tempat & tanggal Inggris/Indonesia) di posisi yang sama persis dengan PDF lengkap. Cetak uji (tanda + 10 mm dari tepi),
+  geser kanan/bawah (mm, disimpan di `pengaturan.bst_cetak`), pilihan lembar (semua / BFA / BFF / SCBA saja agar satu tumpuk blanko dicetak sekaligus),
+  cetak yang dicentang atau semua yang terbit. Aksi `sertifikatCetak`, `sertifikatCetakAtur`. PDF lengkap & unduhan peserta tidak berubah.
+- **Laporan tanpa absensi**: menu Laporan → *Isi laporan*: **Semua (dengan absensi)** / **Tanpa absensi** (data `tanpa_absen`).
+  Laporan resmi tanpa bagian laporan absensi peserta (foto, tanda tangan, lokasi); laporan harian tanpa lampiran foto & tanda tangan absen
+  (tabel daftar hadir tetap). Nama file diberi akhiran "- tanpa absensi" / "- tanpa foto absen". Berlaku juga untuk pratinjau.

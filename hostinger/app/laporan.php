@@ -171,20 +171,22 @@ function html_ke_pdf(string $html, $kertas = 'A4'): string {
 function laporanBuat(array $data, array $user): array {
   $batch = batch_for_pic($user, (string)($data['id_batch'] ?? ''));
   $jenis = in_array($data['jenis'] ?? '', ['harian', 'absensi'], true) ? $data['jenis'] : 'resmi';
+  // tanpa absensi: laporan resmi tanpa bagian absensi peserta; laporan harian tanpa lampiran foto absen (PDF jauh lebih kecil)
+  $tanpaAbsen = !empty($data['tanpa_absen']) && $jenis !== 'absensi';
   $hariList = hari_batch($batch['id_batch']);
   if (!$hariList) throw new LmsError('Batch ini belum memiliki hari pelatihan.');
   if ($jenis === 'harian') {
     $hari = get_hari((string)($data['id_hari'] ?? ''));
     if ($hari['id_batch'] !== $batch['id_batch']) throw new LmsError('Hari tidak termasuk batch ini.');
     $hariList = [$hari];
-    $nama = "Laporan Harian {$batch['kode_batch']} Hari-{$hari['hari_ke']} ({$hari['tanggal']}).pdf";
-    $html = laporan_harian_html($batch, $hariList);
+    $nama = "Laporan Harian {$batch['kode_batch']} Hari-{$hari['hari_ke']} ({$hari['tanggal']})" . ($tanpaAbsen ? ' - tanpa foto absen' : '') . '.pdf';
+    $html = laporan_harian_html($batch, $hariList, $tanpaAbsen);
   } else {
     $dari = (int)($data['dari'] ?? 0);
     $sampai = (int)($data['sampai'] ?? 0);
     $rentang = $jenis === 'absensi' && ($dari || $sampai) ? ' (No ' . ($dari ?: 1) . '-' . ($sampai ?: 'akhir') . ')' : '';
-    $nama = ($jenis === 'resmi' ? 'Laporan Resmi ' : 'Laporan Absensi ') . $batch['kode_batch'] . ' - ' . $batch['nama_pelatihan'] . $rentang . '.pdf';
-    $html = laporan_resmi_html($batch, $hariList, $jenis, $dari, $sampai);
+    $nama = ($jenis === 'resmi' ? 'Laporan Resmi ' : 'Laporan Absensi ') . $batch['kode_batch'] . ' - ' . $batch['nama_pelatihan'] . $rentang . ($tanpaAbsen ? ' - tanpa absensi' : '') . '.pdf';
+    $html = laporan_resmi_html($batch, $hariList, $jenis, $dari, $sampai, $tanpaAbsen);
   }
   $nama = preg_replace('#[\\\\/:*?"<>|]#', '-', $nama);
   $pdf = html_ke_pdf($html);
@@ -235,7 +237,7 @@ function laporanSimpanPratinjau(array $data, array $user): array {
 
 // ================================================================ Laporan harian (internal)
 
-function laporan_harian_html(array $batch, array $hariList): string {
+function laporan_harian_html(array $batch, array $hariList, bool $tanpaFoto = false): string {
   $now = now_();
   $peserta = peserta_batch($batch['id_batch'], false);
   $ids = pic_ids($batch);
@@ -255,7 +257,7 @@ function laporan_harian_html(array $batch, array $hariList): string {
   $out = ['<html><head><meta charset="utf-8"><style>' . LAPORAN_CSS . '</style></head><body>'];
   $out[] = sampul_harian($batch, $hariList, $pics, count($peserta));
   $out[] = ringkasan_harian($rekap, count($peserta));
-  foreach ($rekap as $r) $out[] = bagian_hari($batch, $r, $peserta);
+  foreach ($rekap as $r) $out[] = bagian_hari($batch, $r, $peserta, $tanpaFoto);
   $out[] = pengesahan_harian($batch, $pics, $now);
   $out[] = '</body></html>';
   return implode("\n", $out);
@@ -300,7 +302,7 @@ function grid_table(array $cells, int $cols): string {
   return '<table class="grid">' . $rows . '</table>';
 }
 
-function bagian_hari(array $batch, array $r, array $peserta): string {
+function bagian_hari(array $batch, array $r, array $peserta, bool $tanpaFoto = false): string {
   $h = $r['hari'];
   $out = ['<div class="pb"></div><h2>Hari ke-' . h_($h['hari_ke']) . ' — ' . h_(tgl_panjang($h['tanggal'])) . '</h2>',
     '<p class="muted">Lokasi: ' . h_(lokasi_hari($batch, $h)['nama']) . '</p>'];
@@ -323,7 +325,8 @@ function bagian_hari(array $batch, array $r, array $peserta): string {
     $body .= '</tr>';
   }
   $out[] = '<table class="data"><tr><th style="width:30px">No</th><th>Nama</th><th>Instansi</th>' . $head . '</tr>' . $body . '</table>';
-  foreach (SESI as $i => $s) {
+  if ($tanpaFoto) $out[] = '<p class="muted">Lampiran foto & tanda tangan absen tidak disertakan pada laporan ini (versi tanpa foto absen).</p>';
+  foreach ($tanpaFoto ? [] : SESI as $i => $s) {
     $hadir = [];
     foreach ($peserta as $j => $u) {
       $x = $r['per'][$j][$i];
@@ -484,7 +487,7 @@ function halaman(array $org, string $isi): string {
   return '<div class="pb"></div>' . kop($org) . $isi;
 }
 
-function laporan_resmi_html(array $batch, array $hariList, string $jenis, int $dari, int $sampai): string {
+function laporan_resmi_html(array $batch, array $hariList, string $jenis, int $dari, int $sampai, bool $tanpaAbsen = false): string {
   $org = org_();
   $info = info_batch($batch);
   $now = now_();
@@ -499,7 +502,7 @@ function laporan_resmi_html(array $batch, array $hariList, string $jenis, int $d
     $narasumber = daftar_hadir_narasumber($hariList);
     if ($narasumber !== '') $out[] = halaman($org, $narasumber);
   }
-  $out[] = absensi_peserta($batch, $hariList, $info, $peserta, $now, $jenis !== 'resmi');
+  if (!$tanpaAbsen) $out[] = absensi_peserta($batch, $hariList, $info, $peserta, $now, $jenis !== 'resmi');
   if ($jenis === 'resmi') $out[] = nilai_laporan_resmi($batch, $org); // rekap nilai Kemnaker (bila sudah diisi)
   if ($jenis === 'resmi') $out[] = halaman($org, dokumentasi_resmi($hariList));
   $out[] = '</body></html>';

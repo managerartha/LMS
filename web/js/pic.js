@@ -1368,6 +1368,14 @@ async function tabLaporan() {
           <div id="lap-rentang" class="hidden"><label>Nomor absen (kosongkan = semua peserta)</label>
             <div class="row"><input id="lap-dari" type="number" min="1" placeholder="dari" class="grow"> – <input id="lap-sampai" type="number" min="1" placeholder="sampai" class="grow"></div></div>
         </div>
+        <div id="lap-absen-wrap" class="mt">
+          <label>Isi laporan</label>
+          <div class="seg">
+            <button type="button" id="lap-absen-ya" class="active" onclick="lapAbsen(true)">📋 Semua (dengan absensi)</button>
+            <button type="button" id="lap-absen-tidak" onclick="lapAbsen(false)">🪶 Tanpa absensi</button>
+          </div>
+          <p class="small muted" id="lap-absen-ket"></p>
+        </div>
         <p class="small muted" id="lap-ket"></p>
         <div id="lap-status" class="alert info hidden"></div>
         <button class="btn accent block big" onclick="buatLaporan(this, true)">👁 Pratinjau laporan</button>
@@ -1408,7 +1416,20 @@ const KET_LAPORAN = {
   harian: 'Laporan internal satu hari: ringkasan kehadiran, rundown, daftar hadir, lampiran foto absen, dokumentasi, materi, dan pengesahan PIC.',
 };
 
+/** Dengan / tanpa absensi peserta (foto & tanda tangan absen membuat PDF besar). */
+function lapAbsen(ya) {
+  C.lapTanpaAbsen = !ya;
+  $('#lap-absen-ya').classList.toggle('active', ya);
+  $('#lap-absen-tidak').classList.toggle('active', !ya);
+  const jenis = $('#lap-jenis').value;
+  $('#lap-absen-ket').textContent = ya ? 'Lengkap, termasuk foto & tanda tangan absen peserta (ukuran PDF besar).'
+    : jenis === 'harian' ? 'Tanpa lampiran foto & tanda tangan absen; daftar hadir (tabel) tetap ada. PDF jauh lebih kecil.'
+      : 'Tanpa bagian laporan absensi peserta (foto & tanda tangan). PDF jauh lebih kecil. Absensi bisa dibuat terpisah lewat jenis "Laporan absensi peserta saja".';
+}
+
 function lapJenis(v) {
+  $('#lap-absen-wrap').classList.toggle('hidden', v === 'absensi');
+  lapAbsen(!C.lapTanpaAbsen);
   $('#lap-hari-wrap').classList.toggle('hidden', v !== 'harian');
   $('#lap-rentang').classList.toggle('hidden', v !== 'absensi');
   $('#lap-ket').textContent = KET_LAPORAN[v];
@@ -1550,6 +1571,7 @@ function buatLaporan(btn, pratinjau) {
       const res = await call('laporanBuat', {
         id_batch: C.batch.id_batch, jenis: jenis, id_hari: C.idHari,
         dari: $('#lap-dari').value, sampai: $('#lap-sampai').value, pratinjau: !!pratinjau,
+        tanpa_absen: jenis !== 'absensi' && !!C.lapTanpaAbsen,
       });
       status.classList.add('hidden');
       if (res.kode_pratinjau) return pratinjauLaporan(res);
@@ -1949,7 +1971,44 @@ function renderSertifikat(v) {
           <p class="small muted">Ditahan: peserta tidak bisa mengunduh, nomor tetap. Dibatalkan: nomor dihapus dan dibuat ulang saat diterbitkan lagi
             (pakai ini bila kode/tanggal diubah setelah terbit).</p>
         </div>` : ''}
-    </div>` : '<div class="card muted small">Belum ada jenis sertifikat yang dicentang untuk batch ini.</div>'}`);
+    </div>` : '<div class="card muted small">Belum ada jenis sertifikat yang dicentang untuk batch ini.</div>'}
+    ${admin && s.bst.aktif ? `
+    <div class="card">
+      <h2>🖨 Sertifikat BST — cetak di blanko (hardcopy)</h2>
+      <p class="small muted">PDF <b>tanpa desain latar</b> — hanya tulisan yang berbeda tiap peserta (nomor, nama, tempat & tanggal), di posisi yang sama
+        persis dengan PDF lengkap, untuk dicetak di kertas blanko BST. Saat mencetak pilih ukuran <b>sebenarnya / 100%</b> dan kertas <b>A4 mendatar</b>.</p>
+      <ol class="small muted">
+        <li>Klik <b>Cetak uji</b>, cetak di kertas polos, tumpuk dengan blanko lalu terawang ke cahaya.</li>
+        <li>Bila tulisan kurang pas, isi geser (mm), simpan, cetak uji lagi sampai pas.</li>
+        <li>Pilih lembar (mis. hanya <b>First Aid</b> agar satu tumpuk blanko First Aid dicetak sekaligus), centang peserta di tabel atas,
+          lalu <b>Cetak yang dipilih</b> (atau cetak semua yang terbit).</li>
+      </ol>
+      <div class="grid2">
+        <div><label>Geser ke kanan (mm, minus = ke kiri)</label><input id="bst-dx" type="number" step="0.5" min="-20" max="20" value="${esc(d.bst_cetak.dx)}"></div>
+        <div><label>Geser ke bawah (mm, minus = ke atas)</label><input id="bst-dy" type="number" step="0.5" min="-20" max="20" value="${esc(d.bst_cetak.dy)}"></div>
+        <div><label>Lembar yang dicetak</label><select id="bst-lembar"><option value="">Semua lembar (3 per peserta)</option>
+          ${Object.keys(d.lembar_bst).map(k => `<option value="${esc(k)}">${esc(k)} — ${esc(d.lembar_bst[k])}</option>`).join('')}</select></div>
+      </div>
+      <div class="row mt" style="flex-wrap:wrap">
+        <button class="btn" onclick="bstCetak(this, 'atur')">💾 Simpan geser</button>
+        <button class="btn" onclick="bstCetak(this, 'uji')">🧪 Cetak uji</button>
+        <button class="btn primary" onclick="bstCetak(this, 'pilih')">🖨 Cetak yang dipilih</button>
+        <button class="btn" onclick="bstCetak(this, 'semua')">🖨 Cetak semua yang terbit</button>
+      </div>
+    </div>` : ''}`);
+}
+
+/** Admin: sertifikat BST versi cetak di blanko (tanpa latar), cetak uji, dan pengaturan geser — seperti SKL. */
+function bstCetak(btn, aksi) {
+  const atur = { dx: $('#bst-dx').value || 0, dy: $('#bst-dy').value || 0 };
+  const ids = aksi === 'pilih' ? $$('.st-cb:checked').map(c => c.value) : [];
+  if (aksi === 'pilih' && !ids.length) return toast('Centang peserta di tabel atas terlebih dahulu.', 'error');
+  busy(btn, async () => {
+    C.sert.bst_cetak = await call('sertifikatCetakAtur', atur);
+    if (aksi === 'atur') return toast('Pengaturan cetak BST disimpan.', 'ok');
+    const r = await call('sertifikatCetak', { id_batch: C.batch.id_batch, id_users: ids, uji: aksi === 'uji', lembar: $('#bst-lembar').value });
+    simpanFile(r.nama, r.data, 'application/pdf');
+  }, 'Menyiapkan…');
 }
 
 function sertForm() {
